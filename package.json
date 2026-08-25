@@ -1,0 +1,42 @@
+{
+  "name": "opspilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpsPilot AI Business Operations Platform",
+  "type": "module",
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @opspilot/web",
+    "dev:api": "npm run dev --workspace @opspilot/api",
+    "build": "npm run build --workspace @opspilot/web",
+    "lint": "eslint apps",
+    "format": "prettier --write \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:format",
+    "format:check": "prettier --check \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:validate",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @opspilot/api",
+    "db:format": "npm run db:format --workspace @opspilot/api",
+    "db:validate": "npm run db:validate --workspace @opspilot/api",
+    "db:status": "npm run db:status --workspace @opspilot/api",
+    "db:migrate": "npm run db:migrate --workspace @opspilot/api",
+    "db:deploy": "npm run db:deploy --workspace @opspilot/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.9.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.4",
+    "globals": "17.11.0",
+    "prettier": "3.9.6"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.9.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.9.1": true
+  }
+}

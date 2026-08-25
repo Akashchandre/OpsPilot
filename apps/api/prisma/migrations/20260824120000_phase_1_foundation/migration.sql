@@ -1,0 +1,2 @@
+-- Phase 1 foundation baseline.
+-- Business tables are intentionally deferred to their approved phases.
