@@ -30,7 +30,53 @@ MySQL
 
 Phase 1 implements only a health-check path and enough client-to-server communication to prove the foundation. Business modules, authentication, payments, messaging, queues, Redis, object storage, and AI are outside Phase 1.
 
-The development topology, package/workspace layout, ports, build tool, supported Node.js version, package manager, UI system, test tooling, and whether the database health check is separate from process health are a **Decision Required** before implementation.
+The Phase 1 topology, npm workspaces, ports, Vite, Node.js 24.19.x, package manager, plain-CSS foundation, test tooling, and database-dependent readiness semantics are accepted in ADR 0001 and the Phase 1 specification. The eventual product UI system remains unresolved.
+
+## Phase 2 identity architecture
+
+Phase 2 adds a single-business identity boundary without changing the public service topology:
+
+```text
+React Router + AuthProvider
+  |  credentials: include; CSRF header for unsafe authenticated actions
+  v
+Express /api/v1
+  |-- exact-origin, cookie parsing, validation, rate limiting
+  |-- authentication: opaque token digest -> auth_sessions
+  |-- authorization: user status -> roles -> permissions
+  |-- service rules: owner/admin boundaries and last-owner protection
+  v
+Prisma transactions
+  |
+  v
+MySQL users / RBAC / sessions / security events
+```
+
+The raw session token exists only in an `HttpOnly` browser cookie; MySQL stores its SHA-256 digest. A second session-bound token is exposed as a readable SameSite cookie and must match `X-CSRF-Token`. Permissions and account status are read from MySQL for each protected request, giving immediate revocation and authorization changes. See ADR 0003 and the Phase 2 threat model.
+
+Phase 2 was accepted on 2026-08-25 and remains the authorization boundary for all later business modules.
+
+## Phase 3 business-core architecture status
+
+Phase 3 has entered requirements/design review. The proposed catalog and inventory modules will reuse the existing topology and layering:
+
+```text
+Public catalog / protected management pages
+  |
+  v
+Express /api/v1
+  |-- public active-catalog reads
+  |-- Phase 2 authentication + permission + CSRF controls for writes
+  v
+Catalog and inventory controllers -> services -> Prisma
+  |-- lifecycle and money rules
+  |-- optimistic version checks
+  |-- atomic inventory balance + adjustment ledger
+  v
+MySQL catalog and inventory tables
+```
+
+This is a proposed boundary, not authorization for a migration. Product/category shape, currency, lifecycle, inventory concurrency, permissions, and employee scope must be approved through `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md` first. No new service, package, or infrastructure component is proposed.
 
 ## Main application layering
 
@@ -131,13 +177,12 @@ This is a target direction, not an instruction to deploy every component. Each s
 
 ## Key architectural decisions still required
 
-- Single-business versus multi-tenant product model and tenant isolation.
-- Monorepo/package layout and toolchain.
+- Multi-tenant expansion and tenant isolation beyond the accepted single-business baseline.
 - UI system: Material UI or Tailwind CSS.
-- Authentication/session design and identity recovery/verification workflows.
+- Identity recovery, verification, MFA, and future employee onboarding workflows.
+- Phase 3 product/category model, currency, lifecycle, catalog visibility, inventory ledger/concurrency, and employee scope.
 - Payment provider and payment/webhook state model.
 - Inventory reservation and overselling policy.
 - Notification channels and delivery guarantees.
 - File storage, vector database, LLM/embedding providers, and AI data governance.
 - Hosting, network boundaries, environments, observability, backup, and recovery targets.
-

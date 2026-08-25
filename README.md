@@ -2,7 +2,7 @@
 
 OpsPilot is a planned full-stack business operations SaaS platform for customers and business operators. It will combine commerce and operational workflows with customer and owner AI assistants introduced in later phases.
 
-The repository has implemented **Phase 1 — Foundation** and is ready for review. The JavaScript web/API workspaces, quality tooling, local MySQL/Prisma foundation, and live health path are verified. Phase 2 must not begin until Phase 1 is explicitly accepted.
+The repository has completed and accepted **Phase 2 — Authentication and RBAC**. **Phase 3 — Business Core** is now in requirements/design review. Catalog and inventory implementation will begin after the proposed business rules are approved.
 
 ## Source of truth
 
@@ -16,6 +16,7 @@ Start with:
 - [AI architecture](docs/05-AI-ARCHITECTURE.md)
 - [Work progress](docs/WORK-PROGRESS.md)
 - [Phase specifications](docs/phases/)
+- [Phase 3 decision proposal](docs/phase-3/PHASE-03-DECISION-PROPOSAL.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -56,6 +57,8 @@ Copy the safe examples and replace their placeholders locally:
 
 Never commit the resulting `.env` files.
 
+Keep `AUTH_CSRF_COOKIE_NAME` and `VITE_CSRF_COOKIE_NAME` identical. Set `AUTH_COOKIE_SECURE=true` in production; production startup rejects insecure authentication cookies.
+
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
 
 ## Development commands
@@ -68,13 +71,14 @@ npm run db:generate
 npm run db:validate
 npm run db:deploy
 npm run db:status
+npm run auth:bootstrap-owner -- --display-name "Business Owner" --email owner@example.com
 npm run dev:api
 npm run dev:web
 ```
 
 Use separate terminals for the API and web development processes. The web app uses `http://127.0.0.1:5173`; the API uses `http://127.0.0.1:4000`; the versioned health endpoint is `GET /api/v1/health`.
 
-`npm run db:deploy` applies committed migrations to a fresh database. After a future phase explicitly approves schema changes, create a development migration with `npm run db:migrate -- --name meaningful_name`; do not add future business models during Phase 1.
+`npm run db:deploy` applies committed migrations to a fresh database. Create a development migration with `npm run db:migrate -- --name meaningful_name` only after the owning phase's schema and business rules are approved.
 
 Quality gates:
 
@@ -86,10 +90,12 @@ npm run test:coverage
 npm run build
 ```
 
+The owner bootstrap prompts for the password and confirmation without accepting the password in command-line arguments or environment variables. Run it only after migrations and only once.
+
 ## Current phase
 
-Phase 1 — Foundation is **ready for review**. See [PHASE-01-FOUNDATION.md](docs/phases/PHASE-01-FOUNDATION.md) and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
+Phase 2 — Authentication and RBAC is **accepted**. Phase 3 — Business Core is **in progress: requirements/design review**. See [PHASE-03-BUSINESS-CORE.md](docs/phases/PHASE-03-BUSINESS-CORE.md), the [Phase 3 decision proposal](docs/phase-3/PHASE-03-DECISION-PROPOSAL.md), and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
-Do not implement authentication, commerce features, payments, real-time infrastructure, background jobs, or AI during Phase 1. Future capabilities are documented to support planning; documentation does not authorize early implementation.
+Phase 3 may implement only the approved catalog, category, inventory, and user-administration scope. Orders, payments, real-time infrastructure, background jobs, and AI remain unauthorized. A proposed Phase 3 design is not authorization to create schema or APIs until its decisions are approved.

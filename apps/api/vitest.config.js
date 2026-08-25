@@ -7,7 +7,13 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/**/*.js"],
-      exclude: ["src/server.js", "src/generated/**"],
+      exclude: ["src/server.js", "src/scripts/**", "src/generated/**"],
+      thresholds: {
+        statements: 80,
+        branches: 65,
+        functions: 80,
+        lines: 80,
+      },
     },
   },
 });

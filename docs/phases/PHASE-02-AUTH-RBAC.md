@@ -1,5 +1,9 @@
 # Phase 2 — Authentication and RBAC
 
+## Status
+
+**ACCEPTED on 2026-08-25.** Phase 1 was accepted, Phase 2 implementation was explicitly authorized, all acceptance gates passed, and the user authorized the project to proceed to Phase 3.
+
 ## Objective
 
 Add secure identity, authentication, and deny-by-default role-based authorization on the accepted Phase 1 foundation.
@@ -12,9 +16,27 @@ Add secure identity, authentication, and deny-by-default role-based authorizatio
 - Owner/admin bootstrap and role-management rules.
 - Safe password handling, validation, rate controls, and audit-relevant events.
 
-## Decisions required
+## Accepted implementation decisions
 
-Session cookie versus access/refresh tokens; CSRF strategy; email verification; password reset; MFA; registration policy; password policy; owner bootstrap; default roles/permissions; employee invitation; account lockout; session revocation; identity retention/deletion.
+- Single-business baseline with `OWNER`, `ADMIN`, and `CUSTOMER` system roles.
+- Public customer registration and interactive one-time owner bootstrap.
+- Database-backed opaque sessions in protected cookies; session-bound CSRF tokens and exact-origin checks.
+- Argon2id passwords, per-process sensitive-route rate limits, immediate database-backed permission evaluation, account lock windows, and revocable sessions.
+- System role/permission definitions are migration-controlled; Phase 2 manages assignments rather than arbitrary role definitions.
+- Email verification, password reset, MFA, employee invitation, and account deletion are deferred.
+- Narrow Phase 2 security events are separate from the Phase 5 general audit model.
+
+See ADR 0003, the Phase 2 threat model, and the Phase 2 permission matrix.
+
+## Implemented result
+
+- Prisma identity, RBAC, opaque-session, and security-event schema plus migration-controlled system authorization data.
+- Interactive one-time owner bootstrap.
+- Registration, login, current-user, and logout endpoints.
+- Trusted-origin, CSRF, rate-limit, password lock, validation, authentication, and permission middleware.
+- Protected user status and role-assignment APIs with last-owner and administrator/owner safeguards.
+- React Router registration/login/dashboard/user-administration experiences and protected/permission-aware navigation.
+- Real-MySQL API integration tests, frontend behavior tests, enforced coverage thresholds, and updated security/API/run documentation.
 
 ## Tasks
 
@@ -52,6 +74,8 @@ Use reviewed password hashing; protect cookies/tokens; rotate/revoke credentials
 
 All agreed identity/RBAC flows and negative authorization tests pass; threat-model findings are resolved or accepted; schema/API/UI/docs agree; Phase 1 remains stable; no Phase 3 functionality is implemented; and the phase receives explicit acceptance.
 
+All completion criteria were satisfied. The recorded verification is in `docs/phase-2/PHASE-02-ACCEPTANCE-REPORT.md`.
+
 ## Documentation updates
 
 Update database design, API contract, architecture, environment/runbook, permission matrix, decision records, this phase document, and `WORK-PROGRESS.md`.
@@ -59,4 +83,3 @@ Update database design, API contract, architecture, environment/runbook, permiss
 ## Explicit exclusions
 
 Catalog, inventory, orders, payments, AI, RAG, real-time, and background-job features remain out of scope.
-

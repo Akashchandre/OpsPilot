@@ -4,7 +4,7 @@
 
 **Name:** OpsPilot — AI Business Operations Platform  
 **Product type:** Full-stack business operations SaaS platform  
-**Current lifecycle state:** Documentation complete; Phase 1 implementation not started
+**Current lifecycle state:** Phase 2 authentication and RBAC accepted; Phase 3 business-core requirements/design in progress
 
 ## Purpose
 
@@ -44,7 +44,7 @@ Owners and administrators can eventually:
 - Use an owner AI assistant for business questions and generated insights.
 - Receive real-time notifications.
 
-The exact distinction between the owner and administrator roles is a **Decision Required**.
+For the accepted single-business identity baseline, owners alone can manage owner status while administrators can manage non-owner identity access. Phase 3 is reviewing separate product, category, and inventory permissions before adding business-operation access.
 
 ### Future employees and managers
 
@@ -111,7 +111,7 @@ The main frontend and backend must remain JavaScript. TypeScript migration is ou
 9. LangGraph Business AI and AI Support.
 10. Testing, Docker, CI/CD, and Production.
 
-Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security considerations, completion criteria, and documentation updates. A phase must be reviewed before implementation and accepted before the next phase begins.
+Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security considerations, completion criteria, and documentation updates. Phase 2 satisfied this gate and was accepted on 2026-08-25. Phase 3 has begun with review of its unresolved business rules before schema implementation.
 
 ## Overall system flow
 
@@ -133,9 +133,8 @@ Each phase must define requirements, goals, tasks, acceptance criteria, tests, e
 4. LangChain or LangGraph coordinates only approved retrieval or business tools.
 5. Results are filtered, audited as appropriate, and returned through Node.js.
 
-Multi-tenancy, tenant isolation strategy, and whether the initial release supports one or multiple businesses are a **Decision Required**.
+The initial release is single-business per ADR 0003. Multi-tenancy and tenant isolation require a later explicit architectural decision and schema migration.
 
 ## Success boundaries
 
 This document defines product direction, not detailed behavior. Where a requirement has not been discussed, documents use **Decision Required** rather than inventing a rule.
-

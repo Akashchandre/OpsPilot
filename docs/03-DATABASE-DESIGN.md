@@ -2,16 +2,38 @@
 
 ## Status and design principles
 
-This is a conceptual relational model for planning. It is not a finalized Prisma schema. Exact fields, enums, nullability, identifiers, tenancy, deletion rules, and retention must be decided in the relevant phase.
+This document combines the accepted Phase 2 identity schema with conceptual planning for later phases. Phase 3 is in requirements/design review; its proposal does not authorize schema changes until approved. Later entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
-- Prefer generated opaque identifiers; exact ID type is a **Decision Required**.
+- Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
 - Store timestamps in UTC.
 - Store monetary values as fixed-precision decimals with an explicit currency code.
 - Enforce foreign keys, uniqueness, and invariants in the database where possible.
 - Add indexes from known access patterns and validate them using real query plans later.
 - Do not store raw card data or provider secrets.
-- If OpsPilot is multi-tenant, business/tenant ownership and compound constraints must be designed before Phase 2. **Decision Required.**
+- Phase 2 is explicitly single-business. Multi-tenant expansion requires tenant ownership and compound constraints before any multi-business deployment.
+
+## Implemented Phase 2 identity tables
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `users` | Login identity and account state | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
+| `roles` | Migration-controlled system roles | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER` |
+| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2 permissions |
+| `user_roles` | User-role assignment and assigning actor | Composite primary key, foreign keys, deliberate actor `SET NULL` |
+| `role_permissions` | System role-permission mapping | Composite primary key and constrained foreign keys |
+| `auth_sessions` | Revocable opaque browser sessions | Unique token digest, CSRF digest, expiry/revocation, user-agent digest |
+| `security_events` | Narrow Phase 2 authentication/authorization evidence | Event/outcome enums, optional actor/target/request ID, controlled JSON metadata |
+
+The `20260825030732_phase_2_auth_rbac` migration creates these tables and seeds reviewed system authorization data. Phase 2 exposes no hard-delete endpoint.
+
+Phase 2 and its two-migration development/test database state were accepted on 2026-08-25.
+
+## Proposed Phase 3 data boundary
+
+The Phase 3 decision proposal recommends `products`, `categories`, a product/category join table, `inventory_balances`, and immutable `inventory_adjustments`. It also recommends fixed-precision money, archive/inactive lifecycle states, optimistic versions, one aggregate stock location, and no product images or variants in the first increment.
+
+These tables and constraints are **not implemented or accepted yet**. See `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md` for the choices that must be reviewed before a migration is generated.
 
 ## Expected entities
 
@@ -22,6 +44,8 @@ This is a conceptual relational model for planning. It is not a finalized Prisma
 | `permissions` | Granular allowed operations | Many roles | 2 |
 | `user_roles` | User-to-role assignment | User + role | 2 |
 | `role_permissions` | Role-to-permission assignment | Role + permission | 2 |
+| `auth_sessions` | Revocable opaque browser session state | User; token/CSRF digests | 2 |
+| `security_events` | Narrow authentication/authorization evidence | Optional actor and target user | 2 |
 | `categories` | Product classification | Parent category if hierarchy is chosen; products | 3 |
 | `products` | Sellable catalog items | Category/categories, inventory, order/cart items | 3 |
 | `inventory` | Stock state for a product or stock unit | Product; reservations if designed | 3 |
@@ -37,7 +61,7 @@ This is a conceptual relational model for planning. It is not a finalized Prisma
 | `chat_messages` | Individual conversation messages | Session | 7 |
 | `audit_logs` | Security/business action evidence | Actor, action, target, correlation context | 5 |
 
-Employee records, addresses, product images/variants, ticket comments, document chunks, inventory reservations/movements, refresh sessions, password reset/verification tokens, notification deliveries, and AI tool executions may need separate entities. Their need and shape are a **Decision Required** in their owning phases.
+Employee records, addresses, product images/variants, ticket comments, document chunks, inventory reservations/movements, password reset/verification tokens, notification deliveries, and AI tool executions may need separate entities. Their need and shape are a **Decision Required** in their owning phases.
 
 ## Conceptual relationships
 
@@ -112,4 +136,3 @@ Payment providers and external queues cannot join database transactions. Those w
 ## Retention and deletion
 
 Deletion behavior is deliberately unresolved. Orders, payments, audit events, documents, tickets, chats, personal information, and AI traces may have different legal and operational retention requirements. **Decision Required:** jurisdiction, privacy obligations, account deletion/anonymization, backups, soft deletion, legal holds, and retention schedules.
-

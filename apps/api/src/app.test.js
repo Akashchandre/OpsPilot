@@ -2,7 +2,17 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 
-const config = { corsOrigin: "http://127.0.0.1:5173" };
+const config = {
+  corsOrigin: "http://127.0.0.1:5173",
+  auth: {
+    sessionCookieName: "opspilot_test_session",
+    csrfCookieName: "opspilot_test_csrf",
+    sessionTtlHours: 1,
+    cookieSecure: false,
+    loginRateLimitWindowMinutes: 15,
+    loginRateLimitMax: 100,
+  },
+};
 
 describe("OpsPilot API foundation", () => {
   it("returns a healthy response when the database is reachable", async () => {
@@ -57,5 +67,15 @@ describe("OpsPilot API foundation", () => {
 
     expect(allowed.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
     expect(other.headers["access-control-allow-origin"]).not.toBe("http://example.com");
+  });
+
+  it("rejects unsafe requests without the configured origin", async () => {
+    const database = { $queryRawUnsafe: vi.fn() };
+    const response = await request(createApp({ config, database }))
+      .post("/api/v1/auth/login")
+      .send({ email: "customer@example.com", password: "a-secure-password" });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("ORIGIN_NOT_ALLOWED");
   });
 });

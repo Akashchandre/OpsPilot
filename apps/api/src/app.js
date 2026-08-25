@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFound } from "./middleware/notFound.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { requireTrustedOrigin } from "./middleware/trustedOrigin.js";
 import { createApiRouter } from "./routes/index.js";
 
 export function createApp({ config, database }) {
@@ -14,14 +16,17 @@ export function createApp({ config, database }) {
   app.use(
     cors({
       origin: config.corsOrigin,
-      methods: ["GET"],
-      allowedHeaders: ["Accept", "Content-Type"],
+      credentials: true,
+      methods: ["GET", "POST", "PATCH", "DELETE"],
+      allowedHeaders: ["Accept", "Content-Type", "X-CSRF-Token"],
     }),
   );
   app.use(express.json({ limit: "100kb" }));
+  app.use(cookieParser());
   app.use(requestContext);
+  app.use(requireTrustedOrigin(config.corsOrigin));
 
-  app.use("/api/v1", createApiRouter(database));
+  app.use("/api/v1", createApiRouter(database, config));
 
   app.use(notFound);
   app.use(errorHandler);

@@ -1,5 +1,9 @@
 # Phase 3 — Business Core
 
+## Status
+
+**IN PROGRESS — REQUIREMENTS/DESIGN REVIEW.** Phase 2 passed its acceptance gate and was accepted on 2026-08-25. The user authorized Phase 3 to begin. No Phase 3 schema or product code has been created because the business rules below require review first.
+
 ## Objective
 
 Implement the authorized catalog and core operational data needed before commerce: products, categories, inventory, and approved customer/employee administration.
@@ -16,9 +20,15 @@ Implement the authorized catalog and core operational data needed before commerc
 
 Product/category model; category hierarchy/multiplicity; SKU/variant/product image support; pricing/currency; tax/discount scope; search method; inventory ledger versus counters; warehouses/reservations/low-stock rules; archival/deletion; employee data/onboarding and permission boundaries.
 
+The recommended answers, alternatives, consequences, proposed API/UI boundary, and approval checklist are documented in `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`. The proposed permission matrix and draft threat model are in `docs/permissions/PHASE-03-PERMISSION-MATRIX-PROPOSAL.md` and `docs/security/PHASE-03-THREAT-MODEL-DRAFT.md`.
+
+The proposal deliberately remains unaccepted until the user confirms or changes it, including the initial business currency. No new dependency or external service is proposed for the baseline.
+
 ## Tasks
 
 Finalize requirements and schema; approve any current-phase dependencies/storage; implement migrations and constraints; build services/repositories/controllers/routes and validation; implement customer catalog UI and protected admin management UI; implement safe inventory adjustments and audit trail; add tests, seed/fixture strategy, documentation, and progress updates.
+
+Current task: approve the Phase 3 decision proposal. The next implementation task after approval is ADR 0004 plus the permission/catalog/inventory schema and migration.
 
 ## Acceptance criteria
 
@@ -53,3 +63,4 @@ Update database/API/architecture documents, product and inventory rules, permiss
 
 Cart, checkout, orders, payment providers, real-time infrastructure, background jobs, and AI remain out of scope.
 
+The current recommended baseline also defers variants, image/file handling, category hierarchies, multiple warehouses, reservations, fractional quantities, taxes/discounts, currency conversion, and new employee onboarding/profile models. These proposal-specific deferrals require approval.

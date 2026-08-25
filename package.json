@@ -13,6 +13,7 @@
   "scripts": {
     "dev:web": "npm run dev --workspace @opspilot/web",
     "dev:api": "npm run dev --workspace @opspilot/api",
+    "auth:bootstrap-owner": "npm run auth:bootstrap-owner --workspace @opspilot/api --",
     "build": "npm run build --workspace @opspilot/web",
     "lint": "eslint apps",
     "format": "prettier --write \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:format",
@@ -36,6 +37,7 @@
   },
   "allowScripts": {
     "@prisma/engines@7.9.1": true,
+    "argon2@0.45.1": true,
     "esbuild@0.28.2": true,
     "prisma@7.9.1": true
   }

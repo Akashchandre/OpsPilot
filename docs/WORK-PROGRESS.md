@@ -1,63 +1,78 @@
 # Work Progress
 
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-25
 
 ## Current Phase
 
-Phase 1 — Foundation
+Phase 3 — Business Core
 
 ## Status
 
-READY FOR REVIEW
+IN PROGRESS — REQUIREMENTS/DESIGN REVIEW
 
 ## Completed
 
-- Phase 1 npm workspace and JavaScript frontend/backend scaffold.
-- React/Vite health status UI with loading, healthy, and unavailable states.
-- Versioned Express health API with layered routing/controller/service boundaries.
-- Validated environment configuration, safe examples, CORS, security headers, request IDs, not-found handling, and centralized errors.
-- Prisma 7 configuration, empty Phase 1 schema, client generation, and schema validation.
-- Unit/integration tests, linting, formatting, coverage, and production frontend build.
-- MySQL Community Server 8.4.11 installation and Windows service startup.
-- Local development, test, and shadow database provisioning with a non-root project user.
-- Zero-table Phase 1 Prisma baseline migration and verified migration status.
-- Live frontend HTTP, configured CORS, API readiness, and API-to-MySQL smoke checks.
+- Phase 1 foundation implementation, review, and explicit acceptance.
+- React/Vite and Express/Prisma/MySQL workspace foundation with validated configuration, versioned health API, centralized errors, tests, coverage, build, migrations, and live readiness checks.
+- Phase 2 authentication/RBAC requirements, dependency review, ADR, permission matrix, and threat model.
+- Phase 2 users, roles, permissions, assignments, opaque sessions, and security-event schema plus seeded migration.
+- Argon2id registration/login, account lock windows, session lifecycle, logout, trusted-origin checks, CSRF, and per-process authentication rate limits.
+- Deny-by-default authentication/permission middleware plus owner/admin and last-active-owner safeguards.
+- Authorized user listing/retrieval, status management, role assignment/removal, and role/permission discovery APIs.
+- Interactive one-time owner bootstrap without password arguments or password environment variables.
+- React Router registration, login, session restoration, dashboard, access-denied, and user-administration UI.
+- Phase 2 API/UI guide, acceptance report, security documentation, and synchronized architecture/schema/contracts.
+- Phase 2 gate rerun: lint, formatting, Prisma validation, development/test migration status, 20 API tests, 8 web tests, enforced coverage, and production build passed.
+- Phase 2 explicitly accepted and Phase 3 authorized on 2026-08-25.
+- Phase 3 specification reviewed; initial decision proposal, permission proposal, and threat-model draft created without adding dependencies or schema.
 
 ## In Progress
 
-- Phase 1 review and explicit acceptance.
+- Review and approval of the Phase 3 product, category, money, inventory, lifecycle, permission, API/UI, and employee-scope decisions.
+
+No Phase 3 product code or migration has been created. This is deliberate: the governing specification marks these choices as **Decision Required**.
 
 ## Next Task
 
-Review Phase 1 deliverables and known issues. Do not begin Phase 2 until the user explicitly accepts Phase 1.
+Approve or amend `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`, including the initial three-letter business currency. After approval:
 
-## Important Decisions
+1. Record the accepted decisions in ADR 0004.
+2. Add migration-controlled Phase 3 permissions.
+3. Implement and migrate the approved catalog/inventory schema.
+4. Build catalog/category/inventory services and APIs with concurrency tests.
+5. Build the public catalog and protected management UI.
 
-- JavaScript for the main React frontend and Node.js/Express backend.
-- MySQL instead of MongoDB.
-- Prisma for relational schema/migrations/data access.
-- Python is reserved for the separate AI service.
-- AI is introduced in later phases, not during foundation work.
-- Development proceeds phase by phase.
-- New Codex chat after major phase completion.
-- Dependencies and services are reviewed before installation; they are not installed prematurely or automatically.
+## Accepted Decisions
 
-## Decisions Required Before Phase 1
+- JavaScript for the React frontend and Node.js/Express backend; Python remains reserved for the later AI service.
+- npm workspaces, ECMAScript modules, Node.js 24.19.x, React/Vite, Express, Prisma/MySQL, Vitest, ESLint, and Prettier.
+- Single-business initial release.
+- Public customer registration and interactive owner bootstrap.
+- Database-backed opaque cookie sessions with CSRF and exact-origin protection.
+- Argon2id and database-backed deny-by-default RBAC.
+- Migration-controlled `OWNER`, `ADMIN`, and `CUSTOMER` roles and Phase 2 permissions.
+- Verification, recovery, MFA, employee invitations, and account deletion remain deferred until reviewed.
+- Dependencies and services are reviewed before installation and are not added speculatively.
 
-- Repository/package layout and package manager.
-- Supported Node.js version and JavaScript module system.
-- React build tool and frontend/backend development ports.
-- Material UI versus Tailwind CSS.
-- Validation, linting, formatting, and testing tools.
-- Local MySQL setup and database naming/credential workflow.
-- API response/error envelope and health-check semantics.
-- Development CORS configuration.
+## Phase 3 Decisions Requiring Approval
+
+- Public versus authenticated active-catalog reads.
+- Product fields, normalized SKU, flat many-to-many categories, and no initial variants/images.
+- Single-business currency code; fixed-precision price and string money responses.
+- Search/filter/sort/pagination allowlists.
+- Product/category lifecycle and archive-only deletion.
+- One aggregate inventory balance plus immutable adjustments, optimistic concurrency, and nonnegative whole-number stock.
+- Public availability versus protected exact stock.
+- `products:manage`, `categories:manage`, `inventory:read`, and `inventory:adjust` mappings.
+- Deferral of employee profiles/invitations/new staff roles.
+- Proposed Phase 3 API and UI routes.
 
 ## Known Issues
 
-- The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Tests use an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- `npm audit` reports a high-severity recursive-object stack-exhaustion advisory in `deepmerge-ts` through the local Prisma CLI configuration package. npm offers only a breaking Prisma downgrade; no forced fix was applied. Runtime application requests do not process Prisma configuration.
+- The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
+- `npm audit` reports three high-severity findings associated with the existing recursive-object stack-exhaustion advisory in `deepmerge-ts` through the local Prisma CLI configuration path. npm offers only a breaking Prisma downgrade; no forced fix was applied. Runtime application requests do not process Prisma configuration.
+- The Phase 2 authentication rate limiter is per process and needs a shared store before horizontal scaling.
 
 ## Phase Gate
 
-Do not begin Phase 1 implementation until the user reviews its requirements and explicitly asks for implementation. Do not begin Phase 2 or any later phase without explicit instruction and acceptance of earlier phase work.
+Phase 2 is accepted. Phase 3 planning is active. Do not create Phase 3 schema, business APIs, or UI until the Phase 3 decision proposal is approved. Do not begin orders, payments, production-backend, real-time, job, or AI phases.

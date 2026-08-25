@@ -6,3 +6,132 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum SecurityEventType {
+  USER_REGISTERED
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  LOGOUT_SUCCEEDED
+  OWNER_BOOTSTRAPPED
+  USER_STATUS_CHANGED
+  ROLE_ASSIGNED
+  ROLE_REMOVED
+}
+
+enum SecurityEventOutcome {
+  SUCCESS
+  FAILURE
+}
+
+model User {
+  id                   String          @id @default(uuid()) @db.Char(36)
+  email                String          @unique @db.VarChar(254)
+  passwordHash         String          @map("password_hash") @db.VarChar(255)
+  displayName          String          @map("display_name") @db.VarChar(100)
+  status               UserStatus      @default(ACTIVE)
+  failedLoginAttempts  Int             @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime?       @map("locked_until") @db.DateTime(3)
+  passwordChangedAt    DateTime        @default(now()) @map("password_changed_at") @db.DateTime(3)
+  createdAt            DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  roles                UserRole[]      @relation("UserRoleUser")
+  roleAssignments      UserRole[]      @relation("UserRoleAssigner")
+  sessions             AuthSession[]
+  actorSecurityEvents  SecurityEvent[] @relation("SecurityEventActor")
+  targetSecurityEvents SecurityEvent[] @relation("SecurityEventTarget")
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id              String           @id @default(uuid()) @db.Char(36)
+  code            String           @unique @db.VarChar(50)
+  name            String           @db.VarChar(100)
+  description     String           @db.VarChar(255)
+  isSystem        Boolean          @default(true) @map("is_system")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid()) @db.Char(36)
+  code            String           @unique @db.VarChar(100)
+  description     String           @db.VarChar(255)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId       String   @map("user_id") @db.Char(36)
+  roleId       String   @map("role_id") @db.Char(36)
+  assignedById String?  @map("assigned_by_id") @db.Char(36)
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.DateTime(3)
+  user         User     @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedBy   User?    @relation("UserRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@index([assignedById])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Char(36)
+  permissionId String     @map("permission_id") @db.Char(36)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model AuthSession {
+  id            String    @id @default(uuid()) @db.Char(36)
+  userId        String    @map("user_id") @db.Char(36)
+  tokenHash     String    @unique @map("token_hash") @db.Char(64)
+  csrfTokenHash String    @map("csrf_token_hash") @db.Char(64)
+  expiresAt     DateTime  @map("expires_at") @db.DateTime(3)
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at") @db.DateTime(3)
+  revokedAt     DateTime? @map("revoked_at") @db.DateTime(3)
+  userAgentHash String?   @map("user_agent_hash") @db.Char(64)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model SecurityEvent {
+  id           String               @id @default(uuid()) @db.Char(36)
+  eventType    SecurityEventType    @map("event_type")
+  outcome      SecurityEventOutcome
+  actorUserId  String?              @map("actor_user_id") @db.Char(36)
+  targetUserId String?              @map("target_user_id") @db.Char(36)
+  requestId    String?              @map("request_id") @db.VarChar(64)
+  metadata     Json?
+  createdAt    DateTime             @default(now()) @map("created_at") @db.DateTime(3)
+  actor        User?                @relation("SecurityEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target       User?                @relation("SecurityEventTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([requestId])
+  @@map("security_events")
+}

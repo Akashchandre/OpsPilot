@@ -16,11 +16,11 @@ These rules apply throughout OpsPilot unless a recorded architectural decision e
 - Avoid duplicated business rules; centralize them in services/domain logic rather than controllers or UI components.
 - Use asynchronous code consistently and handle rejected operations explicitly.
 - Do not commit commented-out code, secrets, generated clutter, or unrelated changes.
-- Formatting, linting, module system, and runtime version are a **Decision Required** for Phase 1.
+- Formatting, linting, ECMAScript modules, and Node.js 24.19.x are accepted in ADR 0001.
 
 ## Folder boundaries
 
-The exact Phase 1 scaffold is a **Decision Required**, but it must make these responsibilities clear:
+The accepted Phase 1 scaffold uses npm workspaces under `apps/web` and `apps/api` and keeps these responsibilities clear:
 
 - Frontend pages/routes, reusable UI components, feature logic, API client, state, and tests.
 - Backend routes, controllers, services, repositories/data access where useful, middleware, validation, configuration, errors, and tests.
@@ -63,7 +63,7 @@ The exact Phase 1 scaffold is a **Decision Required**, but it must make these re
 - Avoid sensitive values in URLs, logs, analytics, errors, and AI prompts.
 - Protect uploads by file type, size, malware policy, storage isolation, and authorization when document features begin.
 - Threat-model authentication, payments, uploads, cross-tenant access, AI tools, and administrative workflows before implementation.
-- Authentication session/token strategy and CSRF approach are a **Decision Required** in Phase 2.
+- Phase 2 uses database-backed opaque cookie sessions, exact-origin checks, and session-bound CSRF tokens per ADR 0003.
 
 ## Frontend standards
 
@@ -107,7 +107,7 @@ The exact Phase 1 scaffold is a **Decision Required**, but it must make these re
 - Cover success, validation, not-found, conflict, failure, authentication, authorization, and important edge cases.
 - Keep tests deterministic and independent; do not call real payment or AI providers in routine automated tests.
 - Every phase defines its minimum test gate. Fix or explicitly report failures before handoff.
-- Test framework and coverage thresholds are a **Decision Required** during Phase 1.
+- Vitest is the accepted unit/integration framework. The accepted Phase 2 global minimums of 80% statements, 65% branches, 80% functions, and 80% lines remain the baseline for Phase 3 API and web coverage runs.
 
 ## Git standards
 
@@ -143,4 +143,3 @@ The exact Phase 1 scaffold is a **Decision Required**, but it must make these re
 - Require citations/provenance for document-grounded answers where the product contract requires them.
 - Do not give an LLM direct unrestricted database or production infrastructure access.
 - Define retention, consent, provider data usage, human approval, fallback, evaluation, cost, and audit policies before production AI use. These are **Decision Required**.
-

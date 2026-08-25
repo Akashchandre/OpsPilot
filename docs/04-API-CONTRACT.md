@@ -2,7 +2,7 @@
 
 ## Status
 
-This document plans the public HTTP API. It does not implement endpoints or freeze unspecified request/response fields. Every endpoint is prefixed with `/api/v1` unless explicitly documented as infrastructure-only.
+This document records accepted Phase 1/2 HTTP behavior and plans later public APIs. Phase 3 contracts remain proposed until its business rules are approved. Every endpoint is prefixed with `/api/v1` unless explicitly documented as infrastructure-only.
 
 ## Contract conventions
 
@@ -13,7 +13,7 @@ This document plans the public HTTP API. It does not implement endpoints or free
 - Use consistent pagination, filtering, sorting, field naming, dates, money, and error conventions.
 - Return `201` for created resources, `204` only when no body is intended, and suitable `400`, `401`, `403`, `404`, `409`, `422`, `429`, and `5xx` responses.
 - Do not expose whether protected resources exist to unauthorized callers.
-- Exact envelope, pagination style, field casing, validation error format, and correlation header are a **Decision Required** before Phase 1 implementation.
+- Phase 1 finalized the `{ success, data, meta? }` and `{ success, error, requestId }` envelopes and the `X-Request-Id` correlation header. Resource-specific pagination/filtering decisions remain phase-owned.
 
 Illustrative response shapes (not finalized):
 
@@ -39,31 +39,72 @@ Illustrative response shapes (not finalized):
 |---|---|---|---|
 | GET | `/api/v1/health` | Confirm API process readiness/liveness at the agreed level | Public, minimal data |
 
-Whether to expose separate `/live` and `/ready` endpoints and whether readiness checks MySQL are **Decision Required**.
+The implemented endpoint is a database-dependent readiness check. Separate liveness/readiness endpoints may be added only when deployment topology requires them.
 
-## Phase 2 — Authentication and RBAC
+## Phase 2 — Authentication and RBAC (accepted)
 
-Planned group: `/api/v1/auth`, `/api/v1/users`, and authorization administration endpoints.
+Implemented endpoints:
 
-Candidate operations include registration, login, logout, current-user retrieval, session/token renewal where chosen, and authorized management of users, roles, and permissions. Email verification, password reset, MFA, refresh-token routes, role assignment, owner bootstrap, and public registration policy are **Decision Required**.
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/auth/register` | Public, trusted origin, rate-limited | Create an active customer and opaque session |
+| POST | `/api/v1/auth/login` | Public, trusted origin, rate-limited | Authenticate and create an opaque session |
+| GET | `/api/v1/auth/me` | Authenticated | Return current identity, roles, and permissions |
+| POST | `/api/v1/auth/logout` | Authenticated, CSRF | Revoke current session and clear cookies |
+| GET | `/api/v1/users` | `users:read` | Paginated safe identity summaries |
+| GET | `/api/v1/users/:userId` | `users:read` | Retrieve a safe identity summary |
+| PATCH | `/api/v1/users/:userId/status` | `users:status:manage`, CSRF | Enable or disable subject to owner rules |
+| POST | `/api/v1/users/:userId/roles` | `users:roles:manage`, CSRF | Assign a system role subject to owner rules |
+| DELETE | `/api/v1/users/:userId/roles/:roleCode` | `users:roles:manage`, CSRF | Remove a system role subject to owner rules |
+| GET | `/api/v1/roles` | `roles:read` | List migration-controlled roles and mappings |
+| GET | `/api/v1/permissions` | `permissions:read` | List stable Phase 2 permissions |
+
+Detailed requests, responses, cookies, error codes, and rationale are in `docs/phase-2/PHASE-02-IMPLEMENTATION-GUIDE.md`. Email verification, password reset, MFA, custom roles, refresh-token routes, employee invitation, and account deletion are deferred.
 
 ## Phase 3 — Business Core
 
+**Status:** Requirements/design review. The routes below are proposed and must not be implemented until the Phase 3 decision proposal is approved.
+
+Proposed public reads:
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/products` | Public | Active catalog list with bounded search/filter/sort/pagination |
+| GET | `/api/v1/products/:productId` | Public | Active product detail and public availability |
+| GET | `/api/v1/categories` | Public | Active category list |
+
+Proposed management operations:
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/products` | `products:manage`, CSRF | Create a draft product and initial inventory state |
+| PATCH | `/api/v1/products/:productId` | `products:manage`, CSRF | Update product/category data using a version precondition |
+| PATCH | `/api/v1/products/:productId/status` | `products:manage`, CSRF | Apply an approved lifecycle transition |
+| POST | `/api/v1/categories` | `categories:manage`, CSRF | Create a category |
+| PATCH | `/api/v1/categories/:categoryId` | `categories:manage`, CSRF | Update a category using a version precondition |
+| PATCH | `/api/v1/categories/:categoryId/status` | `categories:manage`, CSRF | Activate/deactivate under category-link rules |
+| GET | `/api/v1/inventory` | `inventory:read` | List exact stock and low-stock state |
+| GET | `/api/v1/inventory/:productId` | `inventory:read` | Retrieve one exact inventory balance |
+| POST | `/api/v1/inventory/:productId/adjustments` | `inventory:adjust`, CSRF | Apply one atomic stock adjustment |
+| GET | `/api/v1/inventory/:productId/adjustments` | `inventory:read` | Retrieve bounded adjustment history |
+
+Detailed proposed fields, behavior, visibility, concurrency, and exclusions are in `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`.
+
 ### `/api/v1/products`
 
-Planned customer read endpoints: list with search/filter/sort/pagination and retrieve details. Planned administrative endpoints: create, update, activate/archive, and manage product data.
+The public read and protected management behavior is proposed above. Draft/archived administrative collection visibility requires an explicitly permission-gated query mode.
 
 ### `/api/v1/categories`
 
-Planned customer read endpoints: list/retrieve. Planned administrative endpoints: create, update, organize, and deactivate/delete according to an agreed policy.
+Flat many-to-many category assignment and inactive lifecycle behavior are proposed; hierarchy and hard deletion are deferred.
 
 ### `/api/v1/inventory`
 
-Planned authorized endpoints: view stock and adjust inventory under explicit business rules. Warehouses, variants, reservations, adjustment reasons, and ledger history are **Decision Required**.
+One aggregate balance, immutable adjustment history, whole-number quantities, optimistic concurrency, and nonnegative stock are proposed. Warehouses, variants, and reservations are deferred.
 
 ### `/api/v1/users`
 
-Planned authorized owner/admin operations for customers and employees. Employee profile shape, invite/onboarding workflow, role limits, and self-service profile endpoints are **Decision Required**.
+Phase 2 customer/user administration is proposed to remain unchanged. Employee profiles, invite/onboarding workflow, new roles, and self-service profile endpoints remain **Decision Required** and are proposed for deferral.
 
 ## Phase 4 — Orders and Payments
 
@@ -129,4 +170,3 @@ Planned AI operations expand to permission-aware business analysis and support w
 - Upload endpoints restrict size/type and use protected storage and malware controls.
 - AI endpoints apply rate/cost limits, content/prompt safeguards, retrieval access filtering, and tool allowlists.
 - List endpoints must not leak records across users or businesses through filters, counts, errors, caches, or real-time channels.
-

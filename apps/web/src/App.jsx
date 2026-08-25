@@ -1,63 +1,53 @@
-import { useEffect, useState } from "react";
-import { getHealth } from "./api/health.js";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthProvider.jsx";
+import { PermissionRoute, ProtectedRoute } from "./auth/ProtectedRoute.jsx";
+import { AppLayout } from "./components/AppLayout.jsx";
+import { DashboardPage } from "./pages/DashboardPage.jsx";
+import { HomePage } from "./pages/HomePage.jsx";
+import { LoginPage } from "./pages/LoginPage.jsx";
+import { NotFoundPage } from "./pages/NotFoundPage.jsx";
+import { RegisterPage } from "./pages/RegisterPage.jsx";
+import { UsersPage } from "./pages/UsersPage.jsx";
 import "./styles.css";
 
-const initialState = { state: "loading", message: "Checking the platform foundation…" };
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="users:read">
+                <UsersPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="404" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
+      </Route>
+    </Routes>
+  );
+}
 
 export default function App() {
-  const [health, setHealth] = useState(initialState);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    getHealth({ signal: controller.signal })
-      .then(() => {
-        setHealth({ state: "healthy", message: "Frontend, API, and database are connected." });
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") {
-          setHealth({
-            state: "unavailable",
-            message: "The platform foundation is currently unavailable.",
-          });
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
-
   return (
-    <main className="shell">
-      <section className="status-card" aria-labelledby="page-title">
-        <p className="eyebrow">AI BUSINESS OPERATIONS PLATFORM</p>
-        <h1 id="page-title">OpsPilot</h1>
-        <p className="summary">
-          Phase 1 establishes a dependable base for everything that follows.
-        </p>
-
-        <div className={`health health--${health.state}`} role="status" aria-live="polite">
-          <span className="health__indicator" aria-hidden="true" />
-          <div>
-            <strong>{health.state === "healthy" ? "Foundation ready" : "Foundation status"}</strong>
-            <p>{health.message}</p>
-          </div>
-        </div>
-
-        <dl className="stack-list">
-          <div>
-            <dt>Web</dt>
-            <dd>React + JavaScript</dd>
-          </div>
-          <div>
-            <dt>API</dt>
-            <dd>Node.js + Express</dd>
-          </div>
-          <div>
-            <dt>Data</dt>
-            <dd>MySQL + Prisma</dd>
-          </div>
-        </dl>
-      </section>
-    </main>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

@@ -17,6 +17,14 @@ describe("loadEnvironment", () => {
       port: 4001,
       corsOrigin: "http://127.0.0.1:5173",
       databaseUrl: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
+      auth: {
+        sessionCookieName: "opspilot_session",
+        csrfCookieName: "opspilot_csrf",
+        sessionTtlHours: 24,
+        cookieSecure: false,
+        loginRateLimitWindowMinutes: 15,
+        loginRateLimitMax: 10,
+      },
     });
   });
 
@@ -38,5 +46,11 @@ describe("loadEnvironment", () => {
     expect(() => loadEnvironment({ ...validEnvironment, API_PORT: "70000" })).toThrow(
       ConfigurationError,
     );
+  });
+
+  it("requires secure authentication cookies in production", () => {
+    expect(() =>
+      loadEnvironment({ ...validEnvironment, NODE_ENV: "production", AUTH_COOKIE_SECURE: "false" }),
+    ).toThrow(ConfigurationError);
   });
 });
