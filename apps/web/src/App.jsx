@@ -2,10 +2,14 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider.jsx";
 import { PermissionRoute, ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { AppLayout } from "./components/AppLayout.jsx";
+import { CatalogAdminPage } from "./pages/CatalogAdminPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
+import { InventoryPage } from "./pages/InventoryPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { NotFoundPage } from "./pages/NotFoundPage.jsx";
+import { ProductDetailPage } from "./pages/ProductDetailPage.jsx";
+import { ProductsPage } from "./pages/ProductsPage.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
 import { UsersPage } from "./pages/UsersPage.jsx";
 import "./styles.css";
@@ -15,6 +19,8 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="products" element={<ProductsPage />} />
+        <Route path="products/:productId" element={<ProductDetailPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route
@@ -22,6 +28,26 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/catalog"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="products:manage">
+                <CatalogAdminPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/inventory"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="inventory:read">
+                <InventoryPage />
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />

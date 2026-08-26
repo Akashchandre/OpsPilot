@@ -2,7 +2,7 @@
 
 OpsPilot is a planned full-stack business operations SaaS platform for customers and business operators. It will combine commerce and operational workflows with customer and owner AI assistants introduced in later phases.
 
-The repository has completed and accepted **Phase 2 — Authentication and RBAC**. **Phase 3 — Business Core** is now in requirements/design review. Catalog and inventory implementation will begin after the proposed business rules are approved.
+The repository has completed and accepted **Phase 3 — Business Core**. The public catalog, protected catalog management, and concurrency-safe inventory workflows are available locally. Phase 4 has not started.
 
 ## Source of truth
 
@@ -16,7 +16,9 @@ Start with:
 - [AI architecture](docs/05-AI-ARCHITECTURE.md)
 - [Work progress](docs/WORK-PROGRESS.md)
 - [Phase specifications](docs/phases/)
-- [Phase 3 decision proposal](docs/phase-3/PHASE-03-DECISION-PROPOSAL.md)
+- [Phase 3 implementation guide](docs/phase-3/PHASE-03-IMPLEMENTATION-GUIDE.md)
+- [Phase 3 review report](docs/phase-3/PHASE-03-REVIEW-REPORT.md)
+- [Phase 3 accepted decisions](docs/decisions/0004-phase-3-business-core.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -59,7 +61,11 @@ Never commit the resulting `.env` files.
 
 Keep `AUTH_CSRF_COOKIE_NAME` and `VITE_CSRF_COOKIE_NAME` identical. Set `AUTH_COOKIE_SECURE=true` in production; production startup rejects insecure authentication cookies.
 
+`BUSINESS_CURRENCY` controls the single Phase 3 catalog currency and defaults to `INR`. It must be an uppercase three-letter ISO currency code and should not be changed after products exist without a deliberate data migration.
+
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
+
+The runtime adapter permits MySQL RSA public-key retrieval only for loopback database hosts so local `caching_sha2_password` accounts work reliably after MySQL restarts. Remote database hosts must use a reviewed TLS or pinned-public-key configuration; the application does not enable remote key retrieval implicitly.
 
 ## Development commands
 
@@ -94,8 +100,8 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 
 ## Current phase
 
-Phase 2 — Authentication and RBAC is **accepted**. Phase 3 — Business Core is **in progress: requirements/design review**. See [PHASE-03-BUSINESS-CORE.md](docs/phases/PHASE-03-BUSINESS-CORE.md), the [Phase 3 decision proposal](docs/phase-3/PHASE-03-DECISION-PROPOSAL.md), and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
+Phase 3 — Business Core is **accepted** as of 2026-08-26. Phase 4 — Orders and Payments has not started and requires a separate requirements/decision review before implementation. See [PHASE-03-BUSINESS-CORE.md](docs/phases/PHASE-03-BUSINESS-CORE.md), the [Phase 3 implementation guide](docs/phase-3/PHASE-03-IMPLEMENTATION-GUIDE.md), and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
-Phase 3 may implement only the approved catalog, category, inventory, and user-administration scope. Orders, payments, real-time infrastructure, background jobs, and AI remain unauthorized. A proposed Phase 3 design is not authorization to create schema or APIs until its decisions are approved.
+Phase 3 is limited to the approved product, category, aggregate inventory, and existing Phase 2 user-administration scope. Orders, payments, carts, variants, images/uploads, multiple warehouses, reservations, real-time infrastructure, background jobs, and AI remain unauthorized.

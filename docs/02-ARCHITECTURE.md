@@ -56,17 +56,17 @@ The raw session token exists only in an `HttpOnly` browser cookie; MySQL stores 
 
 Phase 2 was accepted on 2026-08-25 and remains the authorization boundary for all later business modules.
 
-## Phase 3 business-core architecture status
+## Phase 3 business-core architecture
 
-Phase 3 has entered requirements/design review. The proposed catalog and inventory modules will reuse the existing topology and layering:
+Phase 3 is implemented within the existing topology and layering:
 
 ```text
 Public catalog / protected management pages
   |
   v
 Express /api/v1
-  |-- public active-catalog reads
-  |-- Phase 2 authentication + permission + CSRF controls for writes
+  |-- public active-catalog and boolean availability reads
+  |-- Phase 2 authentication + permission + CSRF controls for management
   v
 Catalog and inventory controllers -> services -> Prisma
   |-- lifecycle and money rules
@@ -76,7 +76,7 @@ Catalog and inventory controllers -> services -> Prisma
 MySQL catalog and inventory tables
 ```
 
-This is a proposed boundary, not authorization for a migration. Product/category shape, currency, lifecycle, inventory concurrency, permissions, and employee scope must be approved through `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md` first. No new service, package, or infrastructure component is proposed.
+The catalog module owns strict validation, public/management projections, product/category lifecycle, normalized uniqueness, and the configured `INR` money boundary. The inventory module owns exact-balance reads, low-stock thresholds, and atomic balance-plus-ledger transactions. Optimistic integer versions prevent silent lost updates. Prisma migration `20260825122320_phase_3_business_core` adds the tables, constraints, permissions, and default role mappings. Phase 3 introduces no new service, package, or infrastructure component.
 
 ## Main application layering
 
@@ -180,7 +180,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 - Multi-tenant expansion and tenant isolation beyond the accepted single-business baseline.
 - UI system: Material UI or Tailwind CSS.
 - Identity recovery, verification, MFA, and future employee onboarding workflows.
-- Phase 3 product/category model, currency, lifecycle, catalog visibility, inventory ledger/concurrency, and employee scope.
+- A future change to the accepted Phase 3 catalog model: variants, media, hierarchy, multi-currency, tax/discount rules, warehouses, reservations, or employee onboarding.
 - Payment provider and payment/webhook state model.
 - Inventory reservation and overselling policy.
 - Notification channels and delivery guarantees.

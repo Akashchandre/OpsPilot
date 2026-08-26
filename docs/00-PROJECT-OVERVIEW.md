@@ -4,7 +4,7 @@
 
 **Name:** OpsPilot — AI Business Operations Platform  
 **Product type:** Full-stack business operations SaaS platform  
-**Current lifecycle state:** Phase 2 authentication and RBAC accepted; Phase 3 business-core requirements/design in progress
+**Current lifecycle state:** Phase 3 business core accepted; Phase 4 not started
 
 ## Purpose
 
@@ -44,7 +44,7 @@ Owners and administrators can eventually:
 - Use an owner AI assistant for business questions and generated insights.
 - Receive real-time notifications.
 
-For the accepted single-business identity baseline, owners alone can manage owner status while administrators can manage non-owner identity access. Phase 3 is reviewing separate product, category, and inventory permissions before adding business-operation access.
+For the accepted single-business identity baseline, owners alone can manage owner status while administrators can manage non-owner identity access. Phase 3 adds migration-controlled product, category, and inventory permissions to both `OWNER` and `ADMIN`; customers retain public active-catalog access only.
 
 ### Future employees and managers
 
@@ -111,7 +111,7 @@ The main frontend and backend must remain JavaScript. TypeScript migration is ou
 9. LangGraph Business AI and AI Support.
 10. Testing, Docker, CI/CD, and Production.
 
-Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security considerations, completion criteria, and documentation updates. Phase 2 satisfied this gate and was accepted on 2026-08-25. Phase 3 has begun with review of its unresolved business rules before schema implementation.
+Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security considerations, completion criteria, and documentation updates. Phase 3 satisfied this gate and was explicitly accepted on 2026-08-26. Phase 4 requires its own requirements and decision review before implementation begins.
 
 ## Overall system flow
 

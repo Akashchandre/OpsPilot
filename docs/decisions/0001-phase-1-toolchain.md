@@ -18,8 +18,8 @@ Phase 1 needs a reproducible JavaScript frontend/backend foundation without addi
 - Use plain CSS in Phase 1; defer the product UI-system choice.
 - Use native `fetch`, ESLint, Prettier, Vitest, React Testing Library, and Supertest.
 - Run the web and API development processes in separate terminals to avoid an unnecessary process-runner dependency.
+- Permit the MySQL adapter to retrieve the `caching_sha2_password` RSA public key only from loopback hosts. Remote database connections require a reviewed TLS or pinned-key configuration.
 
 ## Consequences
 
 The foundation stays small and cross-platform, dependency versions are locked, and frontend/backend responsibilities remain separate. React Router, Redux Toolkit, a UI framework, Docker, Redis, queues, payments, and AI remain uninstalled.
-

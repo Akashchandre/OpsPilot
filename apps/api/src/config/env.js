@@ -14,6 +14,11 @@ const environmentSchema = z
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     CORS_ORIGIN: z.url(),
     DATABASE_URL: z.string().startsWith("mysql://"),
+    BUSINESS_CURRENCY: z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{3}$/)
+      .default("INR"),
     AUTH_SESSION_COOKIE_NAME: z.string().trim().min(1).max(64).default("opspilot_session"),
     AUTH_CSRF_COOKIE_NAME: z.string().trim().min(1).max(64).default("opspilot_csrf"),
     AUTH_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(24),
@@ -53,6 +58,7 @@ export function loadEnvironment(source = process.env) {
     port: result.data.API_PORT,
     corsOrigin: result.data.CORS_ORIGIN,
     databaseUrl: result.data.DATABASE_URL,
+    business: Object.freeze({ currency: result.data.BUSINESS_CURRENCY }),
     auth: Object.freeze({
       sessionCookieName: result.data.AUTH_SESSION_COOKIE_NAME,
       csrfCookieName: result.data.AUTH_CSRF_COOKIE_NAME,

@@ -2,7 +2,7 @@
 
 ## Status
 
-**IN PROGRESS — REQUIREMENTS/DESIGN REVIEW.** Phase 2 passed its acceptance gate and was accepted on 2026-08-25. The user authorized Phase 3 to begin. No Phase 3 schema or product code has been created because the business rules below require review first.
+**ACCEPTED on 2026-08-26.** Phase 2 was accepted and committed as `1f0d252`. The user approved the complete recommended Phase 3 baseline on 2026-08-25, validated the delivered UI, and explicitly accepted Phase 3 after the final gate. ADR 0004, the migration, API, UI, tests, and documentation are complete. Phase 4 has not started.
 
 ## Objective
 
@@ -16,19 +16,19 @@ Implement the authorized catalog and core operational data needed before commerc
 - Authorized customer/employee management consistent with Phase 2 RBAC.
 - Responsive UI with complete loading, empty, validation, error, and authorization states.
 
-## Decisions required
+## Accepted implementation decisions
 
-Product/category model; category hierarchy/multiplicity; SKU/variant/product image support; pricing/currency; tax/discount scope; search method; inventory ledger versus counters; warehouses/reservations/low-stock rules; archival/deletion; employee data/onboarding and permission boundaries.
+Phase 3 uses a single-SKU product, flat many-to-many active categories, `INR` decimal prices, strict MySQL/Prisma search/filter/sort, one aggregate whole-number inventory balance, immutable adjustments, optimistic versions, archive/inactive lifecycle, public boolean availability, and protected exact stock.
 
-The recommended answers, alternatives, consequences, proposed API/UI boundary, and approval checklist are documented in `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`. The proposed permission matrix and draft threat model are in `docs/permissions/PHASE-03-PERMISSION-MATRIX-PROPOSAL.md` and `docs/security/PHASE-03-THREAT-MODEL-DRAFT.md`.
+The rationale and consequences are recorded in `docs/decisions/0004-phase-3-business-core.md`. The earlier proposal is retained as decision history in `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`. The enforced role mappings and security controls are in `docs/permissions/PHASE-03-PERMISSION-MATRIX.md` and `docs/security/PHASE-03-THREAT-MODEL.md`.
 
-The proposal deliberately remains unaccepted until the user confirms or changes it, including the initial business currency. No new dependency or external service is proposed for the baseline.
+No new dependency, account, external service, or infrastructure component was required. Employee invitation/profile models and new staff roles remain deferred; existing Phase 2 user administration satisfies the approved Phase 3 identity scope.
 
 ## Tasks
 
-Finalize requirements and schema; approve any current-phase dependencies/storage; implement migrations and constraints; build services/repositories/controllers/routes and validation; implement customer catalog UI and protected admin management UI; implement safe inventory adjustments and audit trail; add tests, seed/fixture strategy, documentation, and progress updates.
+Finalize requirements and schema; approve any current-phase dependencies/storage; implement migrations and constraints; build services/controllers/routes and validation; implement customer catalog UI and protected admin management UI; implement safe inventory adjustments and audit trail; add tests, documentation, and progress updates.
 
-Current task: approve the Phase 3 decision proposal. The next implementation task after approval is ADR 0004 plus the permission/catalog/inventory schema and migration.
+All implementation, verification, documentation, and acceptance tasks are complete. The next phase may begin only after a separate explicit instruction and Phase 4 requirements review.
 
 ## Acceptance criteria
 
@@ -53,7 +53,7 @@ Enforce write permissions server-side; prevent mass assignment and unsafe dynami
 
 ## Completion criteria
 
-Accepted schema/business rules are implemented; migration and authorization/concurrency tests pass; customer/admin workflows are usable; API/docs match; prior phases remain stable; order/payment code is absent; and the phase receives explicit acceptance.
+The accepted schema/business rules are implemented; migration and authorization/concurrency tests pass; customer/admin workflows are usable; API/docs match; prior phases remain stable; order/payment code is absent; and explicit user acceptance was received on 2026-08-26.
 
 ## Documentation updates
 
@@ -63,4 +63,4 @@ Update database/API/architecture documents, product and inventory rules, permiss
 
 Cart, checkout, orders, payment providers, real-time infrastructure, background jobs, and AI remain out of scope.
 
-The current recommended baseline also defers variants, image/file handling, category hierarchies, multiple warehouses, reservations, fractional quantities, taxes/discounts, currency conversion, and new employee onboarding/profile models. These proposal-specific deferrals require approval.
+The accepted baseline also defers variants, image/file handling, category hierarchies, multiple warehouses, reservations, fractional quantities, taxes/discounts, currency conversion, and new employee onboarding/profile models.

@@ -2,7 +2,7 @@
 
 ## Status
 
-**REVIEW REQUIRED.** Phase 3 is authorized and has entered requirements/design. The choices in this document are recommendations, not accepted decisions. No catalog or inventory schema migration should be created until the user approves or changes them.
+**ACCEPTED on 2026-08-25.** The user approved the complete recommended baseline and authorized Phase 3 implementation. ADR 0004 is authoritative where this earlier proposal uses recommendation language.
 
 ## Scope goal
 
@@ -52,13 +52,13 @@ Why: variants create independent SKU, price, and stock-unit rules. Image upload 
 
 Why: a single currency prevents mixed-currency carts before conversion and settlement policies exist. Floating-point numbers must not represent money.
 
-**Decision Required:** select the initial business currency, for example `INR`, `USD`, or another three-letter code.
+**Accepted decision:** the initial business currency is `INR`.
 
 ### 6. Search, filters, sorting, and pagination
 
 **Recommendation:** Use bounded MySQL/Prisma queries without a new search service.
 
-- Search: normalized case-insensitive match on name or exact/prefix SKU behavior; maximum 100 characters.
+- Search: bounded substring match on name or normalized SKU under the database collation; maximum 100 characters.
 - Filters: category slug, availability, minimum price, maximum price.
 - Sort allowlist: `name`, `price`, `createdAt`, each `asc` or `desc`.
 - Determinism: append `id` as the stable tie-breaker.
@@ -136,9 +136,10 @@ Why: operational stock evidence is a domain requirement now; enterprise-wide aud
 **Recommendation:** Keep resource URLs under `/api/v1`:
 
 - Public: `GET /products`, `GET /products/:productId`, `GET /categories`.
+- Permission-gated management collections: `GET /products?view=management`, `GET /categories?view=management`.
 - Authorized product management: `POST /products`, `PATCH /products/:productId`, `PATCH /products/:productId/status`.
 - Authorized category management: `POST /categories`, `PATCH /categories/:categoryId`, `PATCH /categories/:categoryId/status`.
-- Authorized inventory: `GET /inventory`, `GET /inventory/:productId`, `POST /inventory/:productId/adjustments`, `GET /inventory/:productId/adjustments`.
+- Authorized inventory: `GET /inventory`, `GET /inventory/:productId`, `PATCH /inventory/:productId`, `POST /inventory/:productId/adjustments`, `GET /inventory/:productId/adjustments`.
 
 Administrative collection visibility for draft/archived data should use an explicitly permission-gated query mode rather than exposing inactive records to public callers.
 
@@ -173,9 +174,9 @@ The only proposed new configuration is the single-business currency code. It sho
 - Hard deletion and generalized audit APIs.
 - Search engines, caches, queues, Redis, and real-time stock updates.
 
-## Approval checklist
+## Accepted checklist
 
-Before implementation, confirm or change:
+The user approved all of the following for implementation:
 
 1. Public versus authenticated catalog.
 2. Flat many-to-many categories.
@@ -190,4 +191,4 @@ Before implementation, confirm or change:
 11. Deferral of new employee models/workflows.
 12. Proposed API and UI route boundaries.
 
-An approval can be stated as: “Approve the Phase 3 recommended baseline with currency `XYZ`,” followed by any exceptions.
+The accepted currency is `INR`, with no exceptions requested. See ADR 0004.

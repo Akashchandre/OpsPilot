@@ -2,7 +2,7 @@
 
 ## Status and design principles
 
-This document combines the accepted Phase 2 identity schema with conceptual planning for later phases. Phase 3 is in requirements/design review; its proposal does not authorize schema changes until approved. Later entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for their owning phases.
+This document records the accepted Phase 2 identity schema, implemented Phase 3 business-core schema, and conceptual planning for later phases. Later entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
 - Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
@@ -19,7 +19,7 @@ This document combines the accepted Phase 2 identity schema with conceptual plan
 |---|---|---|
 | `users` | Login identity and account state | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
 | `roles` | Migration-controlled system roles | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER` |
-| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2 permissions |
+| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2 and four Phase 3 permissions |
 | `user_roles` | User-role assignment and assigning actor | Composite primary key, foreign keys, deliberate actor `SET NULL` |
 | `role_permissions` | System role-permission mapping | Composite primary key and constrained foreign keys |
 | `auth_sessions` | Revocable opaque browser sessions | Unique token digest, CSRF digest, expiry/revocation, user-agent digest |
@@ -29,11 +29,19 @@ The `20260825030732_phase_2_auth_rbac` migration creates these tables and seeds 
 
 Phase 2 and its two-migration development/test database state were accepted on 2026-08-25.
 
-## Proposed Phase 3 data boundary
+## Implemented Phase 3 business-core tables
 
-The Phase 3 decision proposal recommends `products`, `categories`, a product/category join table, `inventory_balances`, and immutable `inventory_adjustments`. It also recommends fixed-precision money, archive/inactive lifecycle states, optimistic versions, one aggregate stock location, and no product images or variants in the first increment.
+Migration `20260825122320_phase_3_business_core` creates the following tables and seeds `products:manage`, `categories:manage`, `inventory:read`, and `inventory:adjust` for the `OWNER` and `ADMIN` roles:
 
-These tables and constraints are **not implemented or accepted yet**. See `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md` for the choices that must be reviewed before a migration is generated.
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `categories` | Flat product classification | UUID primary key, unique normalized slug, `ACTIVE`/`INACTIVE` status, optimistic version |
+| `products` | Single-SKU catalog item | UUID primary key, unique normalized SKU, `DECIMAL(12,2)` nonnegative price, three-letter currency, `DRAFT`/`ACTIVE`/`ARCHIVED` status, optimistic version |
+| `product_categories` | Many-to-many product classification | Composite primary key and cascading foreign keys |
+| `inventory_balances` | One aggregate stock balance per product | Product primary/foreign key, nonnegative whole-number on-hand and threshold values, optimistic version |
+| `inventory_adjustments` | Immutable operational stock ledger | UUID primary key, product and actor foreign keys, nonzero delta, nonnegative before/after values, database-enforced balance arithmetic, reason, optional note/request ID |
+
+Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, images, hierarchy, warehouses, reservations, fractional quantities, tax, discounts, conversion, and new employee records are not part of this schema.
 
 ## Expected entities
 
@@ -46,9 +54,10 @@ These tables and constraints are **not implemented or accepted yet**. See `docs/
 | `role_permissions` | Role-to-permission assignment | Role + permission | 2 |
 | `auth_sessions` | Revocable opaque browser session state | User; token/CSRF digests | 2 |
 | `security_events` | Narrow authentication/authorization evidence | Optional actor and target user | 2 |
-| `categories` | Product classification | Parent category if hierarchy is chosen; products | 3 |
-| `products` | Sellable catalog items | Category/categories, inventory, order/cart items | 3 |
-| `inventory` | Stock state for a product or stock unit | Product; reservations if designed | 3 |
+| `categories` | Flat product classification | Products through `product_categories` | 3 |
+| `products` | Single-SKU catalog items | Categories, one balance, adjustments; future order/cart items | 3 |
+| `inventory_balances` | Aggregate whole-number stock state | One-to-one with product | 3 |
+| `inventory_adjustments` | Immutable stock-change evidence | Product and actor | 3 |
 | `carts` | Active/saved customer cart | User; cart items | 4 |
 | `cart_items` | Product, quantity, and display context in a cart | Cart + product | 4 |
 | `orders` | Customer purchase lifecycle | User, items, payments | 4 |
@@ -66,8 +75,8 @@ Employee records, addresses, product images/variants, ticket comments, document 
 ## Conceptual relationships
 
 - A user may have many roles through `user_roles`; a role may have many permissions through `role_permissions`.
-- A category has many products. Whether a product can belong to multiple categories and whether categories form a hierarchy is a **Decision Required**.
-- A product has inventory state. Multiple warehouses, variants/SKUs, and inventory ledger design are a **Decision Required**.
+- A category has many products and a product may have many flat categories through `product_categories`; category hierarchy is deferred.
+- A product has one aggregate inventory balance and many immutable adjustments. Multiple warehouses, variants/SKUs, and reservations are deferred.
 - A user may have one or more carts; a cart contains many cart items. Active-cart uniqueness is a **Decision Required**.
 - A user has many orders; an order contains one or more order items and may have multiple payment attempts.
 - An order item stores immutable product name/SKU/price/tax/discount context required to preserve order history even if the product changes.
@@ -79,7 +88,7 @@ Employee records, addresses, product images/variants, ticket comments, document 
 
 ## Candidate columns and constraints
 
-These are planning hints rather than approval to create schema.
+Implemented Phase 2/3 rows are recorded alongside planning hints for future entities.
 
 | Entity | Candidate constraints and important data |
 |---|---|
@@ -87,8 +96,9 @@ These are planning hints rather than approval to create schema.
 | `roles` | Unique role name/code within applicable scope; system/custom marker |
 | `permissions` | Unique stable permission code |
 | Join tables | Composite unique keys preventing duplicate assignments; foreign keys with deliberate delete behavior |
-| `products` | Stable unique SKU within business scope; name; description; fixed-precision price; currency; lifecycle status |
-| `inventory` | Unique product/SKU-location key; nonnegative/on-hand/reserved rules based on selected model; concurrency/version field if chosen |
+| `products` | Stable normalized unique SKU; name; plain-text description; fixed-precision nonnegative price; `INR`; lifecycle status; optimistic version |
+| `inventory_balances` | One row per product; nonnegative whole-number on-hand and threshold; optimistic version |
+| `inventory_adjustments` | Nonzero bounded delta; before/after arithmetic; reason, note, actor, request ID, and timestamp; no update/delete API |
 | `cart_items` | Positive quantity; uniqueness strategy for product/variant per cart |
 | `orders` | Unique human-facing order number; user; status; currency; immutable totals; addresses/snapshots as required |
 | `order_items` | Positive quantity; unit price and calculated line snapshot; optional product reference preserving historical rows |

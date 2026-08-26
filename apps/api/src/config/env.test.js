@@ -17,6 +17,7 @@ describe("loadEnvironment", () => {
       port: 4001,
       corsOrigin: "http://127.0.0.1:5173",
       databaseUrl: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
+      business: { currency: "INR" },
       auth: {
         sessionCookieName: "opspilot_session",
         csrfCookieName: "opspilot_csrf",
@@ -44,6 +45,12 @@ describe("loadEnvironment", () => {
 
   it("rejects invalid ports", () => {
     expect(() => loadEnvironment({ ...validEnvironment, API_PORT: "70000" })).toThrow(
+      ConfigurationError,
+    );
+  });
+
+  it("validates the single-business currency code", () => {
+    expect(() => loadEnvironment({ ...validEnvironment, BUSINESS_CURRENCY: "inr" })).toThrow(
       ConfigurationError,
     );
   });

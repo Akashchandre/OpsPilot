@@ -10,6 +10,14 @@ describe("parseDatabaseUrl", () => {
       password: "p@ss",
       database: "opspilot_dev",
       connectionLimit: 5,
+      allowPublicKeyRetrieval: true,
+    });
+  });
+
+  it("does not retrieve authentication keys from a remote database host", () => {
+    expect(parseDatabaseUrl("mysql://app:secret@db.internal:3306/opspilot")).toMatchObject({
+      host: "db.internal",
+      allowPublicKeyRetrieval: false,
     });
   });
 

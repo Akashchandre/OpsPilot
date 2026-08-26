@@ -399,6 +399,15 @@ select:focus-visible {
   color: #fecdd3;
   background: rgba(190, 18, 60, 0.18);
 }
+.badge--draft {
+  color: #fde68a;
+  background: rgba(217, 119, 6, 0.18);
+}
+.badge--archived,
+.badge--inactive {
+  color: #cbd5e1;
+  background: rgba(100, 116, 139, 0.2);
+}
 
 .page-heading {
   display: flex;
@@ -489,6 +498,348 @@ select:focus-visible {
   text-align: center;
 }
 
+.catalog-filters,
+.inventory-search {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 28px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.17);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.72);
+}
+.catalog-filters label,
+.inventory-search label,
+.management-form label,
+.management-card label,
+.inventory-actions label {
+  display: grid;
+  gap: 6px;
+  color: #dbe4ef;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+.catalog-filters input,
+.catalog-filters select,
+.inventory-search input,
+.management-form input,
+.management-form textarea,
+.management-card input,
+.management-card select,
+.management-card textarea,
+.inventory-actions input,
+.inventory-actions select {
+  width: 100%;
+  min-height: 43px;
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 9px;
+  color: #f8fafc;
+  background: #080f1f;
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.product-card {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.82);
+}
+.product-card__visual,
+.product-detail__visual {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: rgba(7, 16, 31, 0.82);
+  background: linear-gradient(140deg, rgba(125, 211, 252, 0.8), rgba(110, 231, 183, 0.88)), #6ee7b7;
+  font-size: 3rem;
+  font-weight: 950;
+  letter-spacing: -0.08em;
+}
+.product-card__content {
+  padding: 20px;
+}
+.product-card__topline,
+.product-card__footer,
+.management-card__heading,
+.management-card__actions,
+.inventory-card__heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.sku {
+  color: #7dd3fc;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+.stock {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.stock--in {
+  color: #a7f3d0;
+  background: rgba(5, 150, 105, 0.18);
+}
+.stock--out {
+  color: #fecdd3;
+  background: rgba(190, 18, 60, 0.18);
+}
+.product-card h2 {
+  margin: 16px 0 8px;
+  font-size: 1.35rem;
+}
+.product-card__description {
+  display: -webkit-box;
+  min-height: 3.2em;
+  margin: 0;
+  overflow: hidden;
+  color: #9caac0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.6;
+}
+.category-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.category-chips span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.16);
+  font-size: 0.72rem;
+}
+.price {
+  color: #f8fafc;
+  font-size: 1.15rem;
+}
+.pagination {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 30px;
+  color: #a9b6ca;
+}
+.empty-state {
+  margin: 24px 0;
+  text-align: center;
+}
+.product-detail {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(30px, 7vw, 80px);
+  align-items: center;
+}
+.product-detail__visual {
+  min-height: 500px;
+  border-radius: 24px;
+  font-size: 6rem;
+}
+.product-detail h1 {
+  margin: 8px 0 20px;
+  font-size: clamp(2.6rem, 6vw, 5.2rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+.product-detail__description {
+  color: #b4c0d2;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.product-detail__purchase {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 24px;
+}
+.product-detail__purchase .price {
+  font-size: 1.8rem;
+}
+.back-link {
+  display: inline-block;
+  margin-bottom: 30px;
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.management-create-grid,
+.management-grid,
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.management-form,
+.management-card,
+.inventory-card {
+  display: grid;
+  gap: 14px;
+}
+.management-form h2,
+.management-section h2,
+.inventory-card h2 {
+  margin: 0;
+}
+.management-section {
+  margin-top: 44px;
+}
+.management-section > h2 {
+  margin-bottom: 16px;
+  font-size: 1.55rem;
+}
+.management-grid--categories {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.management-card,
+.inventory-card {
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.78);
+}
+.management-card__heading > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.management-card__heading strong {
+  color: #a9b6ca;
+  font-size: 0.75rem;
+}
+.management-card__summary {
+  color: #dce6f3;
+  font-weight: 800;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.checkbox-fieldset {
+  display: flex;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+}
+.checkbox-fieldset legend {
+  padding: 0 5px;
+  color: #dbe4ef;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.checkbox-fieldset label {
+  display: inline-flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+.checkbox-fieldset input {
+  width: 16px;
+  min-height: auto;
+}
+
+.inventory-search {
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+.inventory-grid {
+  grid-template-columns: 1fr;
+}
+.inventory-card {
+  gap: 18px;
+}
+.inventory-card__heading h2 {
+  margin-top: 5px;
+}
+.inventory-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.15);
+}
+.inventory-metrics div {
+  padding: 15px;
+  background: #0b1425;
+}
+.inventory-metrics dt {
+  color: #8392a9;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.inventory-metrics dd {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
+  font-weight: 850;
+}
+.inventory-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.inventory-actions form {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.25);
+}
+.inventory-actions h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.history-toggle {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: #7dd3fc;
+  background: transparent;
+  cursor: pointer;
+}
+.adjustment-history {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.14);
+}
+.adjustment-history > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  padding: 12px;
+  background: #0b1425;
+}
+.adjustment-history span,
+.adjustment-history small {
+  color: #9daabd;
+}
+.adjustment-history small {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 960px) {
   .site-header {
     grid-template-columns: auto 1fr;
@@ -507,6 +858,13 @@ select:focus-visible {
   }
   .user-card {
     grid-template-columns: 1fr;
+  }
+  .product-grid,
+  .management-grid--categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .catalog-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -536,6 +894,28 @@ select:focus-visible {
     flex-direction: column;
   }
   .user-card__actions {
+    grid-template-columns: 1fr;
+  }
+  .product-grid,
+  .management-create-grid,
+  .management-grid,
+  .management-grid--categories,
+  .product-detail,
+  .inventory-actions,
+  .catalog-filters,
+  .inventory-search {
+    grid-template-columns: 1fr;
+  }
+  .product-detail__visual {
+    min-height: 280px;
+  }
+  .inventory-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .adjustment-history > div {
     grid-template-columns: 1fr;
   }
 }

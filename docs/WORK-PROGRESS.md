@@ -1,14 +1,14 @@
 # Work Progress
 
-**Last updated:** 2026-08-25
+**Last updated:** 2026-08-26
 
 ## Current Phase
 
-Phase 3 — Business Core
+Phase 3 — Business Core (accepted; Phase 4 not started)
 
 ## Status
 
-IN PROGRESS — REQUIREMENTS/DESIGN REVIEW
+ACCEPTED
 
 ## Completed
 
@@ -24,23 +24,25 @@ IN PROGRESS — REQUIREMENTS/DESIGN REVIEW
 - Phase 2 API/UI guide, acceptance report, security documentation, and synchronized architecture/schema/contracts.
 - Phase 2 gate rerun: lint, formatting, Prisma validation, development/test migration status, 20 API tests, 8 web tests, enforced coverage, and production build passed.
 - Phase 2 explicitly accepted and Phase 3 authorized on 2026-08-25.
-- Phase 3 specification reviewed; initial decision proposal, permission proposal, and threat-model draft created without adding dependencies or schema.
+- Phase 3 business rules approved and recorded in ADR 0004 with `INR` as the single-business currency.
+- Phase 3 permission matrix and threat model accepted for implementation.
+- Migration-controlled products, categories, assignments, aggregate inventory balances, immutable adjustments, database constraints, and four permissions implemented and deployed to development/test databases.
+- Public active catalog and product details implemented with bounded allowlisted query behavior and boolean-only availability.
+- Protected product/category management implemented with normalized uniqueness, lifecycle rules, CSRF, permissions, and optimistic versions.
+- Protected exact inventory, threshold maintenance, and atomic balance-plus-ledger adjustments implemented with concurrency and nonnegative-stock safeguards.
+- Responsive public products, product detail, protected catalog management, and protected inventory UI implemented.
+- Phase 3 API/UI implementation guide plus synchronized architecture, database, API, permission, security, and phase documentation created.
+- Phase 3 verification currently passes 34 API tests and 13 web tests with all configured coverage gates.
+- Resolved the local owner-login database pool failure by allowing MySQL `caching_sha2_password` public-key retrieval only for loopback hosts; remote hosts remain deny-by-default.
+- Phase 3 UI behavior validated by the user and the phase explicitly accepted on 2026-08-26.
 
 ## In Progress
 
-- Review and approval of the Phase 3 product, category, money, inventory, lifecycle, permission, API/UI, and employee-scope decisions.
-
-No Phase 3 product code or migration has been created. This is deliberate: the governing specification marks these choices as **Decision Required**.
+- No implementation phase is active. Phase 4 has not started.
 
 ## Next Task
 
-Approve or amend `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`, including the initial three-letter business currency. After approval:
-
-1. Record the accepted decisions in ADR 0004.
-2. Add migration-controlled Phase 3 permissions.
-3. Implement and migrate the approved catalog/inventory schema.
-4. Build catalog/category/inventory services and APIs with concurrency tests.
-5. Build the public catalog and protected management UI.
+When explicitly instructed, review `docs/phases/PHASE-04-ORDERS-PAYMENTS.md`, resolve its business and security decisions, and plan Phase 4 before changing schema or code.
 
 ## Accepted Decisions
 
@@ -51,21 +53,23 @@ Approve or amend `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`, including the ini
 - Database-backed opaque cookie sessions with CSRF and exact-origin protection.
 - Argon2id and database-backed deny-by-default RBAC.
 - Migration-controlled `OWNER`, `ADMIN`, and `CUSTOMER` roles and Phase 2 permissions.
+- Public active catalog; protected business management; UUID products; normalized immutable SKU; flat categories; plain text; `DECIMAL(12,2)` prices; single `INR` currency; draft/active/archive lifecycle; optimistic versions.
+- One aggregate nonnegative whole-number stock balance plus immutable atomic adjustment ledger; public boolean availability and protected exact stock.
+- `products:manage`, `categories:manage`, `inventory:read`, and `inventory:adjust` assigned to `OWNER` and `ADMIN`.
+- Product/category hard deletion, variants, images, hierarchy, warehouses, reservations, fractional stock, taxes, discounts, currency conversion, and new employee models are deferred.
 - Verification, recovery, MFA, employee invitations, and account deletion remain deferred until reviewed.
 - Dependencies and services are reviewed before installation and are not added speculatively.
 
-## Phase 3 Decisions Requiring Approval
+## Phase 3 Acceptance Evidence
 
-- Public versus authenticated active-catalog reads.
-- Product fields, normalized SKU, flat many-to-many categories, and no initial variants/images.
-- Single-business currency code; fixed-precision price and string money responses.
-- Search/filter/sort/pagination allowlists.
-- Product/category lifecycle and archive-only deletion.
-- One aggregate inventory balance plus immutable adjustments, optimistic concurrency, and nonnegative whole-number stock.
-- Public availability versus protected exact stock.
-- `products:manage`, `categories:manage`, `inventory:read`, and `inventory:adjust` mappings.
-- Deferral of employee profiles/invitations/new staff roles.
-- Proposed Phase 3 API and UI routes.
+- Accepted decision record: `docs/decisions/0004-phase-3-business-core.md`.
+- Permission mapping: `docs/permissions/PHASE-03-PERMISSION-MATRIX.md`.
+- Security review: `docs/security/PHASE-03-THREAT-MODEL.md`.
+- API/UI behavior and review Q&A: `docs/phase-3/PHASE-03-IMPLEMENTATION-GUIDE.md`.
+- Consolidated technical evidence: `docs/phase-3/PHASE-03-REVIEW-REPORT.md`.
+- API coverage: 83.78% statements, 67.36% branches, 92.97% functions, 87.06% lines.
+- Web coverage: 84.44% statements, 69.38% branches, 83.41% functions, 86.28% lines.
+- Lint, formatting, Prisma validation, development/test migration status, production build, live API/web smoke, and Git whitespace checks pass.
 
 ## Known Issues
 
@@ -75,4 +79,4 @@ Approve or amend `docs/phase-3/PHASE-03-DECISION-PROPOSAL.md`, including the ini
 
 ## Phase Gate
 
-Phase 2 is accepted. Phase 3 planning is active. Do not create Phase 3 schema, business APIs, or UI until the Phase 3 decision proposal is approved. Do not begin orders, payments, production-backend, real-time, job, or AI phases.
+Phases 1, 2, and 3 are accepted. Phase 4 has not started and no cart, order, payment, production-backend, real-time, job, or AI implementation is authorized by this status update alone.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 2 was accepted on 2026-08-25 after its implementation, documentation, security review, tests, coverage gates, migrations, build, and live smoke path were verified. Phase 3 requirements planning is authorized.
+Phase 2 was accepted on 2026-08-25 after its implementation, documentation, security review, tests, coverage gates, migrations, build, and live smoke path were verified. Phase 3 was subsequently authorized and implemented on top of these boundaries.
 
 ## What Phase 2 adds
 
@@ -444,4 +444,4 @@ Sending session cookies over non-TLS production transport would expose credentia
 
 ### Q20. What should be built next?
 
-Phase 3 Business Core requirements and data rules are now being reviewed. Phase 3 must reuse these identity and permission boundaries rather than introducing its own authentication logic.
+Phase 3 Business Core now reuses these identity and permission boundaries for its implemented catalog and inventory modules rather than introducing separate authentication logic.

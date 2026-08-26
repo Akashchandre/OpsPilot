@@ -191,7 +191,10 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(roles.status).toBe(200);
     expect(roles.body.data.roles.map((role) => role.code)).toEqual(["ADMIN", "CUSTOMER", "OWNER"]);
     expect(permissions.status).toBe(200);
-    expect(permissions.body.data.permissions).toHaveLength(5);
+    expect(permissions.body.data.permissions).toHaveLength(9);
+    expect(permissions.body.data.permissions.map((permission) => permission.code)).toContain(
+      "inventory:adjust",
+    );
 
     const csrfToken = cookieValue(ownerLogin, config.auth.csrfCookieName);
     const assigned = await ownerAgent
@@ -279,7 +282,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       password,
     });
     expect(owner.roles).toEqual(["OWNER"]);
-    expect(owner.permissions).toHaveLength(5);
+    expect(owner.permissions).toHaveLength(9);
 
     await expect(
       bootstrapOwner(database, {

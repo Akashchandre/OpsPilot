@@ -10,6 +10,10 @@ export const PERMISSIONS = Object.freeze({
   USERS_ROLES_MANAGE: "users:roles:manage",
   ROLES_READ: "roles:read",
   PERMISSIONS_READ: "permissions:read",
+  PRODUCTS_MANAGE: "products:manage",
+  CATEGORIES_MANAGE: "categories:manage",
+  INVENTORY_READ: "inventory:read",
+  INVENTORY_ADJUST: "inventory:adjust",
 });
 
 export const USER_STATUSES = Object.freeze({

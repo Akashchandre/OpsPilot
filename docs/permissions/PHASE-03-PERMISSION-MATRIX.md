@@ -1,10 +1,10 @@
-# Phase 3 Permission Matrix Proposal
+# Phase 3 Permission Matrix
 
 ## Status
 
-**REVIEW REQUIRED.** This matrix is proposed for Phase 3 and has not been inserted into a migration.
+Accepted on 2026-08-25. The definitions and mappings are migration-controlled.
 
-## Proposed permissions
+## Permissions
 
 | Code | Meaning |
 |---|---|
@@ -13,7 +13,7 @@
 | `inventory:read` | View exact stock quantities, low-stock thresholds, and adjustment history |
 | `inventory:adjust` | Apply controlled stock adjustments with a reason and immutable ledger entry |
 
-## Proposed default role matrix
+## Default role matrix
 
 | Permission | `OWNER` | `ADMIN` | `CUSTOMER` |
 |---|:---:|:---:|:---:|
@@ -22,6 +22,4 @@
 | `inventory:read` | Yes | Yes | No |
 | `inventory:adjust` | Yes | Yes | No |
 
-Public active-catalog reads do not require a permission under the recommended baseline. Exact inventory remains protected. Unknown permissions remain denied.
-
-The permissions should be migration-controlled and evaluated through the accepted Phase 2 database-backed authorization middleware. Phase 3 does not add arbitrary role/permission administration.
+Public active-catalog reads do not require a permission. Exact inventory remains protected. Unknown permissions remain denied. Phase 3 does not add arbitrary role/permission administration.

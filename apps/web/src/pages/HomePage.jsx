@@ -27,12 +27,12 @@ export function HomePage() {
         <p className="eyebrow">SECURE BUSINESS OPERATIONS</p>
         <h1>One dependable place to run the work.</h1>
         <p className="hero__summary">
-          OpsPilot now has a secure identity and permission foundation for customer and operator
-          experiences.
+          Explore the active catalog, while authorized operators maintain products and
+          concurrency-safe inventory behind OpsPilot's secure permission boundary.
         </p>
         <div className="hero__actions">
-          <Link className="button button--primary" to="/register">
-            Create customer account
+          <Link className="button button--primary" to="/products">
+            Browse products
           </Link>
           <Link className="button button--secondary" to="/login">
             Sign in
