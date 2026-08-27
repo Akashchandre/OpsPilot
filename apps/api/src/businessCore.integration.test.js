@@ -22,6 +22,16 @@ function cookieValue(response, name) {
 }
 
 async function clearBusinessData() {
+  await database.providerWebhookEvent.deleteMany();
+  await database.refund.deleteMany();
+  await database.paymentAttempt.deleteMany();
+  await database.payment.deleteMany();
+  await database.orderStatusEvent.deleteMany();
+  await database.inventoryReservation.deleteMany();
+  await database.orderItem.deleteMany();
+  await database.order.deleteMany();
+  await database.cartItem.deleteMany();
+  await database.cart.deleteMany();
   await database.inventoryAdjustment.deleteMany();
   await database.productCategory.deleteMany();
   await database.inventoryBalance.deleteMany();

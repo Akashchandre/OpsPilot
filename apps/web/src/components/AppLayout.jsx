@@ -29,12 +29,21 @@ export function AppLayout() {
             Home
           </NavLink>
           <NavLink to="/products">Products</NavLink>
-          {auth.user ? <NavLink to="/dashboard">Dashboard</NavLink> : null}
+          {auth.user ? (
+            <>
+              <NavLink to="/cart">Cart</NavLink>
+              <NavLink to="/orders">Orders</NavLink>
+              <NavLink to="/dashboard">Dashboard</NavLink>
+            </>
+          ) : null}
           {auth.hasPermission("products:manage") ? (
             <NavLink to="/admin/catalog">Catalog</NavLink>
           ) : null}
           {auth.hasPermission("inventory:read") ? (
             <NavLink to="/admin/inventory">Inventory</NavLink>
+          ) : null}
+          {auth.hasPermission("orders:read") ? (
+            <NavLink to="/admin/orders">Order ops</NavLink>
           ) : null}
           {auth.hasPermission("users:read") ? <NavLink to="/admin/users">Users</NavLink> : null}
         </nav>

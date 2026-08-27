@@ -1,8 +1,10 @@
-# Planned API Contract
+# API Contract
 
 ## Status
 
-This document records accepted Phase 1/2 HTTP behavior, the implemented Phase 3 contract, and plans for later public APIs. Every endpoint is prefixed with `/api/v1` unless explicitly documented as infrastructure-only.
+This document records accepted Phase 1/2 behavior, implemented Phase 3/4 contracts, and plans for
+later public APIs. Every endpoint is prefixed with `/api/v1` unless explicitly documented as
+infrastructure-only.
 
 ## Contract conventions
 
@@ -105,7 +107,7 @@ Flat many-to-many category assignment and inactive lifecycle behavior are implem
 
 ### `/api/v1/inventory`
 
-One aggregate balance, immutable adjustment history, whole-number quantities, optimistic concurrency, and nonnegative stock are implemented. `RESTOCK` requires a positive delta, `DAMAGE` requires a negative delta, and `CORRECTION` accepts either sign; zero is invalid. Warehouses, variants, and reservations are deferred.
+One aggregate balance, immutable adjustment history, whole-number quantities, optimistic concurrency, and nonnegative stock are implemented. `RESTOCK` requires a positive delta, `DAMAGE` requires a negative delta, and `CORRECTION` accepts either sign; zero is invalid. Warehouses and variants are deferred. Phase 4 now owns order reservations against this aggregate balance.
 
 ### `/api/v1/users`
 
@@ -113,17 +115,54 @@ Phase 2 customer/user administration remains unchanged. Employee profiles, invit
 
 ## Phase 4 — Orders and Payments
 
-### `/api/v1/cart`
+**Status:** Implemented on 2026-08-26 under ADR 0005; real Razorpay Test Mode delivery smoke and
+explicit phase acceptance remain pending.
 
-Planned operations: get current cart, add/update/remove item, and clear cart. Guest carts, merge behavior, price refresh, stock validation timing, and cart expiry are **Decision Required**.
+All customer commerce endpoints require an active authenticated session. Browser writes require
+the accepted trusted-origin and CSRF controls. Ownership failures use not-found behavior so they do
+not disclose another customer's records.
 
-### `/api/v1/orders`
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/cart` | Authenticated owner | Read or lazily create the current cart and refresh price/availability review state |
+| PUT | `/api/v1/cart/items/:productId` | Authenticated owner, CSRF | Set desired quantity `1`–`99` using the current cart version |
+| DELETE | `/api/v1/cart/items/:productId` | Authenticated owner, CSRF | Remove one line using the current cart version |
+| DELETE | `/api/v1/cart/items` | Authenticated owner, CSRF | Clear the cart using the current cart version |
+| POST | `/api/v1/orders` | Authenticated owner, CSRF, `Idempotency-Key` | Convert the current cart into a reserved order and prepare safe hosted Checkout options |
+| GET | `/api/v1/orders` | Authenticated owner; `orders:read` for `view=management` | List owned or authorized management orders |
+| GET | `/api/v1/orders/:orderId` | Authenticated owner; `orders:read` for `view=management` | Read owned or authorized management order details/history |
+| POST | `/api/v1/orders/:orderId/payment-session` | Authenticated owner, CSRF | Resume the same payable provider order while its reservation is active |
+| POST | `/api/v1/orders/:orderId/cancellation` | Authenticated owner, CSRF | Cancel an owned unpaid pending order using its version |
+| PATCH | `/api/v1/orders/:orderId/status` | `orders:manage`, CSRF | Apply an allowed versioned cancellation or fulfillment transition |
+| POST | `/api/v1/payments/confirm` | Authenticated owner, CSRF | Verify the Checkout HMAC, fetch provider state, and apply only an exact capture |
+| GET | `/api/v1/payments/:paymentId` | Owner or `payments:read` | Read safe local payment, attempt, and refund state |
+| POST | `/api/v1/payments/:paymentId/refunds` | `payments:refund`, CSRF, `Idempotency-Key` | Request the server-derived normal full refund |
+| POST | `/api/v1/payments/:paymentId/reconcile` | `payments:reconcile`, CSRF | Fetch provider order/payment/refund state and apply allowed monotonic transitions |
+| POST | `/api/v1/payments/webhooks/razorpay` | Razorpay signature + event ID | Verify the exact raw body, deduplicate, and apply an allowlisted provider event |
 
-Planned customer operations: place/list/retrieve own orders and track state. Planned administrative operations: list/retrieve authorized orders and make approved state transitions. Cancellation, returns, fulfillment, shipping integration, taxes, discounts, address handling, and order status machine are **Decision Required**.
+Cart mutations set an exact quantity and require `{ version }`; stale writes return
+`409 RESOURCE_VERSION_CONFLICT`. Cart reads expose observed/current prices and a review flag.
+Checkout requires a UUID `Idempotency-Key` and body
+`{ cartVersion, shippingAddress }`, where the bounded address is an India snapshot. The server
+revalidates active products, exact current price, currency, and stock; computes all totals; reserves
+stock for 15 minutes; clears the cart; and derives the provider amount in paise. A changed price or
+stock state returns a stable conflict without silently substituting client-visible values.
 
-### `/api/v1/payments`
+Order lists accept `page`, `limit`, `view=self|management`, `status`, and `direction=asc|desc`.
+Local order states are `PENDING_PAYMENT`, `CONFIRMED`, `PROCESSING`, `SHIPPED`, `DELIVERED`,
+`CANCELLED`, `EXPIRED`, and `PAYMENT_REVIEW`. Shipping requires bounded `carrierName` and
+`trackingNumber`; partial fulfillment, returns, and post-shipment cancellation are not exposed.
 
-Planned operations: initiate/prepare payment as the selected provider requires, retrieve safe payment state, and accept verified provider webhooks on a deliberately designed endpoint. Payment provider, webhook URL, idempotency keys, refunds, retries, reconciliation, and PCI scope are **Decision Required**.
+The client never supplies payment or refund amounts. Checkout confirmation accepts only local
+order ID plus provider order/payment IDs and a bounded hexadecimal signature; a valid callback
+signature alone does not confirm an order. Provider fetch failure returns a safe pending result,
+while exact captured evidence confirms idempotently. The raw webhook route is deliberately outside
+browser origin/CSRF parsing and accepts only the documented payment/order/refund event allowlist.
+Duplicate and out-of-order events return success after safe idempotent processing.
+
+Detailed bodies, responses, state machines, safe errors, and recovery behavior are in
+`docs/phase-4/PHASE-04-IMPLEMENTATION-GUIDE.md` and
+`docs/phase-4/PHASE-04-OPERATIONS-RUNBOOK.md`.
 
 ## Phase 5 — Production Backend Features
 
@@ -159,11 +198,12 @@ Planned AI operations expand to permission-aware business analysis and support w
 
 ## Query and collection standards
 
-- Phase 3 uses bounded offset pagination with `page`, `limit`, and a maximum limit of 100. Later high-volume resources may choose cursors in their owning phase.
+- Phases 3 and 4 use bounded offset pagination with `page`, `limit`, and a maximum limit of 100. Later high-volume resources may choose cursors in their owning phase.
 - Search/filter/sort values are resource-specific strict allowlists; user input never becomes an arbitrary database field or direction.
 - Field names use camelCase and timestamps are serialized as ISO 8601 UTC strings.
-- Phase 3 money uses decimal strings plus an uppercase three-letter currency code.
-- Phase 3 mutable business resources use integer optimistic versions and stable `409` conflicts.
+- Phase 3/4 money uses decimal strings plus an uppercase three-letter currency code; Phase 4 is `INR` only.
+- Phase 3/4 mutable business resources use integer optimistic versions and stable `409` conflicts.
+- Phase 4 checkout/refund idempotency keys are UUIDs in `Idempotency-Key`; reuse with different normalized input returns `409 IDEMPOTENCY_KEY_REUSED`.
 - Rate limits by endpoint/user/IP and safe `Retry-After` behavior.
 - Deprecation and compatibility policy.
 

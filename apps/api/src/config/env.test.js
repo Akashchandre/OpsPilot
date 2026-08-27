@@ -26,6 +26,18 @@ describe("loadEnvironment", () => {
         loginRateLimitWindowMinutes: 15,
         loginRateLimitMax: 10,
       },
+      payments: {
+        reservationTtlMinutes: 15,
+        razorpay: {
+          enabled: false,
+          keyId: undefined,
+          keySecret: undefined,
+          webhookSecret: undefined,
+          apiBaseUrl: "https://api.razorpay.com/v1",
+          checkoutScriptUrl: "https://checkout.razorpay.com/v1/checkout.js",
+          requestTimeoutMs: 8000,
+        },
+      },
     });
   });
 
@@ -59,5 +71,21 @@ describe("loadEnvironment", () => {
     expect(() =>
       loadEnvironment({ ...validEnvironment, NODE_ENV: "production", AUTH_COOKIE_SECURE: "false" }),
     ).toThrow(ConfigurationError);
+  });
+
+  it("requires all Razorpay secrets when payments are enabled", () => {
+    expect(() => loadEnvironment({ ...validEnvironment, RAZORPAY_ENABLED: "true" })).toThrow(
+      ConfigurationError,
+    );
+
+    expect(
+      loadEnvironment({
+        ...validEnvironment,
+        RAZORPAY_ENABLED: "true",
+        RAZORPAY_KEY_ID: "safe-test-key-id",
+        RAZORPAY_KEY_SECRET: "safe-test-key-secret",
+        RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
+      }).payments.razorpay.enabled,
+    ).toBe(true);
   });
 });

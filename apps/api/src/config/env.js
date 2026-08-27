@@ -7,6 +7,12 @@ const environmentBoolean = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
+const optionalEnvironmentString = (schema) =>
+  z.preprocess((value) => {
+    if (typeof value === "string" && value.trim() === "") return undefined;
+    return value;
+  }, schema.optional());
+
 const environmentSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -25,6 +31,11 @@ const environmentSchema = z
     AUTH_COOKIE_SECURE: environmentBoolean.default(false),
     AUTH_LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
     AUTH_LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
+    RAZORPAY_ENABLED: environmentBoolean.default(false),
+    RAZORPAY_KEY_ID: optionalEnvironmentString(z.string().trim().min(8).max(128)),
+    RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
+    RAZORPAY_WEBHOOK_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
+    CHECKOUT_RESERVATION_TTL_MINUTES: z.coerce.number().int().min(3).max(15).default(15),
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === "production" && !environment.AUTH_COOKIE_SECURE) {
@@ -33,6 +44,26 @@ const environmentSchema = z
         path: ["AUTH_COOKIE_SECURE"],
         message: "Production authentication cookies must be secure",
       });
+    }
+
+    if (environment.NODE_ENV === "production" && !environment.RAZORPAY_ENABLED) {
+      context.addIssue({
+        code: "custom",
+        path: ["RAZORPAY_ENABLED"],
+        message: "Production payments must be explicitly enabled",
+      });
+    }
+
+    if (environment.RAZORPAY_ENABLED) {
+      for (const field of ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"]) {
+        if (!environment[field]) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `${field} is required when Razorpay is enabled`,
+          });
+        }
+      }
     }
   });
 
@@ -66,6 +97,18 @@ export function loadEnvironment(source = process.env) {
       cookieSecure: result.data.AUTH_COOKIE_SECURE,
       loginRateLimitWindowMinutes: result.data.AUTH_LOGIN_RATE_LIMIT_WINDOW_MINUTES,
       loginRateLimitMax: result.data.AUTH_LOGIN_RATE_LIMIT_MAX,
+    }),
+    payments: Object.freeze({
+      reservationTtlMinutes: result.data.CHECKOUT_RESERVATION_TTL_MINUTES,
+      razorpay: Object.freeze({
+        enabled: result.data.RAZORPAY_ENABLED,
+        keyId: result.data.RAZORPAY_KEY_ID,
+        keySecret: result.data.RAZORPAY_KEY_SECRET,
+        webhookSecret: result.data.RAZORPAY_WEBHOOK_SECRET,
+        apiBaseUrl: "https://api.razorpay.com/v1",
+        checkoutScriptUrl: "https://checkout.razorpay.com/v1/checkout.js",
+        requestTimeoutMs: 8000,
+      }),
     }),
   });
 }

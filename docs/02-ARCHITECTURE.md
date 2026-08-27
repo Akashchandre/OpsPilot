@@ -78,6 +78,43 @@ MySQL catalog and inventory tables
 
 The catalog module owns strict validation, public/management projections, product/category lifecycle, normalized uniqueness, and the configured `INR` money boundary. The inventory module owns exact-balance reads, low-stock thresholds, and atomic balance-plus-ledger transactions. Optimistic integer versions prevent silent lost updates. Prisma migration `20260825122320_phase_3_business_core` adds the tables, constraints, permissions, and default role mappings. Phase 3 introduces no new service, package, or infrastructure component.
 
+## Phase 4 commerce architecture
+
+Phase 4 keeps commerce inside the existing JavaScript API and MySQL topology while adding Razorpay
+as a narrow external Test Mode boundary:
+
+```text
+React cart / checkout / order / operator pages
+  |-- authenticated JSON + CSRF for browser writes
+  |-- Razorpay-hosted Standard Checkout (provider credential fields only)
+  v
+Express /api/v1
+  |-- cart -> order -> payment controllers and services
+  |-- dedicated raw-body Razorpay webhook route
+  |-- provider adapter using Node.js fetch + crypto
+  v                                      |
+Prisma serializable transactions         +--> Razorpay Test Mode HTTPS API
+  |
+  v
+MySQL carts / orders / reservations / payment evidence
+```
+
+Checkout commits all local effects in one serializable transaction: it validates the versioned
+cart, snapshots products/address/totals, decrements inventory, records immutable reservation
+adjustments, creates active 15-minute reservations and local payment state, and clears the cart.
+The Razorpay network call occurs only after that transaction. A unique stored receipt permits
+recovery after an ambiguous create-order response without duplicating the local order or provider
+order. Provider results re-enter through explicit, idempotent state-application transactions.
+
+The browser receives only safe Checkout configuration and never sends an amount or financial
+status decision. A Checkout signature is necessary but not sufficient for confirmation: the API
+also fetches and matches captured provider state, or applies an exact captured state from a
+verified webhook. Webhooks are authenticated over the exact raw body with a separate secret,
+deduplicated by provider event ID, reduced to safe normalized evidence, and applied monotonically.
+Request-driven expiry and an operator reconciliation action provide Phase 4 recovery without a
+queue or worker. ADR 0005 and the Phase 4 implementation/operations guides define the state
+machines and recovery boundary.
+
 ## Main application layering
 
 ### React web client
@@ -160,9 +197,12 @@ This is a target direction, not an instruction to deploy every component. Each s
 1. The browser is untrusted. All protected operations are authenticated, authorized, and validated by the API.
 2. The Node.js API is the public control plane and establishes user/resource scope.
 3. MySQL constraints are a final integrity boundary, not a replacement for service rules.
-4. Workers revalidate permissions or operate from immutable authorized job context; they do not trust arbitrary queued payloads.
-5. The AI service is internal and receives the minimum data and tools needed for an authorized request.
-6. LLM output cannot authorize actions, bypass business services, or serve as an authoritative source for financial/operational state.
+4. Razorpay is an external financial authority. Only signature-verified and relationship/amount/
+   currency-checked evidence may affect local payment state; provider responses are never trusted
+   as arbitrary application input.
+5. Workers revalidate permissions or operate from immutable authorized job context; they do not trust arbitrary queued payloads.
+6. The AI service is internal and receives the minimum data and tools needed for an authorized request.
+7. LLM output cannot authorize actions, bypass business services, or serve as an authoritative source for financial/operational state.
 
 ## Cross-cutting concerns
 
@@ -180,9 +220,8 @@ This is a target direction, not an instruction to deploy every component. Each s
 - Multi-tenant expansion and tenant isolation beyond the accepted single-business baseline.
 - UI system: Material UI or Tailwind CSS.
 - Identity recovery, verification, MFA, and future employee onboarding workflows.
-- A future change to the accepted Phase 3 catalog model: variants, media, hierarchy, multi-currency, tax/discount rules, warehouses, reservations, or employee onboarding.
-- Payment provider and payment/webhook state model.
-- Inventory reservation and overselling policy.
+- A future change to the accepted catalog model: variants, media, hierarchy, multi-currency,
+  tax/discount rules, multiple warehouses, or employee onboarding.
 - Notification channels and delivery guarantees.
 - File storage, vector database, LLM/embedding providers, and AI data governance.
 - Hosting, network boundaries, environments, observability, backup, and recovery targets.

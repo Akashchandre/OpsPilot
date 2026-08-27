@@ -6,9 +6,12 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { notFound } from "./middleware/notFound.js";
 import { requestContext } from "./middleware/requestContext.js";
 import { requireTrustedOrigin } from "./middleware/trustedOrigin.js";
+import { createRazorpayWebhookController } from "./modules/payments/payments.controller.js";
+import { createRazorpayAdapter } from "./modules/payments/razorpay.adapter.js";
+import { createRazorpayWebhookService } from "./modules/payments/payments.webhook.js";
 import { createApiRouter } from "./routes/index.js";
 
-export function createApp({ config, database }) {
+export function createApp({ config, database, paymentProvider = createRazorpayAdapter(config) }) {
   const app = express();
 
   app.disable("x-powered-by");
@@ -17,16 +20,21 @@ export function createApp({ config, database }) {
     cors({
       origin: config.corsOrigin,
       credentials: true,
-      methods: ["GET", "POST", "PATCH", "DELETE"],
-      allowedHeaders: ["Accept", "Content-Type", "X-CSRF-Token"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      allowedHeaders: ["Accept", "Content-Type", "Idempotency-Key", "X-CSRF-Token"],
     }),
+  );
+  app.use(requestContext);
+  app.post(
+    "/api/v1/payments/webhooks/razorpay",
+    express.raw({ type: "application/json", limit: "64kb" }),
+    createRazorpayWebhookController(createRazorpayWebhookService(database, config)),
   );
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
-  app.use(requestContext);
   app.use(requireTrustedOrigin(config.corsOrigin));
 
-  app.use("/api/v1", createApiRouter(database, config));
+  app.use("/api/v1", createApiRouter(database, config, paymentProvider));
 
   app.use(notFound);
   app.use(errorHandler);

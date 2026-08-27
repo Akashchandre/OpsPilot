@@ -20,6 +20,19 @@ const origin = config.corsOrigin;
 const password = "Phase2 secure password!";
 let sharedPasswordHash;
 
+async function clearCommerceData() {
+  await database.providerWebhookEvent.deleteMany();
+  await database.refund.deleteMany();
+  await database.paymentAttempt.deleteMany();
+  await database.payment.deleteMany();
+  await database.orderStatusEvent.deleteMany();
+  await database.inventoryReservation.deleteMany();
+  await database.orderItem.deleteMany();
+  await database.order.deleteMany();
+  await database.cartItem.deleteMany();
+  await database.cart.deleteMany();
+}
+
 function cookieValue(response, name) {
   const cookie = response.headers["set-cookie"]?.find((value) => value.startsWith(`${name}=`));
   if (!cookie) throw new Error(`Response did not set ${name}`);
@@ -53,6 +66,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await clearCommerceData();
   await database.securityEvent.deleteMany();
   await database.authSession.deleteMany();
   await database.userRole.deleteMany();
@@ -60,6 +74,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  await clearCommerceData();
   await database.securityEvent.deleteMany();
   await database.authSession.deleteMany();
   await database.userRole.deleteMany();
@@ -191,7 +206,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(roles.status).toBe(200);
     expect(roles.body.data.roles.map((role) => role.code)).toEqual(["ADMIN", "CUSTOMER", "OWNER"]);
     expect(permissions.status).toBe(200);
-    expect(permissions.body.data.permissions).toHaveLength(9);
+    expect(permissions.body.data.permissions).toHaveLength(14);
     expect(permissions.body.data.permissions.map((permission) => permission.code)).toContain(
       "inventory:adjust",
     );
@@ -282,7 +297,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       password,
     });
     expect(owner.roles).toEqual(["OWNER"]);
-    expect(owner.permissions).toHaveLength(9);
+    expect(owner.permissions).toHaveLength(14);
 
     await expect(
       bootstrapOwner(database, {

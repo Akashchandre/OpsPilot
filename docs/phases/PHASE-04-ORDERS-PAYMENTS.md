@@ -1,5 +1,15 @@
 # Phase 4 — Orders and Payments
 
+## Status
+
+**IMPLEMENTED — EXTERNAL PROVIDER SMOKE DEFERRED; PHASE NOT ACCEPTED as of 2026-08-27.** The
+migration, API, UI, automated security/concurrency/provider-contract tests, documentation, and
+repository quality gates pass. Real provider smoke cannot currently run because the ignored API
+environment has no enabled Test Mode key pair or webhook secret, and no approved public HTTPS
+webhook/capture configuration is recorded. ADR 0006 records the user's direction to retain this
+issue as a backlog gate and begin Phase 5 decision-definition work without accepting Phase 4.
+ADR 0005 remains authoritative for commerce behavior.
+
 ## Objective
 
 Implement a transactionally safe customer cart, order placement/tracking, and provider-integrated payment lifecycle on accepted catalog/inventory rules.
@@ -12,13 +22,31 @@ Implement a transactionally safe customer cart, order placement/tracking, and pr
 - Customer order list/details/tracking and authorized operator management.
 - Secure provider payment initiation, verified idempotent webhooks, state reconciliation, and agreed refund/cancellation behavior.
 
-## Decisions required
+## Resolved decisions and remaining provider inputs
 
-Guest carts; cart expiry/merge; addresses; shipping/fulfillment; tax/discounts; currencies; stock reservation and expiry; oversell policy; order states/transitions; payment provider/account; client payment flow; idempotency; webhook/refund/retry/reconciliation; PCI scope; cancellation/return policy.
+- **Selected:** Razorpay is the provider and the first integration uses available Test Mode
+  credentials. Secret values remain outside the repository.
+- **Approved:** authenticated-only carts, India shipping snapshot, INR totals with no tax/discount/
+  shipping charge, 15-minute reservations, state machines, idempotency, Standard Checkout,
+  automatic capture, signed webhooks, full refunds, reconciliation, permissions, and explicit
+  deferrals.
+- **Still required for provider testing:** a separate webhook secret, Test Mode automatic-capture
+  confirmation, and a public HTTPS webhook URL or an explicit signed-fixture-only deferral.
 
 ## Tasks
 
-Approve workflows, provider/dependencies/accounts/env variables; threat-model checkout/payment; finalize schema and state machines; implement transactional cart-to-order service; integrate provider through an adapter; verify/deduplicate webhooks using provider rules; implement authorized customer/operator UI/API; add reconciliation/auditing; test failures/concurrency; document operations and update progress.
+- [x] Approve workflows, state machines, provider boundary, permissions, deferrals, and environment names.
+- [x] Record ADR, permission matrix, and checkout/payment threat model.
+- [x] Add the reviewed Prisma schema/migration and deploy it to development/test databases.
+- [x] Implement transactional cart/order/reservation services and Razorpay adapter.
+- [x] Implement raw signed webhook verification, deduplication, monotonic state application,
+  idempotent full refunds, and per-payment reconciliation.
+- [x] Implement authenticated customer and permission-gated operator API/UI workflows.
+- [x] Test failures, concurrency, ownership, idempotency, signed fixtures, and browser recovery states.
+- [x] Synchronize architecture, database, API, setup, recovery, and review documentation.
+- [ ] Resolve the deferred Razorpay configuration issue and execute the external provider smoke
+      matrix.
+- [ ] Obtain explicit Phase 4 acceptance after that evidence is recorded.
 
 ## Acceptance criteria
 
@@ -32,7 +60,11 @@ Approve workflows, provider/dependencies/accounts/env variables; threat-model ch
 
 ## Testing requirements
 
-Unit tests for totals and state machines; database/API tests for cart rules, checkout transaction rollback, concurrency, idempotency, permissions, cancellation/refund transitions; provider sandbox/contract tests for success, decline, timeout, duplicate/out-of-order/invalid-signature webhooks and reconciliation; frontend/E2E critical purchase and failure paths.
+The repository passes 53 API tests and 24 web tests. Coverage passes at 80.24% statements, 68.17%
+branches, 94.67% functions, and 84.54% lines for the API, and 82.56% statements, 71.09% branches,
+80.25% functions, and 85.10% lines for the web client. Local provider fakes and raw signed fixtures
+cover success/failure/timeout/idempotency/reconciliation behavior. Real Razorpay Test Mode smoke is
+still pending the external inputs listed above.
 
 ## Edge cases
 
@@ -44,13 +76,18 @@ Minimize PCI scope; use provider-hosted/tokenized methods where selected; verify
 
 ## Completion criteria
 
-State machines and reconciliation are documented; all transaction/concurrency/idempotency/security/provider tests pass; operational failure recovery is demonstrated; prior phases remain stable; future infrastructure/AI is absent; and explicit phase acceptance is recorded.
+State machines, reconciliation, and recovery are documented; repository transaction/concurrency/
+idempotency/security/provider-contract tests pass; prior phases remain stable; and future
+infrastructure/AI is absent. Completion still requires the documented real Test Mode smoke and
+explicit phase acceptance. ADR 0006 defers that gate so Phase 5 planning can proceed; it does not
+waive the gate.
 
 ## Documentation updates
 
-Update database/API/architecture, order/payment state diagrams, provider setup and webhook/reconciliation runbooks, environment catalog, decisions, this phase status, and `WORK-PROGRESS.md`.
+Database/API/architecture, state diagrams, environment catalog, decisions, implementation guide,
+provider setup/recovery runbook, review report, this phase status, and `WORK-PROGRESS.md` are
+synchronized.
 
 ## Explicit exclusions
 
 Redis/queues/realtime unless explicitly moved by an architectural decision, advanced support automation, RAG, and AI remain out of scope.
-

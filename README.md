@@ -2,7 +2,12 @@
 
 OpsPilot is a planned full-stack business operations SaaS platform for customers and business operators. It will combine commerce and operational workflows with customer and owner AI assistants introduced in later phases.
 
-The repository has completed and accepted **Phase 3 — Business Core**. The public catalog, protected catalog management, and concurrency-safe inventory workflows are available locally. Phase 4 has not started.
+Phases 1–3 are accepted. **Phase 4 — Orders and Payments** is implemented in the repository with
+versioned carts, transaction-safe orders/reservations, Razorpay Test Mode Standard Checkout,
+verified webhooks, full refunds, reconciliation, and customer/operator UI. External Test Mode
+delivery smoke is deferred because its local/provider configuration is unavailable, so explicit
+Phase 4 acceptance remains pending. **Phase 5 — Production Backend Features** has started at the
+decision-definition stage under ADR 0006; no Phase 5 schema or runtime work is approved yet.
 
 ## Source of truth
 
@@ -19,6 +24,14 @@ Start with:
 - [Phase 3 implementation guide](docs/phase-3/PHASE-03-IMPLEMENTATION-GUIDE.md)
 - [Phase 3 review report](docs/phase-3/PHASE-03-REVIEW-REPORT.md)
 - [Phase 3 accepted decisions](docs/decisions/0004-phase-3-business-core.md)
+- [Phase 4 implementation guide](docs/phase-4/PHASE-04-IMPLEMENTATION-GUIDE.md)
+- [Phase 4 Test Mode operations runbook](docs/phase-4/PHASE-04-OPERATIONS-RUNBOOK.md)
+- [Phase 4 review report](docs/phase-4/PHASE-04-REVIEW-REPORT.md)
+- [Phase 4 accepted decisions](docs/decisions/0005-phase-4-orders-payments.md)
+- [Phase 4 provider-smoke deferral](docs/decisions/0006-phase-4-provider-smoke-deferral.md)
+- [Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md)
+- [Phase 5 proposed permission matrix](docs/permissions/PHASE-05-PERMISSION-MATRIX.md)
+- [Phase 5 proposed threat model](docs/security/PHASE-05-THREAT-MODEL.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -63,6 +76,13 @@ Keep `AUTH_CSRF_COOKIE_NAME` and `VITE_CSRF_COOKIE_NAME` identical. Set `AUTH_CO
 
 `BUSINESS_CURRENCY` controls the single Phase 3 catalog currency and defaults to `INR`. It must be an uppercase three-letter ISO currency code and should not be changed after products exist without a deliberate data migration.
 
+Phase 4 provider variables are listed, without values, in the API example files. Routine local and
+automated work keeps `RAZORPAY_ENABLED=false`. Before Test Mode provider smoke, use a freshly
+rotated Test Mode key pair plus a separate webhook secret in the ignored `apps/api/.env`, confirm
+automatic capture, and configure a public HTTPS webhook endpoint. Follow the
+[Phase 4 operations runbook](docs/phase-4/PHASE-04-OPERATIONS-RUNBOOK.md). Never commit or paste
+provider secrets into project artifacts.
+
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
 
 The runtime adapter permits MySQL RSA public-key retrieval only for loopback database hosts so local `caching_sha2_password` accounts work reliably after MySQL restarts. Remote database hosts must use a reviewed TLS or pinned-public-key configuration; the application does not enable remote key retrieval implicitly.
@@ -100,8 +120,17 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 
 ## Current phase
 
-Phase 3 — Business Core is **accepted** as of 2026-08-26. Phase 4 — Orders and Payments has not started and requires a separate requirements/decision review before implementation. See [PHASE-03-BUSINESS-CORE.md](docs/phases/PHASE-03-BUSINESS-CORE.md), the [Phase 3 implementation guide](docs/phase-3/PHASE-03-IMPLEMENTATION-GUIDE.md), and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
+Phase 5 — Production Backend Features is **in decision definition** as of 2026-08-27. Its complete
+recommended baseline awaits explicit approval before implementation. Phase 4 remains
+repository-complete but unaccepted because external Razorpay Test Mode smoke is deferred. See the
+[Phase 5 specification](docs/phases/PHASE-05-PRODUCTION-BACKEND.md),
+[Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md), and
+[WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
-Phase 3 is limited to the approved product, category, aggregate inventory, and existing Phase 2 user-administration scope. Orders, payments, carts, variants, images/uploads, multiple warehouses, reservations, real-time infrastructure, background jobs, and AI remain unauthorized.
+Phase 5 planning is limited to the proposed support, overview reporting, audit, logging, rate,
+performance, and recovery baseline. Until the proposal is approved, no Phase 5 schema/runtime
+change is authorized. Live payments, unresolved Phase 4 provider/go-live gates, attachments,
+exports, real-time infrastructure, background jobs, hosted observability, and AI remain outside
+the current implementation scope.

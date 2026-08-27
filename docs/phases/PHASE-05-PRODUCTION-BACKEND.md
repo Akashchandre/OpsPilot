@@ -1,5 +1,13 @@
 # Phase 5 — Production Backend Features
 
+## Status
+
+**DECISION DEFINITION IN PROGRESS as of 2026-08-27.** ADR 0006 explicitly authorizes Phase 5 to
+start while the external Phase 4 Razorpay smoke remains deferred. The proposed support, reporting,
+audit, hardening, permission, dependency, retention, and test baseline is documented in
+`docs/phase-5/PHASE-05-DECISION-PROPOSAL.md`; schema and application implementation require explicit
+approval of that complete baseline.
+
 ## Objective
 
 Harden the backend and add agreed support, reporting/analytics foundations, auditability, and operational controls needed before asynchronous and AI capabilities.
@@ -18,7 +26,16 @@ Ticket messages/attachments/status/priority/SLA/assignment/escalation; dashboard
 
 ## Tasks
 
-Finalize support/report/audit contracts and permissions; approve dependencies/services/env variables; implement schema/migrations and support workflows; implement bounded report queries and UI; add append-oriented audit recording; standardize structured logging/correlation/error/redaction; profile key APIs and indexes; establish rate/request controls and operational documentation; test security/performance/recovery behaviors; update progress.
+- [x] Record the explicit Phase 4 provider-smoke deferral and Phase 5 planning authorization.
+- [x] Draft the Phase 5 decision proposal, permission matrix, and threat model.
+- [ ] Review and explicitly approve or revise the complete Phase 5 baseline.
+- [ ] Record the accepted Phase 5 ADR and implementation sequence.
+- [ ] Implement the approved schema/migrations and support workflows.
+- [ ] Implement bounded report queries and UI.
+- [ ] Add approved append-only audit evidence and structured logging/correlation/redaction.
+- [ ] Add approved rate/request controls and profile key APIs/indexes.
+- [ ] Complete operational documentation, security/performance/recovery tests, regressions, and
+      acceptance review.
 
 ## Acceptance criteria
 
@@ -52,4 +69,3 @@ Update schema/API/architecture, ticket/status and metric definitions, audit cata
 ## Explicit exclusions
 
 Real-time notifications, queues/workers/Redis, AI assistants, RAG, LangGraph, Docker/CI/CD production deployment remain in later phases.
-

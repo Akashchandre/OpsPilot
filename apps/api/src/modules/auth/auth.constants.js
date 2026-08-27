@@ -14,6 +14,11 @@ export const PERMISSIONS = Object.freeze({
   CATEGORIES_MANAGE: "categories:manage",
   INVENTORY_READ: "inventory:read",
   INVENTORY_ADJUST: "inventory:adjust",
+  ORDERS_READ: "orders:read",
+  ORDERS_MANAGE: "orders:manage",
+  PAYMENTS_READ: "payments:read",
+  PAYMENTS_REFUND: "payments:refund",
+  PAYMENTS_RECONCILE: "payments:reconcile",
 });
 
 export const USER_STATUSES = Object.freeze({

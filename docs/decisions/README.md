@@ -22,3 +22,5 @@ Do not create a decision record merely to disguise an unresolved choice. Until r
 - `0002-prisma-generated-code-boundary.md` — accepted generated-code boundary.
 - `0003-phase-2-authentication-rbac.md` — accepted Phase 2 identity, session, and authorization baseline.
 - `0004-phase-3-business-core.md` — accepted Phase 3 catalog, money, lifecycle, inventory, permission, and scope baseline.
+- `0005-phase-4-orders-payments.md` — accepted Phase 4 cart, order, inventory reservation, Razorpay Test Mode, refund, reconciliation, permission, and scope baseline.
+- `0006-phase-4-provider-smoke-deferral.md` — accepted deferral of the unresolved external Razorpay Test Mode smoke and authorization to begin Phase 5 decision-definition work without accepting Phase 4 or live payments.

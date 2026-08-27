@@ -21,10 +21,11 @@ function readCookie(name) {
 
 export async function apiRequest(
   path,
-  { method = "GET", body, requiresCsrf = false, signal } = {},
+  { method = "GET", body, requiresCsrf = false, idempotencyKey, signal } = {},
 ) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   if (requiresCsrf) {
     const csrfToken = readCookie(webConfig.csrfCookieName);
     if (!csrfToken) {

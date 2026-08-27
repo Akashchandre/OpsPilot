@@ -2,7 +2,10 @@
 
 ## Status and design principles
 
-This document records the accepted Phase 2 identity schema, implemented Phase 3 business-core schema, and conceptual planning for later phases. Later entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for their owning phases.
+This document records the accepted Phase 2 identity schema, implemented Phase 3 business-core
+schema, implemented Phase 4 commerce schema, and conceptual planning for later phases. Later
+entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for
+their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
 - Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
@@ -19,7 +22,7 @@ This document records the accepted Phase 2 identity schema, implemented Phase 3 
 |---|---|---|
 | `users` | Login identity and account state | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
 | `roles` | Migration-controlled system roles | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER` |
-| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2 and four Phase 3 permissions |
+| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2, four Phase 3, and five Phase 4 permissions |
 | `user_roles` | User-role assignment and assigning actor | Composite primary key, foreign keys, deliberate actor `SET NULL` |
 | `role_permissions` | System role-permission mapping | Composite primary key and constrained foreign keys |
 | `auth_sessions` | Revocable opaque browser sessions | Unique token digest, CSRF digest, expiry/revocation, user-agent digest |
@@ -41,7 +44,31 @@ Migration `20260825122320_phase_3_business_core` creates the following tables an
 | `inventory_balances` | One aggregate stock balance per product | Product primary/foreign key, nonnegative whole-number on-hand and threshold values, optimistic version |
 | `inventory_adjustments` | Immutable operational stock ledger | UUID primary key, product and actor foreign keys, nonzero delta, nonnegative before/after values, database-enforced balance arithmetic, reason, optional note/request ID |
 
-Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, images, hierarchy, warehouses, reservations, fractional quantities, tax, discounts, conversion, and new employee records are not part of this schema.
+Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, images, hierarchy, warehouses, fractional quantities, tax, discounts, conversion, and new employee records remain outside this schema; Phase 4 adds the approved reservation model separately.
+
+## Implemented Phase 4 commerce tables
+
+Migration `20260826043501_phase_4_orders_payments` creates the commerce tables and seeds
+`orders:read`, `orders:manage`, `payments:read`, `payments:refund`, and `payments:reconcile` for
+`OWNER` and `ADMIN`:
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `carts` | One persistent current cart per authenticated user | UUID primary key, unique user, optimistic version, cascading user cleanup |
+| `cart_items` | Desired product quantity and observed price | Composite cart/product key, quantity 1–99, fixed-precision observed price, restricted product deletion |
+| `orders` | Immutable purchase/address/totals and lifecycle | Unique order number; user-scoped UUID idempotency key plus request digest; `INR` totals; 15-minute reservation expiry; optimistic version |
+| `order_items` | Purchase-time product and price snapshots | Positive quantity, exact line arithmetic, restricted order/product deletion |
+| `inventory_reservations` | One stock reservation per order line | Unique order item, `ACTIVE`/`CONSUMED`/`RELEASED`, expiry and transition timestamps, optimistic version |
+| `order_status_events` | Append-oriented order transition evidence | Previous/next state, trusted source, stable reason, optional actor/request context |
+| `payments` | Provider-neutral intent and Razorpay order mapping | One payment per order, unique provider order/receipt, exact amount/currency, monotonic status, optimistic version |
+| `payment_attempts` | Razorpay payment observations | Unique provider payment ID, amount/currency, safe failure code, monotonic attempt status |
+| `refunds` | Normal full-refund state | Payment-scoped UUID idempotency key plus request digest, unique provider refund ID, actor and safe failure evidence |
+| `provider_webhook_events` | Webhook deduplication and minimal evidence | Unique provider/event ID, body digest, event type/outcome, optional payment link; no raw payload or signature |
+
+Database checks enforce positive quantities, nonnegative totals, exact order and line arithmetic,
+currency-code shape, valid reservation timestamps, and the expected provider receipt shape.
+Orders, items, reservations, status events, payments, attempts, refunds, and webhook evidence have
+no hard-delete API.
 
 ## Expected entities
 
@@ -62,7 +89,12 @@ Prices are represented as decimal strings plus `INR` in HTTP responses. Product/
 | `cart_items` | Product, quantity, and display context in a cart | Cart + product | 4 |
 | `orders` | Customer purchase lifecycle | User, items, payments | 4 |
 | `order_items` | Immutable purchase snapshot lines | Order; optional reference to product | 4 |
+| `inventory_reservations` | Per-line reservation lifecycle | Order + order item + product | 4 |
+| `order_status_events` | Immutable order transition evidence | Order; optional actor | 4 |
 | `payments` | Provider-neutral payment attempts/state | Order | 4 |
+| `payment_attempts` | Provider payment observations | Payment | 4 |
+| `refunds` | Full-refund request and provider state | Payment + captured attempt | 4 |
+| `provider_webhook_events` | Provider event deduplication/evidence | Optional payment | 4 |
 | `support_tickets` | Customer support case | Requester, assignee, order if relevant | 5 |
 | `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
 | `documents` | Company document metadata and processing state | Uploader; chunks/index records later | 8 |
@@ -70,16 +102,22 @@ Prices are represented as decimal strings plus `INR` in HTTP responses. Product/
 | `chat_messages` | Individual conversation messages | Session | 7 |
 | `audit_logs` | Security/business action evidence | Actor, action, target, correlation context | 5 |
 
-Employee records, addresses, product images/variants, ticket comments, document chunks, inventory reservations/movements, password reset/verification tokens, notification deliveries, and AI tool executions may need separate entities. Their need and shape are a **Decision Required** in their owning phases.
+Employee records, reusable addresses, product images/variants, ticket comments, document chunks,
+password reset/verification tokens, notification deliveries, and AI tool executions may need
+separate entities. Their need and shape are a **Decision Required** in their owning phases.
 
 ## Conceptual relationships
 
 - A user may have many roles through `user_roles`; a role may have many permissions through `role_permissions`.
 - A category has many products and a product may have many flat categories through `product_categories`; category hierarchy is deferred.
-- A product has one aggregate inventory balance and many immutable adjustments. Multiple warehouses, variants/SKUs, and reservations are deferred.
-- A user may have one or more carts; a cart contains many cart items. Active-cart uniqueness is a **Decision Required**.
-- A user has many orders; an order contains one or more order items and may have multiple payment attempts.
+- A product has one aggregate inventory balance and many immutable adjustments. Multiple warehouses
+  and variants/SKUs are deferred; Phase 4 reservations reference that aggregate product balance.
+- A user has at most one persistent current cart; a cart contains unique product lines.
+- A user has many orders; an order contains one or more immutable items, one payment intent, and
+  one reservation per order line.
 - An order item stores immutable product name/SKU/price/tax/discount context required to preserve order history even if the product changes.
+- A payment has many provider attempts and refunds. Provider identifiers and idempotency keys
+  prevent duplicate financial effects, while webhook events store only normalized evidence.
 - A support ticket belongs to a requester and may reference an order; assignment, conversation/comments, status history, and SLA data require decisions.
 - A notification belongs to a recipient and may reference a domain resource without unsafe polymorphic integrity.
 - A document belongs to the relevant business scope and tracks upload/processing lifecycle; chunks and vector records must preserve document/version/access metadata.
@@ -88,7 +126,7 @@ Employee records, addresses, product images/variants, ticket comments, document 
 
 ## Candidate columns and constraints
 
-Implemented Phase 2/3 rows are recorded alongside planning hints for future entities.
+Implemented Phase 2–4 rows are recorded alongside planning hints for future entities.
 
 | Entity | Candidate constraints and important data |
 |---|---|
@@ -99,10 +137,15 @@ Implemented Phase 2/3 rows are recorded alongside planning hints for future enti
 | `products` | Stable normalized unique SKU; name; plain-text description; fixed-precision nonnegative price; `INR`; lifecycle status; optimistic version |
 | `inventory_balances` | One row per product; nonnegative whole-number on-hand and threshold; optimistic version |
 | `inventory_adjustments` | Nonzero bounded delta; before/after arithmetic; reason, note, actor, request ID, and timestamp; no update/delete API |
-| `cart_items` | Positive quantity; uniqueness strategy for product/variant per cart |
-| `orders` | Unique human-facing order number; user; status; currency; immutable totals; addresses/snapshots as required |
-| `order_items` | Positive quantity; unit price and calculated line snapshot; optional product reference preserving historical rows |
-| `payments` | Unique provider event/transaction identifiers; order; amount/currency; state; safe provider metadata only |
+| `carts` / `cart_items` | One versioned cart per user; unique product per cart; quantity 1–99; observed price/currency |
+| `orders` | Unique human-facing number; user-scoped idempotency; status/version; `INR` immutable totals and India address snapshot |
+| `order_items` | Positive quantity; immutable SKU/name/unit-price/line-total/currency snapshot; restricted product reference |
+| `inventory_reservations` | Unique order item; positive quantity; active/consumed/released state; expiry and transition timestamps |
+| `order_status_events` | Append-oriented from/to/source/reason plus optional actor/request evidence |
+| `payments` | One per order; unique provider order/receipt; exact amount/currency; provider-neutral monotonic state |
+| `payment_attempts` | Unique provider payment ID; exact relationship/amount/currency; safe status/failure evidence |
+| `refunds` | Full amount; payment-scoped idempotency; unique provider refund ID; pending/processed/failed state |
+| `provider_webhook_events` | Unique provider event ID and body digest; allowlisted type/outcome; no raw webhook body |
 | `support_tickets` | Unique ticket number; requester; status; priority if selected; subject; timestamps |
 | `notifications` | Recipient; type; safe payload/reference; read/delivery timestamps; deduplication key if needed |
 | `documents` | Owner/uploader; storage key, display name, MIME/size, checksum/version, processing status; never public raw storage path |
@@ -141,8 +184,16 @@ Do not add broad indexes blindly: write amplification, cardinality, prefix limit
 - Claiming jobs and recording delivery/notification outcomes.
 - Publishing a new document version and replacing its searchable index safely.
 
-Payment providers and external queues cannot join database transactions. Those workflows require idempotency, an outbox or equivalent consistency pattern, and reconciliation. The exact pattern is a **Decision Required** in Phases 4 and 6.
+Payment providers and external queues cannot join database transactions. Phase 4 therefore commits
+local checkout state first, calls Razorpay through an adapter, recovers ambiguous order creation by
+the unique receipt, and applies verified results in later idempotent transactions. Signed webhooks
+and an authorized per-payment reconciliation action recover lost or delayed effects. A durable
+outbox/worker and bulk scheduling remain decisions for Phase 6.
 
 ## Retention and deletion
 
-Deletion behavior is deliberately unresolved. Orders, payments, audit events, documents, tickets, chats, personal information, and AI traces may have different legal and operational retention requirements. **Decision Required:** jurisdiction, privacy obligations, account deletion/anonymization, backups, soft deletion, legal holds, and retention schedules.
+Phase 4 exposes no deletion for orders or financial evidence and uses restrictive foreign keys for
+historical commerce records. The final retention duration remains unresolved: orders, payments,
+audit events, documents, tickets, chats, personal information, and AI traces may have different
+legal and operational requirements. **Decision Required:** jurisdiction, privacy obligations,
+account deletion/anonymization, backups, soft deletion, legal holds, and retention schedules.

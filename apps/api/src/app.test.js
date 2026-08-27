@@ -4,6 +4,18 @@ import { createApp } from "./app.js";
 
 const config = {
   corsOrigin: "http://127.0.0.1:5173",
+  payments: {
+    reservationTtlMinutes: 15,
+    razorpay: {
+      enabled: false,
+      keyId: undefined,
+      keySecret: undefined,
+      webhookSecret: undefined,
+      apiBaseUrl: "https://api.razorpay.com/v1",
+      checkoutScriptUrl: "https://checkout.razorpay.com/v1/checkout.js",
+      requestTimeoutMs: 8000,
+    },
+  },
   auth: {
     sessionCookieName: "opspilot_test_session",
     csrfCookieName: "opspilot_test_csrf",

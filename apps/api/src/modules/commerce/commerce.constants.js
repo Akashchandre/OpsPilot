@@ -1,0 +1,74 @@
+export const MAX_CART_QUANTITY = 99;
+export const MAX_ORDER_TOTAL_SUBUNITS = 2_000_000_000;
+
+export const PRODUCT_STATUS_ACTIVE = "ACTIVE";
+
+export const INVENTORY_RESERVATION_STATUSES = Object.freeze({
+  ACTIVE: "ACTIVE",
+  CONSUMED: "CONSUMED",
+  RELEASED: "RELEASED",
+});
+
+export const ORDER_STATUSES = Object.freeze({
+  PENDING_PAYMENT: "PENDING_PAYMENT",
+  CONFIRMED: "CONFIRMED",
+  PROCESSING: "PROCESSING",
+  SHIPPED: "SHIPPED",
+  DELIVERED: "DELIVERED",
+  CANCELLED: "CANCELLED",
+  EXPIRED: "EXPIRED",
+  PAYMENT_REVIEW: "PAYMENT_REVIEW",
+});
+
+export const ORDER_EVENT_SOURCES = Object.freeze({
+  CUSTOMER: "CUSTOMER",
+  OPERATOR: "OPERATOR",
+  PROVIDER: "PROVIDER",
+  SYSTEM: "SYSTEM",
+  RECONCILIATION: "RECONCILIATION",
+});
+
+export const PAYMENT_STATUSES = Object.freeze({
+  CREATING: "CREATING",
+  OPEN: "OPEN",
+  CAPTURED: "CAPTURED",
+  REFUND_PENDING: "REFUND_PENDING",
+  REFUNDED: "REFUNDED",
+  REVIEW_REQUIRED: "REVIEW_REQUIRED",
+});
+
+export const PAYMENT_ATTEMPT_STATUSES = Object.freeze({
+  AUTHORIZED: "AUTHORIZED",
+  CAPTURED: "CAPTURED",
+  FAILED: "FAILED",
+});
+
+export const PAYMENT_ATTEMPT_PRIORITY = Object.freeze({
+  FAILED: 0,
+  AUTHORIZED: 1,
+  CAPTURED: 2,
+});
+
+export const REFUND_STATUSES = Object.freeze({
+  PENDING: "PENDING",
+  PROCESSED: "PROCESSED",
+  FAILED: "FAILED",
+});
+
+export const PROVIDER_WEBHOOK_STATUSES = Object.freeze({
+  PROCESSED: "PROCESSED",
+  IGNORED: "IGNORED",
+  REVIEW_REQUIRED: "REVIEW_REQUIRED",
+});
+
+export const RAZORPAY_WEBHOOK_EVENTS = Object.freeze([
+  "payment.authorized",
+  "payment.captured",
+  "payment.failed",
+  "order.paid",
+  "refund.created",
+  "refund.processed",
+  "refund.failed",
+]);
+
+export const RAZORPAY_PROVIDER = "RAZORPAY";

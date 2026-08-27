@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { getCart, setCartItem } from "../api/commerce.js";
 import { getProduct } from "../api/catalog.js";
+import { useAuth } from "../auth/auth-context.js";
 import { Money } from "../components/Money.jsx";
 
 export function ProductDetailPage() {
   const { productId } = useParams();
+  const auth = useAuth();
   const [state, setState] = useState({ status: "loading", product: null, error: "" });
+  const [cartState, setCartState] = useState({ status: "idle", message: "" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,6 +43,18 @@ export function ProductDetailPage() {
   }
 
   const product = state.product;
+  async function addProductToCart() {
+    setCartState({ status: "saving", message: "" });
+    try {
+      const cart = await getCart();
+      const existing = cart.items.find((item) => item.product.id === product.id);
+      const quantity = Math.min((existing?.quantity ?? 0) + 1, 99);
+      await setCartItem(product.id, { quantity, version: cart.version });
+      setCartState({ status: "ready", message: "Added to your cart." });
+    } catch (error) {
+      setCartState({ status: "error", message: error.message });
+    }
+  }
   return (
     <article className="product-detail">
       <div className="product-detail__visual" aria-hidden="true">
@@ -64,7 +80,33 @@ export function ProductDetailPage() {
             {product.availability.inStock ? "Available" : "Currently out of stock"}
           </span>
         </div>
-        <p className="muted">Cart and ordering begin in Phase 4.</p>
+        {auth.user ? (
+          <div className="commerce-actions">
+            <button
+              className="button button--primary"
+              type="button"
+              disabled={!product.availability.inStock || cartState.status === "saving"}
+              onClick={addProductToCart}
+            >
+              {cartState.status === "saving" ? "Adding..." : "Add to cart"}
+            </button>
+            <Link className="button button--quiet" to="/cart">
+              View cart
+            </Link>
+          </div>
+        ) : (
+          <p className="muted">
+            <Link to="/login">Log in</Link> to add this product to a cart.
+          </p>
+        )}
+        {cartState.message ? (
+          <p
+            className={cartState.status === "error" ? "global-alert" : "success-message"}
+            role="status"
+          >
+            {cartState.message}
+          </p>
+        ) : null}
       </div>
     </article>
   );

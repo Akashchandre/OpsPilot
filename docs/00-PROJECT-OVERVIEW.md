@@ -4,7 +4,8 @@
 
 **Name:** OpsPilot — AI Business Operations Platform  
 **Product type:** Full-stack business operations SaaS platform  
-**Current lifecycle state:** Phase 3 business core accepted; Phase 4 not started
+**Current lifecycle state:** Phase 3 accepted; Phase 4 repository-complete with external Razorpay
+smoke deferred and acceptance pending; Phase 5 decision definition in progress
 
 ## Purpose
 
@@ -44,7 +45,11 @@ Owners and administrators can eventually:
 - Use an owner AI assistant for business questions and generated insights.
 - Receive real-time notifications.
 
-For the accepted single-business identity baseline, owners alone can manage owner status while administrators can manage non-owner identity access. Phase 3 adds migration-controlled product, category, and inventory permissions to both `OWNER` and `ADMIN`; customers retain public active-catalog access only.
+For the accepted single-business identity baseline, owners alone can manage owner status while
+administrators can manage non-owner identity access. Phase 3 assigns catalog/inventory permissions
+to both `OWNER` and `ADMIN`. Phase 4 also assigns order-read/manage and payment-read/refund/
+reconcile permissions to those roles; customer cart/order/payment access is authenticated and
+ownership-scoped.
 
 ### Future employees and managers
 
@@ -111,7 +116,13 @@ The main frontend and backend must remain JavaScript. TypeScript migration is ou
 9. LangGraph Business AI and AI Support.
 10. Testing, Docker, CI/CD, and Production.
 
-Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security considerations, completion criteria, and documentation updates. Phase 3 satisfied this gate and was explicitly accepted on 2026-08-26. Phase 4 requires its own requirements and decision review before implementation begins.
+Each phase must define requirements, goals, tasks, acceptance criteria, tests, edge cases, security
+considerations, completion criteria, and documentation updates. Phase 3 was explicitly accepted on
+2026-08-26. The Phase 4 Razorpay Test Mode baseline was approved and implemented on 2026-08-26;
+repository verification passed on 2026-08-27. External provider-delivery smoke and explicit Phase
+4 acceptance remain required. ADR 0006 records the user's 2026-08-27 direction to defer that
+external gate and begin Phase 5 decision-definition work without accepting Phase 4 or authorizing
+live payments.
 
 ## Overall system flow
 
@@ -122,8 +133,11 @@ Each phase must define requirements, goals, tasks, acceptance criteria, tests, e
 3. Middleware authenticates, authorizes, validates, and adds request context where applicable.
 4. Controllers delegate to business services.
 5. Services enforce business rules and transactions and use the data-access boundary.
-6. Prisma reads or writes relational data in MySQL.
-7. The API returns a consistent success or error response to the client.
+6. For payment workflows, the API calls Razorpay through a narrow adapter and accepts only verified,
+   relationship/amount/currency-matched provider evidence; payment credentials stay in hosted
+   Checkout.
+7. Prisma reads or writes relational data in MySQL.
+8. The API returns a consistent success or error response to the client.
 
 ### Future AI flow
 
