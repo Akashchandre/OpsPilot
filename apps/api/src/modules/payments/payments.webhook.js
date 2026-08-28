@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { AUDIT_ACTIONS, AUDIT_ACTOR_KINDS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import {
   PROVIDER_WEBHOOK_STATUSES,
   RAZORPAY_PROVIDER,
@@ -118,6 +121,7 @@ async function applyEvent(transaction, eventType, payload, requestId) {
 }
 
 export function createRazorpayWebhookService(database, config) {
+  const appendAudit = createAuditService(database, config).append;
   return {
     async handle({ rawBody, signature, providerEventId, requestId }) {
       if (!config.payments.razorpay.enabled) {
@@ -176,6 +180,22 @@ export function createRazorpayWebhookService(database, config) {
                 processedAt: new Date(),
               },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.PAYMENT_WEBHOOK_PROCESSED,
+                actorKind: AUDIT_ACTOR_KINDS.PROVIDER,
+                targetType: AUDIT_TARGET_TYPES.PROVIDER_WEBHOOK_EVENT,
+                targetId: providerEventId,
+                requestId,
+                metadata: {
+                  eventType,
+                  status: result.status,
+                  safeCode: result.safeCode ?? null,
+                  paymentMatched: Boolean(result.paymentId),
+                },
+              }),
+            );
             return {
               accepted: true,
               duplicate: false,

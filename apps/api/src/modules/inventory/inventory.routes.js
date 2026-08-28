@@ -16,7 +16,7 @@ import { createInventoryService } from "./inventory.service.js";
 
 export function createInventoryRouter(database, config) {
   const router = Router();
-  const controller = createInventoryController(createInventoryService(database));
+  const controller = createInventoryController(createInventoryService(database, config));
   const verifyCsrf = requireCsrf(config);
 
   router.use(authenticate(database, config));

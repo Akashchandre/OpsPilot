@@ -15,6 +15,8 @@ describe("loadEnvironment", () => {
       nodeEnv: "test",
       host: "127.0.0.1",
       port: 4001,
+      logging: { level: "info" },
+      proxy: { trustProxyHops: 0 },
       corsOrigin: "http://127.0.0.1:5173",
       databaseUrl: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
       business: { currency: "INR" },
@@ -25,6 +27,12 @@ describe("loadEnvironment", () => {
         cookieSecure: false,
         loginRateLimitWindowMinutes: 15,
         loginRateLimitMax: 10,
+      },
+      rateLimit: {
+        api: { windowMinutes: 5, maximum: 300 },
+        support: { windowMinutes: 15, maximum: 30 },
+        reports: { windowMinutes: 5, maximum: 60 },
+        webhook: { windowMinutes: 5, maximum: 600 },
       },
       payments: {
         reservationTtlMinutes: 15,
@@ -38,7 +46,15 @@ describe("loadEnvironment", () => {
           requestTimeoutMs: 8000,
         },
       },
+      audit: {
+        integrityKey: expect.any(String),
+        integrityKeyId: "routine-test-v1",
+      },
     });
+
+    expect(
+      Buffer.from(loadEnvironment(validEnvironment).audit.integrityKey, "base64"),
+    ).toHaveLength(32);
   });
 
   it("reports field names without exposing secret values", () => {
@@ -57,6 +73,18 @@ describe("loadEnvironment", () => {
 
   it("rejects invalid ports", () => {
     expect(() => loadEnvironment({ ...validEnvironment, API_PORT: "70000" })).toThrow(
+      ConfigurationError,
+    );
+  });
+
+  it("validates logging, proxy, and rate-control bounds", () => {
+    expect(() => loadEnvironment({ ...validEnvironment, LOG_LEVEL: "verbose" })).toThrow(
+      ConfigurationError,
+    );
+    expect(() => loadEnvironment({ ...validEnvironment, TRUST_PROXY_HOPS: "11" })).toThrow(
+      ConfigurationError,
+    );
+    expect(() => loadEnvironment({ ...validEnvironment, API_RATE_LIMIT_MAX: "0" })).toThrow(
       ConfigurationError,
     );
   });
@@ -87,5 +115,45 @@ describe("loadEnvironment", () => {
         RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
       }).payments.razorpay.enabled,
     ).toBe(true);
+  });
+
+  it("requires a valid audit key and key ID outside routine tests", () => {
+    expect(() => loadEnvironment({ ...validEnvironment, NODE_ENV: "development" })).toThrow(
+      ConfigurationError,
+    );
+
+    const configured = loadEnvironment({
+      ...validEnvironment,
+      NODE_ENV: "development",
+      AUDIT_INTEGRITY_KEY: Buffer.alloc(32, 0x41).toString("base64"),
+      AUDIT_INTEGRITY_KEY_ID: "local-dev-v1",
+    });
+    expect(configured.audit.integrityKeyId).toBe("local-dev-v1");
+
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        AUDIT_INTEGRITY_KEY: "not-a-long-enough-key",
+        AUDIT_INTEGRITY_KEY_ID: "test-key-v1",
+      }),
+    ).toThrow(ConfigurationError);
+  });
+
+  it("never exposes an invalid audit key in configuration errors", () => {
+    const canary = "canary-audit-key-value";
+    let error;
+    try {
+      loadEnvironment({
+        ...validEnvironment,
+        AUDIT_INTEGRITY_KEY: canary,
+        AUDIT_INTEGRITY_KEY_ID: "test-key-v1",
+      });
+    } catch (caughtError) {
+      error = caughtError;
+    }
+
+    expect(error).toBeInstanceOf(ConfigurationError);
+    expect(error.message).toContain("AUDIT_INTEGRITY_KEY");
+    expect(error.message).not.toContain(canary);
   });
 });

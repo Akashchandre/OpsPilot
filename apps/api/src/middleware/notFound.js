@@ -5,7 +5,7 @@ export function notFound(request, _response, next) {
     new AppError({
       statusCode: 404,
       code: "ROUTE_NOT_FOUND",
-      message: `No route exists for ${request.method} ${request.originalUrl}`,
+      message: "The requested route does not exist",
     }),
   );
 }

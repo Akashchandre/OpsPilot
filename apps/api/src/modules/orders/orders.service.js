@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { AUDIT_ACTIONS, AUDIT_ACTOR_KINDS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import {
   ORDER_EVENT_SOURCES,
   ORDER_STATUSES,
@@ -82,7 +85,7 @@ async function loadOrder(database, orderId, { userId, management = false } = {})
   return order;
 }
 
-async function moveOrderToPaymentReview(database, paymentId, reasonCode) {
+async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendAudit, requestId) {
   await database.$transaction(
     async (transaction) => {
       const payment = await transaction.payment.findUnique({
@@ -91,16 +94,18 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode) {
       });
       if (!payment) return;
 
-      await transaction.payment.updateMany({
+      const paymentUpdate = await transaction.payment.updateMany({
         where: { id: payment.id, version: payment.version },
         data: { status: PAYMENT_STATUSES.REVIEW_REQUIRED, version: { increment: 1 } },
       });
+      let changed = paymentUpdate.count === 1;
       if (payment.order.status !== ORDER_STATUSES.PAYMENT_REVIEW) {
         const update = await transaction.order.updateMany({
           where: { id: payment.order.id, version: payment.order.version },
           data: { status: ORDER_STATUSES.PAYMENT_REVIEW, version: { increment: 1 } },
         });
         if (update.count === 1) {
+          changed = true;
           await transaction.orderStatusEvent.create({
             data: {
               orderId: payment.order.id,
@@ -112,12 +117,36 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode) {
           });
         }
       }
+      if (changed) {
+        await appendAudit(
+          transaction,
+          auditDescriptor({
+            action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
+            actorKind: AUDIT_ACTOR_KINDS.PROVIDER,
+            targetType: AUDIT_TARGET_TYPES.PAYMENT,
+            targetId: payment.id,
+            requestId,
+            metadata: {
+              source: "PROVIDER",
+              paymentStatus: PAYMENT_STATUSES.REVIEW_REQUIRED,
+              orderStatus: ORDER_STATUSES.PAYMENT_REVIEW,
+            },
+          }),
+        );
+      }
     },
     { isolationLevel: "Serializable" },
   );
 }
 
-async function prepareProviderOrder(database, config, paymentProvider, order) {
+async function prepareProviderOrder(
+  database,
+  config,
+  paymentProvider,
+  order,
+  appendAudit,
+  requestId,
+) {
   let payment = order.payment;
   if (!payment) throw commerceError(500, "PAYMENT_STATE_INVALID", "Payment state is invalid");
 
@@ -146,31 +175,71 @@ async function prepareProviderOrder(database, config, paymentProvider, order) {
 
   if (!providerOrder) return { checkout: null, providerCode };
   if (!providerOrderMatches(payment, providerOrder)) {
-    await moveOrderToPaymentReview(database, payment.id, "PROVIDER_ORDER_MISMATCH");
+    await moveOrderToPaymentReview(
+      database,
+      payment.id,
+      "PROVIDER_ORDER_MISMATCH",
+      appendAudit,
+      requestId,
+    );
     return { checkout: null, providerCode: "PAYMENT_PROVIDER_STATE_MISMATCH" };
   }
 
   const nextPaymentStatus =
     providerOrder.status === "paid" ? PAYMENT_STATUSES.REVIEW_REQUIRED : PAYMENT_STATUSES.OPEN;
-  const update = await database.payment.updateMany({
-    where: { id: payment.id, version: payment.version, providerOrderId: null },
-    data: {
-      providerOrderId: providerOrder.id,
-      providerOrderStatus: providerOrder.status,
-      status: nextPaymentStatus,
-      lastProviderEventAt: providerTimestamp(providerOrder.created_at),
-      version: { increment: 1 },
+  const update = await database.$transaction(
+    async (transaction) => {
+      const result = await transaction.payment.updateMany({
+        where: { id: payment.id, version: payment.version, providerOrderId: null },
+        data: {
+          providerOrderId: providerOrder.id,
+          providerOrderStatus: providerOrder.status,
+          status: nextPaymentStatus,
+          lastProviderEventAt: providerTimestamp(providerOrder.created_at),
+          version: { increment: 1 },
+        },
+      });
+      if (result.count === 1) {
+        await appendAudit(
+          transaction,
+          auditDescriptor({
+            action: AUDIT_ACTIONS.PAYMENT_PROVIDER_ORDER_LINKED,
+            actorKind: AUDIT_ACTOR_KINDS.PROVIDER,
+            targetType: AUDIT_TARGET_TYPES.PAYMENT,
+            targetId: payment.id,
+            requestId,
+            metadata: {
+              paymentStatus: nextPaymentStatus,
+              providerOrderStatus: providerOrder.status,
+            },
+          }),
+        );
+      }
+      return result;
     },
-  });
+    { isolationLevel: "Serializable" },
+  );
 
   payment = await database.payment.findUnique({ where: { id: payment.id } });
   if (!payment) throw commerceError(500, "PAYMENT_STATE_INVALID", "Payment state is invalid");
   if (update.count === 0 && payment.providerOrderId !== providerOrder.id) {
-    await moveOrderToPaymentReview(database, payment.id, "PROVIDER_ORDER_CONFLICT");
+    await moveOrderToPaymentReview(
+      database,
+      payment.id,
+      "PROVIDER_ORDER_CONFLICT",
+      appendAudit,
+      requestId,
+    );
     return { checkout: null, providerCode: "PAYMENT_PROVIDER_STATE_MISMATCH" };
   }
   if (nextPaymentStatus === PAYMENT_STATUSES.REVIEW_REQUIRED) {
-    await moveOrderToPaymentReview(database, payment.id, "PROVIDER_ORDER_ALREADY_PAID");
+    await moveOrderToPaymentReview(
+      database,
+      payment.id,
+      "PROVIDER_ORDER_ALREADY_PAID",
+      appendAudit,
+      requestId,
+    );
     return { checkout: null, providerCode: "PAYMENT_RECONCILIATION_REQUIRED" };
   }
 
@@ -190,6 +259,7 @@ function mapOrderWriteError(error) {
 }
 
 export function createOrdersService(database, config, paymentProvider) {
+  const appendAudit = createAuditService(database, config).append;
   async function findIdempotentOrder(userId, idempotencyKey, requestHash) {
     const order = await database.order.findUnique({
       where: { userId_idempotencyKey: { userId, idempotencyKey } },
@@ -200,8 +270,15 @@ export function createOrdersService(database, config, paymentProvider) {
     return order;
   }
 
-  async function finishOrderResponse(order) {
-    const setup = await prepareProviderOrder(database, config, paymentProvider, order);
+  async function finishOrderResponse(order, requestId) {
+    const setup = await prepareProviderOrder(
+      database,
+      config,
+      paymentProvider,
+      order,
+      appendAudit,
+      requestId,
+    );
     const refreshed = await loadOrder(database, order.id, { userId: order.userId });
     return {
       order: presentOrder(refreshed),
@@ -223,7 +300,7 @@ export function createOrdersService(database, config, paymentProvider) {
 
       const requestHash = digestRequest(input);
       const existing = await findIdempotentOrder(userId, idempotencyKey, requestHash);
-      if (existing) return finishOrderResponse(existing);
+      if (existing) return finishOrderResponse(existing, requestId);
 
       let created;
       try {
@@ -418,6 +495,22 @@ export function createOrdersService(database, config, paymentProvider) {
             });
             if (cartUpdate.count !== 1) throw commerceVersionConflict();
 
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.ORDER_CREATED,
+                actorUserId: userId,
+                targetType: AUDIT_TARGET_TYPES.ORDER,
+                targetId: orderId,
+                requestId,
+                metadata: {
+                  itemCount: lines.length,
+                  totalQuantity: lines.reduce((total, line) => total + line.quantity, 0),
+                  currency: config.business.currency,
+                },
+              }),
+            );
+
             return transaction.order.findUnique({
               where: { id: orderId },
               include: orderDetailInclude,
@@ -428,12 +521,12 @@ export function createOrdersService(database, config, paymentProvider) {
       } catch (error) {
         if (isPrismaUniqueViolation(error)) {
           const raced = await findIdempotentOrder(userId, idempotencyKey, requestHash);
-          if (raced) return finishOrderResponse(raced);
+          if (raced) return finishOrderResponse(raced, requestId);
         }
         mapOrderWriteError(error);
       }
 
-      return finishOrderResponse(created);
+      return finishOrderResponse(created, requestId);
     },
 
     async list({ userId, query, management = false }) {
@@ -465,7 +558,7 @@ export function createOrdersService(database, config, paymentProvider) {
       });
     },
 
-    async paymentSession({ userId, orderId }) {
+    async paymentSession({ userId, orderId, requestId }) {
       await expireDueOrders(database);
       const order = await loadOrder(database, orderId, { userId });
       if (
@@ -474,7 +567,7 @@ export function createOrdersService(database, config, paymentProvider) {
       ) {
         throw commerceError(409, "ORDER_NOT_PAYABLE", "This order can no longer be paid");
       }
-      return finishOrderResponse(order);
+      return finishOrderResponse(order, requestId);
     },
 
     async cancelOwn({ userId, orderId, input, requestId }) {
@@ -532,6 +625,21 @@ export function createOrdersService(database, config, paymentProvider) {
                 requestId,
               },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.ORDER_CANCELLED,
+                actorUserId: userId,
+                targetType: AUDIT_TARGET_TYPES.ORDER,
+                targetId: current.id,
+                requestId,
+                metadata: {
+                  fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
+                  toStatus: ORDER_STATUSES.CANCELLED,
+                  reasonCode: "CUSTOMER_CANCELLED",
+                },
+              }),
+            );
             return transaction.order.findUnique({
               where: { id: current.id },
               include: orderDetailInclude,
@@ -641,6 +749,21 @@ export function createOrdersService(database, config, paymentProvider) {
                 requestId,
               },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.ORDER_STATUS_CHANGED,
+                actorUserId,
+                targetType: AUDIT_TARGET_TYPES.ORDER,
+                targetId: current.id,
+                requestId,
+                metadata: {
+                  fromStatus: current.status,
+                  toStatus: input.status,
+                  reasonCode,
+                },
+              }),
+            );
             return transaction.order.findUnique({
               where: { id: current.id },
               include: orderDetailInclude,

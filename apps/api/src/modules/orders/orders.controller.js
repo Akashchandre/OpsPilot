@@ -54,6 +54,7 @@ export function createOrdersController(ordersService) {
         const result = await ordersService.paymentSession({
           userId: request.auth.user.id,
           orderId: request.validated.params.orderId,
+          requestId: request.id,
         });
         response.status(result.paymentSetupPending ? 202 : 200).json({
           success: true,

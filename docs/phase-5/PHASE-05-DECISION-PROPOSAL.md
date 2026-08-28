@@ -2,9 +2,10 @@
 
 ## Status
 
-**PROPOSED on 2026-08-27 — IMPLEMENTATION APPROVAL REQUIRED.** ADR 0006 authorizes Phase 5
-decision-definition work while the external Phase 4 Razorpay smoke remains deferred. This proposal
-does not yet authorize schema, migration, API, UI, dependency, service, or production changes.
+**IMPLEMENTED AND VERIFIED on 2026-08-28.** The user explicitly instructed work to start after
+reviewing this complete proposal. ADR 0007 records the accepted baseline. The Phase 5 acceptance,
+performance, and operations reports record the completed evidence; the external Phase 4 Razorpay
+smoke remains deferred under ADR 0006.
 
 ## Goal
 

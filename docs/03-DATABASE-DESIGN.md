@@ -3,9 +3,9 @@
 ## Status and design principles
 
 This document records the accepted Phase 2 identity schema, implemented Phase 3 business-core
-schema, implemented Phase 4 commerce schema, and conceptual planning for later phases. Later
-entity fields, enums, nullability, tenancy, deletion rules, and retention remain decisions for
-their owning phases.
+schema, implemented Phase 4 commerce schema, implemented Phase 5 support/report/audit persistence,
+and conceptual planning for later phases. Later feature behavior, tenancy, deletion
+rules, and production retention remain decisions for their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
 - Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
@@ -70,6 +70,41 @@ currency-code shape, valid reservation timestamps, and the expected provider rec
 Orders, items, reservations, status events, payments, attempts, refunds, and webhook evidence have
 no hard-delete API.
 
+## Implemented Phase 5 persistence
+
+Migration `20260827060000_phase_5_support_audit_foundation` creates the accepted support and audit
+storage boundary and seeds `support:tickets:read`, `support:tickets:manage`, `reports:read`, and
+`audit:read`. `OWNER` receives all four; `ADMIN` receives support read/manage and report read;
+`CUSTOMER` receives none and will use ownership-scoped support APIs.
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `support_tickets` | Versioned customer support case | Unique ticket number; requester-scoped UUID idempotency; optional owned-order/assignee links; category/priority/status enums; valid status timestamps; no cascading history deletion |
+| `support_ticket_messages` | Immutable public replies and internal notes | Ticket/author-scoped UUID idempotency; request digest; 1–4,000-character database bound; restricted ticket/author deletion |
+| `support_ticket_events` | Append-only lifecycle, priority, and assignment evidence | Typed source/event/change snapshots; optional actor/request context; restricted ticket deletion |
+| `audit_chain_heads` | Singleton serialized audit-chain head | Fixed row ID `1`; nonnegative sequence; 64-character lowercase hexadecimal head hash |
+| `audit_events` | Integrity-protected general audit evidence | Unique positive sequence and event hash; previous hash/key ID; bounded action/target/request fields; optional actor with restricted deletion so hashed actor IDs cannot be rewritten; no mutation API planned |
+
+The migration is deployed to development and test databases. Foundation integration tests verify
+role mappings, the zeroed chain head, support persistence, and scoped message idempotency. The
+support service now owns creation/reply/closure/management transactions, version checks, visibility,
+state timestamps, assignment eligibility, and append-only events. The audit service serializes
+appends with `SELECT ... FOR UPDATE`, creates the event and advances the head in one transaction,
+and verifies sequence, previous-hash, HMAC, key-ID, and head continuity from a repeatable-read
+snapshot.
+
+Additive migration `20260828060000_phase_5_audit_actor_restrict` changes the audit actor foreign
+key from `SET NULL` to `RESTRICT`. An actor ID is part of the HMAC payload, so deleting its user and
+rewriting the column would intentionally invalidate the chain. Account deletion/anonymization
+remains deferred until it can preserve or deliberately supersede historical audit evidence.
+
+Migrations `20260828070000_phase_5_report_indexes` and
+`20260828080000_phase_5_report_covering_indexes` add only measured overview access paths: user
+creation time, payment-attempt status/time, refund status/update time, ticket creation/status/
+priority, and covering INR amount aggregates. The fixed refund aggregate uses its covering index
+explicitly because MySQL 8.4 otherwise selected a materially slower older created-time index on the
+representative dataset.
+
 ## Expected entities
 
 | Entity | Purpose | Key relationships | Planned phase |
@@ -96,11 +131,14 @@ no hard-delete API.
 | `refunds` | Full-refund request and provider state | Payment + captured attempt | 4 |
 | `provider_webhook_events` | Provider event deduplication/evidence | Optional payment | 4 |
 | `support_tickets` | Customer support case | Requester, assignee, order if relevant | 5 |
+| `support_ticket_messages` | Immutable public/internal support conversation | Ticket + author | 5 |
+| `support_ticket_events` | Append-only support state evidence | Ticket + optional actor | 5 |
+| `audit_chain_heads` | Serialized integrity-chain state | One application audit stream | 5 |
+| `audit_events` | Integrity-protected security/business action evidence | Optional actor; generic bounded target | 5 |
 | `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
 | `documents` | Company document metadata and processing state | Uploader; chunks/index records later | 8 |
 | `chat_sessions` | Customer/owner AI conversation scope | User; messages | 7 |
 | `chat_messages` | Individual conversation messages | Session | 7 |
-| `audit_logs` | Security/business action evidence | Actor, action, target, correlation context | 5 |
 
 Employee records, reusable addresses, product images/variants, ticket comments, document chunks,
 password reset/verification tokens, notification deliveries, and AI tool executions may need
@@ -118,11 +156,15 @@ separate entities. Their need and shape are a **Decision Required** in their own
 - An order item stores immutable product name/SKU/price/tax/discount context required to preserve order history even if the product changes.
 - A payment has many provider attempts and refunds. Provider identifiers and idempotency keys
   prevent duplicate financial effects, while webhook events store only normalized evidence.
-- A support ticket belongs to a requester and may reference an order; assignment, conversation/comments, status history, and SLA data require decisions.
+- A support ticket belongs to a requester, may reference one order and one assignee, has immutable
+  public/internal messages, and records typed append-only state/priority/assignment events. SLA and
+  escalation automation are deferred.
 - A notification belongs to a recipient and may reference a domain resource without unsafe polymorphic integrity.
 - A document belongs to the relevant business scope and tracks upload/processing lifecycle; chunks and vector records must preserve document/version/access metadata.
 - A chat session belongs to a user and assistant context; messages belong to the session. Data retention and provider transmission require policy.
-- An audit log records actor, action, target, time, outcome, and safe metadata. Audit records should be append-oriented and access restricted.
+- Audit events form one globally sequenced previous-hash chain rooted in the singleton chain head;
+  each event records actor kind, action, outcome, target, request context, safe metadata, key ID,
+  and HMAC hash. Registered sensitive mutations append inside their local transaction.
 
 ## Candidate columns and constraints
 
@@ -146,15 +188,17 @@ Implemented Phase 2–4 rows are recorded alongside planning hints for future en
 | `payment_attempts` | Unique provider payment ID; exact relationship/amount/currency; safe status/failure evidence |
 | `refunds` | Full amount; payment-scoped idempotency; unique provider refund ID; pending/processed/failed state |
 | `provider_webhook_events` | Unique provider event ID and body digest; allowlisted type/outcome; no raw webhook body |
-| `support_tickets` | Unique ticket number; requester; status; priority if selected; subject; timestamps |
+| `support_tickets` | Unique ticket number; requester-scoped idempotency/digest; optional order/assignee; category; subject; priority/status timestamps; optimistic version |
+| `support_ticket_messages` | Immutable bounded plain text; customer-visible/internal visibility; ticket/author-scoped idempotency/digest |
+| `support_ticket_events` | Append-only typed source/change snapshots plus optional actor/request evidence |
 | `notifications` | Recipient; type; safe payload/reference; read/delivery timestamps; deduplication key if needed |
 | `documents` | Owner/uploader; storage key, display name, MIME/size, checksum/version, processing status; never public raw storage path |
 | `chat_messages` | Session; role; safe content/reference; ordering/timestamp; model metadata only if policy permits |
-| `audit_logs` | Actor or system identity; stable action; target type/id; outcome; timestamp; correlation identifier; redacted metadata |
+| `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata |
 
 ## Important indexes
 
-Indexes must align with chosen tenancy and query patterns. Candidates include:
+Indexes must align with chosen tenancy and query patterns. Implemented and future paths include:
 
 - User normalized email and status.
 - Role and permission stable codes; both directions of assignment join tables.
@@ -163,11 +207,14 @@ Indexes must align with chosen tenancy and query patterns. Candidates include:
 - Cart user/status and cart-item cart key.
 - Order user plus creation time, order number, and status plus creation time.
 - Payment order, provider transaction/event ID, and state.
-- Ticket requester/status, assignee/status, and updated time.
+- Ticket requester/updated time, status/priority/updated time, assignee/status/updated time, and
+  report creation/status/priority.
 - Notification recipient/read state/creation time.
 - Document business scope/status/creation time/checksum.
 - Chat session user/updated time and message session/sequence.
-- Audit target/time, actor/time, action/time, and correlation ID.
+- Audit unique sequence/hash, target/time, actor/time, action/time, and correlation ID.
+- Report covering indexes over captured attempt status/currency/creation/amount and processed refund
+  status/currency/update/amount.
 
 Do not add broad indexes blindly: write amplification, cardinality, prefix limits, sort order, and data volume must be reviewed.
 
@@ -180,7 +227,9 @@ Do not add broad indexes blindly: write amplification, cardinality, prefix limit
 - Applying coupons, tax, shipping, and totals once those policies exist.
 - Creating payment attempts and processing idempotent provider webhooks/state transitions.
 - Cancelling/refunding orders and restoring inventory under defined rules.
-- Recording ticket assignment/status transitions plus audit/history.
+- Creating/replying/closing/managing support tickets plus their event and general-audit evidence.
+- Recording registered identity, catalog, inventory, commerce, payment, refund, reconciliation, and
+  provider-state mutations with the local change in one transaction.
 - Claiming jobs and recording delivery/notification outcomes.
 - Publishing a new document version and replacing its searchable index safely.
 
@@ -192,8 +241,10 @@ outbox/worker and bulk scheduling remain decisions for Phase 6.
 
 ## Retention and deletion
 
-Phase 4 exposes no deletion for orders or financial evidence and uses restrictive foreign keys for
-historical commerce records. The final retention duration remains unresolved: orders, payments,
-audit events, documents, tickets, chats, personal information, and AI traces may have different
-legal and operational requirements. **Decision Required:** jurisdiction, privacy obligations,
-account deletion/anonymization, backups, soft deletion, legal holds, and retention schedules.
+Phases 4–5 expose no deletion for orders, financial evidence, support history, or audit evidence and
+use restrictive foreign keys for historical integrity. No automatic purge is implemented.
+Indefinite development/test retention is temporary behavior, not an approved production policy.
+The final duration remains unresolved: orders, payments, audit events, documents, tickets, chats,
+personal information, and AI traces may have different legal and operational requirements.
+**Decision Required:** jurisdiction, privacy obligations, account deletion/anonymization, backup
+propagation, soft deletion, legal holds, and retention schedules.

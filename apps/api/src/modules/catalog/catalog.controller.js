@@ -38,8 +38,10 @@ export function createCatalogController(catalogService) {
     async updateProduct(request, response, next) {
       try {
         const product = await catalogService.updateProduct({
+          actor: request.auth.user,
           productId: request.validated.params.productId,
           input: request.validated.body,
+          requestId: request.id,
         });
         response.status(200).json({ success: true, data: { product } });
       } catch (error) {
@@ -50,8 +52,10 @@ export function createCatalogController(catalogService) {
     async updateProductStatus(request, response, next) {
       try {
         const product = await catalogService.updateProductStatus({
+          actor: request.auth.user,
           productId: request.validated.params.productId,
           input: request.validated.body,
+          requestId: request.id,
         });
         response.status(200).json({ success: true, data: { product } });
       } catch (error) {
@@ -74,7 +78,11 @@ export function createCatalogController(catalogService) {
 
     async createCategory(request, response, next) {
       try {
-        const category = await catalogService.createCategory(request.validated.body);
+        const category = await catalogService.createCategory({
+          actor: request.auth.user,
+          input: request.validated.body,
+          requestId: request.id,
+        });
         response.status(201).json({ success: true, data: { category } });
       } catch (error) {
         next(error);
@@ -84,8 +92,10 @@ export function createCatalogController(catalogService) {
     async updateCategory(request, response, next) {
       try {
         const category = await catalogService.updateCategory({
+          actor: request.auth.user,
           categoryId: request.validated.params.categoryId,
           input: request.validated.body,
+          requestId: request.id,
         });
         response.status(200).json({ success: true, data: { category } });
       } catch (error) {
@@ -96,8 +106,10 @@ export function createCatalogController(catalogService) {
     async updateCategoryStatus(request, response, next) {
       try {
         const category = await catalogService.updateCategoryStatus({
+          actor: request.auth.user,
           categoryId: request.validated.params.categoryId,
           input: request.validated.body,
+          requestId: request.id,
         });
         response.status(200).json({ success: true, data: { category } });
       } catch (error) {

@@ -3,6 +3,7 @@ import { AuthProvider } from "./auth/AuthProvider.jsx";
 import { PermissionRoute, ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { AppLayout } from "./components/AppLayout.jsx";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage.jsx";
+import { AdminSupportPage } from "./pages/AdminSupportPage.jsx";
 import { CartPage } from "./pages/CartPage.jsx";
 import { CatalogAdminPage } from "./pages/CatalogAdminPage.jsx";
 import { CheckoutPage } from "./pages/CheckoutPage.jsx";
@@ -10,12 +11,16 @@ import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { InventoryPage } from "./pages/InventoryPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
+import { NewSupportTicketPage } from "./pages/NewSupportTicketPage.jsx";
 import { NotFoundPage } from "./pages/NotFoundPage.jsx";
 import { OrderDetailPage } from "./pages/OrderDetailPage.jsx";
 import { OrdersPage } from "./pages/OrdersPage.jsx";
 import { ProductDetailPage } from "./pages/ProductDetailPage.jsx";
 import { ProductsPage } from "./pages/ProductsPage.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
+import { ReportsPage } from "./pages/ReportsPage.jsx";
+import { SupportPage } from "./pages/SupportPage.jsx";
+import { SupportTicketPage } from "./pages/SupportTicketPage.jsx";
 import { UsersPage } from "./pages/UsersPage.jsx";
 import "./styles.css";
 
@@ -69,6 +74,30 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="support"
+          element={
+            <ProtectedRoute>
+              <SupportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="support/new"
+          element={
+            <ProtectedRoute>
+              <NewSupportTicketPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="support/:ticketId"
+          element={
+            <ProtectedRoute>
+              <SupportTicketPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="admin/catalog"
           element={
             <ProtectedRoute>
@@ -104,6 +133,26 @@ export function AppRoutes() {
             <ProtectedRoute>
               <PermissionRoute permission="users:read">
                 <UsersPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/support"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="support:tickets:read">
+                <AdminSupportPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/reports"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="reports:read">
+                <ReportsPage />
               </PermissionRoute>
             </ProtectedRoute>
           }

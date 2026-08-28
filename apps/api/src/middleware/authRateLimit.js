@@ -1,4 +1,4 @@
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { AppError } from "../errors/AppError.js";
 
 export function createAuthRateLimiter(config) {
@@ -7,6 +7,14 @@ export function createAuthRateLimiter(config) {
     limit: config.auth.loginRateLimitMax,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    keyGenerator(request) {
+      return ipKeyGenerator(request.ip ?? request.socket?.remoteAddress ?? "unknown");
+    },
+    validate: {
+      keyGeneratorIpFallback: false,
+      trustProxy: false,
+      xForwardedForHeader: false,
+    },
     handler(request, _response, next) {
       next(
         new AppError({

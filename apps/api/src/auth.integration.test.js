@@ -33,6 +33,14 @@ async function clearCommerceData() {
   await database.cart.deleteMany();
 }
 
+async function clearAuditData() {
+  await database.auditEvent.deleteMany();
+  await database.auditChainHead.update({
+    where: { id: 1 },
+    data: { headSequence: 0n, headHash: "0".repeat(64) },
+  });
+}
+
 function cookieValue(response, name) {
   const cookie = response.headers["set-cookie"]?.find((value) => value.startsWith(`${name}=`));
   if (!cookie) throw new Error(`Response did not set ${name}`);
@@ -66,6 +74,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await clearAuditData();
   await clearCommerceData();
   await database.securityEvent.deleteMany();
   await database.authSession.deleteMany();
@@ -74,6 +83,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  await clearAuditData();
   await clearCommerceData();
   await database.securityEvent.deleteMany();
   await database.authSession.deleteMany();
@@ -206,9 +216,15 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(roles.status).toBe(200);
     expect(roles.body.data.roles.map((role) => role.code)).toEqual(["ADMIN", "CUSTOMER", "OWNER"]);
     expect(permissions.status).toBe(200);
-    expect(permissions.body.data.permissions).toHaveLength(14);
-    expect(permissions.body.data.permissions.map((permission) => permission.code)).toContain(
-      "inventory:adjust",
+    expect(permissions.body.data.permissions).toHaveLength(18);
+    expect(permissions.body.data.permissions.map((permission) => permission.code)).toEqual(
+      expect.arrayContaining([
+        "inventory:adjust",
+        "support:tickets:read",
+        "support:tickets:manage",
+        "reports:read",
+        "audit:read",
+      ]),
     );
 
     const csrfToken = cookieValue(ownerLogin, config.auth.csrfCookieName);
@@ -222,6 +238,18 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
 
     const immediateAccess = await customerAgent.get("/api/v1/users");
     expect(immediateAccess.status).toBe(200);
+
+    const removed = await ownerAgent
+      .delete(`/api/v1/users/${customer.id}/roles/ADMIN`)
+      .set("Origin", origin)
+      .set("X-CSRF-Token", csrfToken);
+    expect(removed.status).toBe(200);
+    expect((await customerAgent.get("/api/v1/users")).status).toBe(403);
+    expect(
+      (await database.auditEvent.findMany({ orderBy: { sequence: "asc" } })).map(
+        (event) => event.action,
+      ),
+    ).toEqual(["USER_ROLE_ASSIGNED", "USER_ROLE_REMOVED"]);
 
     const lastOwnerRemoval = await ownerAgent
       .delete(`/api/v1/users/${owner.id}/roles/OWNER`)
@@ -262,6 +290,11 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       .set("X-CSRF-Token", ownerCsrf)
       .send({ status: "DISABLED" });
     expect(disabled.status).toBe(200);
+    expect(await database.auditEvent.findFirst({ orderBy: { sequence: "desc" } })).toMatchObject({
+      action: "USER_STATUS_CHANGED",
+      targetId: admin.id,
+      metadata: { fromStatus: "ACTIVE", toStatus: "DISABLED" },
+    });
 
     const revoked = await adminAgent.get("/api/v1/auth/me");
     expect(revoked.status).toBe(401);
@@ -297,7 +330,15 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       password,
     });
     expect(owner.roles).toEqual(["OWNER"]);
-    expect(owner.permissions).toHaveLength(14);
+    expect(owner.permissions).toHaveLength(18);
+    expect(owner.permissions).toEqual(
+      expect.arrayContaining([
+        "support:tickets:read",
+        "support:tickets:manage",
+        "reports:read",
+        "audit:read",
+      ]),
+    );
 
     await expect(
       bootstrapOwner(database, {

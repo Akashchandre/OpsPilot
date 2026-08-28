@@ -115,6 +115,47 @@ Request-driven expiry and an operator reconciliation action provide Phase 4 reco
 queue or worker. ADR 0005 and the Phase 4 implementation/operations guides define the state
 machines and recovery boundary.
 
+## Phase 5 production-backend foundation
+
+ADR 0007 keeps Phase 5 inside the existing React/Express/Prisma/MySQL topology and adds no package,
+external account, cache, queue, or hosted observability service:
+
+```text
+Browser support/report UI
+  |
+  v
+Request UUID + proxy/rate/body/origin/session/permission boundaries
+  |
+  +--> Support service --> tickets + immutable messages/events --+
+  |                                                            |
+  +--> Report service --> bounded live aggregate queries        |
+  |                                                            v
+  +--> Existing sensitive mutation services --> transaction-bound audit append
+                                                               |
+                                                               v
+                                        MySQL audit chain head/events
+```
+
+Support writes enforce requester ownership, strict state transitions, scoped idempotency,
+assignee eligibility, immutable message visibility, and optimistic versions in their service
+transactions. Customer projections filter internal notes. The overview report executes the exact
+half-open UTC/INR aggregates directly against authoritative MySQL data; measured covering indexes
+keep its target-sized path bounded without a cache or summary table.
+
+The audit service locks a singleton head, inserts a canonical HMAC-SHA256 event, and advances the
+head in one transaction. Sensitive local identity, catalog, inventory, order, payment, refund,
+reconciliation, webhook-state, and support mutations append registered evidence inside their
+owning transaction. Provider effects retain their Phase 4 external boundary, while returned,
+webhook, or reconciled local state and audit evidence commit together. Authentication outcomes
+remain in `security_events`. Owner-only reads append one post-query access event and cannot recurse.
+
+Before routing, the API creates a server UUID, rejects URL-encoded bodies, applies exact proxy trust,
+resolves a valid session for user-plus-source rate keys, and enforces isolated general/support/
+report/webhook limits. Completion logging emits one allowlisted JSON record with no header, cookie,
+query, body, PII, payment, ticket, or audit content. This remains a single-process boundary until a
+later phase approves shared rate/observability infrastructure. Attachments, realtime, workers,
+Redis, exports, and AI do not enter this topology.
+
 ## Main application layering
 
 ### React web client

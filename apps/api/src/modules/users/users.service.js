@@ -1,4 +1,7 @@
 import { AppError } from "../../errors/AppError.js";
+import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import { SECURITY_EVENTS, SYSTEM_ROLES, USER_STATUSES } from "../auth/auth.constants.js";
 import { authorizationInclude, presentUser } from "../auth/auth.presenter.js";
 import { recordSecurityEvent } from "../auth/auth.securityEvents.js";
@@ -49,7 +52,8 @@ async function countActiveOwners(transaction) {
   });
 }
 
-export function createUsersService(database) {
+export function createUsersService(database, config) {
+  const appendAudit = createAuditService(database, config).append;
   return {
     async list({ page, limit }) {
       const where = {};
@@ -123,6 +127,17 @@ export function createUsersService(database) {
             requestId,
             metadata: { from: target.status, to: status },
           });
+          await appendAudit(
+            transaction,
+            auditDescriptor({
+              action: AUDIT_ACTIONS.USER_STATUS_CHANGED,
+              actorUserId: actor.id,
+              targetType: AUDIT_TARGET_TYPES.USER,
+              targetId: userId,
+              requestId,
+              metadata: { fromStatus: target.status, toStatus: status },
+            }),
+          );
 
           return presentUser(updated);
         },
@@ -159,6 +174,17 @@ export function createUsersService(database) {
               requestId,
               metadata: { roleCode },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.USER_ROLE_ASSIGNED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.USER,
+                targetId: userId,
+                requestId,
+                metadata: { roleCode },
+              }),
+            );
           }
 
           const updated = await transaction.user.findUnique({
@@ -208,6 +234,17 @@ export function createUsersService(database) {
               requestId,
               metadata: { roleCode },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.USER_ROLE_REMOVED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.USER,
+                targetId: userId,
+                requestId,
+                metadata: { roleCode },
+              }),
+            );
           }
 
           const updated = await transaction.user.findUnique({

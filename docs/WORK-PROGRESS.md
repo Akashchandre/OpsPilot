@@ -1,14 +1,14 @@
 # Work Progress
 
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-28
 
 ## Current Phase
 
-Phase 5 — Production Backend Features (decision definition)
+Phase 5 — Production Backend Features (complete)
 
 ## Status
 
-PLANNING AUTHORIZED — COMPLETE PHASE 5 BASELINE AWAITS APPROVAL
+REPOSITORY COMPLETE AND VERIFIED — PHASE 6 DECISION DEFINITION NEXT
 
 ## Completed
 
@@ -68,19 +68,71 @@ PLANNING AUTHORIZED — COMPLETE PHASE 5 BASELINE AWAITS APPROVAL
   live payments.
 - The Phase 5 decision proposal, proposed permission matrix, and proposed threat model define a
   dependency-free support/report/audit/hardening baseline for review.
+- Phase 4 and its documented Phase 5 transition were committed as `2e5d009` after lint, 53 API
+  tests, 24 web tests, coverage, formatting/schema validation, build, whitespace, and corrected
+  staged-secret checks passed.
+- The user explicitly authorized Phase 5 implementation on 2026-08-27; ADR 0007 accepts the full
+  support, reporting, audit, hardening, permission, dependency, retention, and test baseline.
+- Migration `20260827060000_phase_5_support_audit_foundation` adds versioned/idempotent support
+  tickets, immutable messages/events, an audit chain head/event foundation, four permissions, and
+  database constraints/indexes without a new dependency.
+- The additive Phase 5 migration is deployed to development and test databases and the Prisma
+  client is regenerated. A too-long initial compound-index name caused a development migration
+  failure; only one empty Phase 5 table and its new permission mappings existed, they were verified
+  and removed, the failed record was marked rolled back, and the corrected migration reapplied.
+- Two Phase 5 foundation integration tests pass for role mappings, owner-only audit access, chain
+  initialization, support persistence, and scoped message idempotency.
+- Base64 audit-key and stable key-ID configuration now fails closed outside routine tests. Tracked
+  examples remain empty, routine tests use an isolated test-only key, and the ignored development
+  environment has a newly generated 32-byte local key without exposing it.
+- The Phase 5 audit service validates a registered action/target/metadata contract, locks the
+  singleton chain head, appends a canonical HMAC-SHA256 event and advances the head atomically, and
+  verifies sequence, previous-hash, event-HMAC, key-ID, and head continuity.
+- Additive migration `20260828060000_phase_5_audit_actor_restrict` prevents user deletion from
+  rewriting a hashed audit actor ID to null; account erasure remains deferred to the accepted
+  retention/anonymization decision boundary.
+- `GET /api/v1/audit-events` now enforces owner-only `audit:read`, strict bounded UTC/filter/
+  pagination validation, newest-first safe projections, and exactly one post-query access event.
+  No audit mutation or public verification route exists.
+- Focused audit tests cover canonicalization, concurrency, rollback, metadata rejection, mutation,
+  deletion, reordering, wrong keys, broken heads, validation, authorization, disabled sessions,
+  access-event recursion safety, and absence of mutation routes.
+- Ownership-safe customer and staff support APIs implement creation, list/detail, public messages,
+  internal notes, customer closure, assignment, priority/status transitions, idempotency, optimistic
+  versions, and strict authorization. Responsive customer and management UI routes are complete.
+- `GET /api/v1/reports/overview` and `/admin/reports` implement the accepted exact-INR, strict UTC,
+  default-30-day/maximum-366-day operational overview with bounded authoritative queries and empty
+  breakdowns.
+- Sensitive Phase 2–5 business mutations now append registered audit evidence in the same local
+  transaction. Provider-side effects retain the existing pending/webhook/reconciliation recovery
+  boundary, and the owner-only audit read plus offline verifier are complete.
+- Allowlisted structured JSON logging, request IDs, safe public errors, exact trusted-proxy hops,
+  isolated general/support/report/webhook rate controls, payload limits, and URL-encoded rejection
+  are implemented and redaction-tested.
+- Two report-index migrations and one measured, parameterized refund query keep all accepted local
+  representative-data p95 targets below their thresholds at 100,000 orders and 25,000 tickets/
+  audit events.
+- A checksum-verified sanitized backup/restore exercise restored 115,450,437 bytes into the
+  isolated shadow database in 44.368 seconds with matching row counts and audit head. The dump,
+  target data, and representative dataset were removed afterward.
+- Phase 5 architecture, schema, API, permission, threat, audit, performance, recovery, runbook, and
+  acceptance documents are synchronized. No Phase 6 service, dependency, or runtime was added.
+- The final gate passes lint, formatting/Prisma validation, 87 API tests, 34 web tests, both
+  coverage suites, production build, eight-migration status/drift checks, live ephemeral API/web
+  smoke, audit verification, whitespace checks, and tracked/ignored secret checks.
 
 ## In Progress
 
-- Review of the complete Phase 5 support, reporting, audit, logging, rate/proxy, performance,
-  retention, backup/restore, permission, environment, and test baseline.
+- No Phase 5 implementation remains.
 - The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain a deferred backlog
   gate and a live-payment blocker.
 
 ## Next Task
 
-Approve or revise `docs/phase-5/PHASE-05-DECISION-PROPOSAL.md` as a complete baseline. After
-approval, record the Phase 5 ADR and implementation sequence before any schema, migration, API, UI,
-or runtime hardening changes.
+Begin Phase 6 by reading its specification and defining the real-time/job architecture, dependency,
+service/account, event/job semantics, authorization, delivery, failure/recovery, observability, and
+testing decisions. Do not install or implement a queue, Redis, Socket.IO, worker, or other Phase 6
+technology until that baseline is explicitly approved.
 
 ## Accepted Decisions
 
@@ -104,6 +156,10 @@ or runtime hardening changes.
   inventory-reservation, permission, API/UI, and explicit-deferral baseline is accepted in ADR 0005.
 - ADR 0006 defers the missing external Razorpay Test Mode smoke, keeps Phase 4 unaccepted and Live
   Mode prohibited, and authorizes Phase 5 decision-definition work to proceed.
+- ADR 0007 accepts the Phase 5 support, report, HMAC-chained audit, dependency-free logging,
+  single-instance rate/proxy, performance, permission, temporary retention, and implementation
+  baseline. Attachments, exports, hosted observability, queues/realtime, distributed limits, live
+  payments, and AI remain deferred.
 
 ## Phase 3 Acceptance Evidence
 
@@ -129,27 +185,54 @@ or runtime hardening changes.
 - Lint, formatting/Prisma validation, development/test migration status, production build, local
   API/web smoke, Git whitespace, and secret-literal scans pass.
 
-## Phase 5 Planning Evidence
+## Phase 5 Acceptance Evidence
 
 - Phase transition exception: `docs/decisions/0006-phase-4-provider-smoke-deferral.md`.
-- Complete proposed baseline: `docs/phase-5/PHASE-05-DECISION-PROPOSAL.md`.
-- Proposed authorization mapping: `docs/permissions/PHASE-05-PERMISSION-MATRIX.md`.
-- Proposed security review: `docs/security/PHASE-05-THREAT-MODEL.md`.
-- No Phase 5 dependency, schema, migration, API, UI, or runtime change has been made.
+- Accepted baseline: `docs/decisions/0007-phase-5-production-backend-baseline.md` and
+  `docs/phase-5/PHASE-05-DECISION-PROPOSAL.md`.
+- Accepted authorization mapping: `docs/permissions/PHASE-05-PERMISSION-MATRIX.md`.
+- Accepted security requirements: `docs/security/PHASE-05-THREAT-MODEL.md`.
+- Acceptance report: `docs/phase-5/PHASE-05-ACCEPTANCE-REPORT.md`.
+- Performance evidence: `docs/phase-5/PHASE-05-PERFORMANCE-EVIDENCE.md`.
+- Operations and recovery runbook: `docs/phase-5/PHASE-05-OPERATIONS-RUNBOOK.md`.
+- Persistence migration: `apps/api/prisma/migrations/20260827060000_phase_5_support_audit_foundation/migration.sql`.
+- Actor-integrity migration:
+  `apps/api/prisma/migrations/20260828060000_phase_5_audit_actor_restrict/migration.sql`.
+- Report index migrations:
+  `apps/api/prisma/migrations/20260828070000_phase_5_report_indexes/migration.sql` and
+  `apps/api/prisma/migrations/20260828080000_phase_5_report_covering_indexes/migration.sql`.
+- Development and test databases report all eight migrations applied; development schema drift is
+  absent.
+- Full regression: 19 API files / 87 tests and 4 web files / 34 tests pass.
+- API coverage: 83.18% statements, 71.71% branches, 94.70% functions, 87.19% lines.
+- Web coverage: 83.54% statements, 73.48% branches, 81.14% functions, 85.63% lines.
+- Production build: 63 modules; 325.68 kB main JavaScript, 92.37 kB gzip.
+- Representative p95: authenticated overview 206.022 ms, support management list 159.322 ms,
+  customer order list 1.709 ms, and audit read 7.675 ms.
+- Audit verification passes over the 25,000-event representative chain and over current
+  development/test state after cleanup.
+- Lint, formatting/Prisma validation, production build, live ephemeral API/database/request-ID and
+  built-web smoke, Git whitespace, high-confidence credential scans, and ignored-environment checks
+  pass.
 
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
 - `npm audit` reports three high-severity findings associated with the existing recursive-object stack-exhaustion advisory in `deepmerge-ts` through the local Prisma CLI configuration path. npm offers only a breaking Prisma downgrade; no forced fix was applied. Runtime application requests do not process Prisma configuration.
-- The Phase 2 authentication rate limiter is per process and needs a shared store before horizontal scaling.
+- Phase 5 rate stores are per process and need a shared store or edge policy before horizontal scaling.
 - The Razorpay Test Mode provider-delivery gate is not runnable: the ignored API environment has no
   enabled provider/key/webhook-secret configuration, and the public HTTPS endpoint plus
   automatic-capture dashboard setting are not recorded. The real-looking Test Mode key pair found
   in the tracked example before commit must be treated as exposed and rotated before this smoke.
+- Production retention/privacy/erasure/legal-hold rules, encrypted backup ownership/vendor,
+  generations, RPO/RTO, restore cadence, hosted monitoring/alerting, and incident ownership remain
+  undecided production blockers. The local performance result is a regression baseline, not an
+  external SLA or concurrent-load/soak result.
 
 ## Phase Gate
 
 Phases 1, 2, and 3 are accepted. Phase 4 repository implementation and internal review gates pass,
 but the phase remains unaccepted while real Test Mode delivery/recovery is deferred under ADR 0006.
-Phase 5 decision definition is authorized; implementation remains blocked on explicit approval of
-its complete proposal. Real-time, job, live-payment, and AI implementation remains out of scope.
+Phase 5 is repository-complete and verified under ADR 0007 and its acceptance report. Phase 6 may
+start only with decision definition; real-time/job implementation remains unauthorized until that
+baseline is approved. Live-payment and AI implementation remain out of scope.

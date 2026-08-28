@@ -1,0 +1,53 @@
+export const SUPPORT_CATEGORIES = Object.freeze({
+  GENERAL: "GENERAL",
+  ORDER: "ORDER",
+  PAYMENT: "PAYMENT",
+  PRODUCT: "PRODUCT",
+  ACCOUNT: "ACCOUNT",
+});
+
+export const SUPPORT_PRIORITIES = Object.freeze({
+  LOW: "LOW",
+  NORMAL: "NORMAL",
+  HIGH: "HIGH",
+  URGENT: "URGENT",
+});
+
+export const SUPPORT_STATUSES = Object.freeze({
+  OPEN: "OPEN",
+  IN_PROGRESS: "IN_PROGRESS",
+  WAITING_CUSTOMER: "WAITING_CUSTOMER",
+  RESOLVED: "RESOLVED",
+  CLOSED: "CLOSED",
+});
+
+export const SUPPORT_MESSAGE_VISIBILITIES = Object.freeze({
+  CUSTOMER_VISIBLE: "CUSTOMER_VISIBLE",
+  INTERNAL: "INTERNAL",
+});
+
+export const SUPPORT_EVENT_TYPES = Object.freeze({
+  CREATED: "CREATED",
+  STATUS_CHANGED: "STATUS_CHANGED",
+  PRIORITY_CHANGED: "PRIORITY_CHANGED",
+  ASSIGNEE_CHANGED: "ASSIGNEE_CHANGED",
+});
+
+export const SUPPORT_EVENT_SOURCES = Object.freeze({
+  CUSTOMER: "CUSTOMER",
+  OPERATOR: "OPERATOR",
+  SYSTEM: "SYSTEM",
+});
+
+export const SUPPORT_VIEWS = Object.freeze({
+  SELF: "self",
+  MANAGEMENT: "management",
+});
+
+export const SUPPORT_TRANSITIONS = Object.freeze({
+  OPEN: Object.freeze(["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]),
+  IN_PROGRESS: Object.freeze(["OPEN", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]),
+  WAITING_CUSTOMER: Object.freeze(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]),
+  RESOLVED: Object.freeze(["OPEN", "CLOSED"]),
+  CLOSED: Object.freeze([]),
+});

@@ -1,10 +1,11 @@
-# Phase 5 Proposed Permission Matrix
+# Phase 5 Permission Matrix
 
 ## Status
 
-**PROPOSED on 2026-08-27 — NOT IMPLEMENTED.** Phase 5 planning is authorized by ADR 0006, but this
-matrix requires explicit approval with the complete Phase 5 decision proposal before migration or
-application changes.
+**ACCEPTED AND SEEDED on 2026-08-27.** ADR 0007 accepts this matrix. Migration
+`20260827060000_phase_5_support_audit_foundation` seeds the four permissions and reviewed role
+mappings in the development and test databases. Support management and report routes enforce their
+permissions, and the audit-event route enforces owner-only `audit:read`.
 
 ## Ownership-scoped customer actions
 
@@ -21,7 +22,7 @@ Ownership comes from the authenticated session, never a client-supplied requeste
 lookups use safe not-found behavior. Customers cannot set priority/assignment, write/read internal
 notes, use management filters, read reports, or read audit evidence.
 
-## Proposed operator permissions
+## Operator permissions
 
 | Code | Meaning |
 |---|---|
@@ -30,7 +31,7 @@ notes, use management filters, read reports, or read audit evidence.
 | `reports:read` | Read the defined authoritative overview metrics and bounded operational breakdowns |
 | `audit:read` | Read and verify restricted audit evidence; access is itself audited |
 
-## Proposed default role matrix
+## Default role matrix
 
 | Permission | `OWNER` | `ADMIN` | `CUSTOMER` |
 |---|:---:|:---:|:---:|

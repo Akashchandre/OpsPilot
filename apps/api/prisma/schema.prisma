@@ -104,29 +104,87 @@ enum ProviderWebhookStatus {
   REVIEW_REQUIRED
 }
 
+enum SupportTicketCategory {
+  GENERAL
+  ORDER
+  PAYMENT
+  PRODUCT
+  ACCOUNT
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportMessageVisibility {
+  CUSTOMER_VISIBLE
+  INTERNAL
+}
+
+enum SupportTicketEventType {
+  CREATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  ASSIGNEE_CHANGED
+}
+
+enum SupportTicketEventSource {
+  CUSTOMER
+  OPERATOR
+  SYSTEM
+}
+
+enum AuditActorKind {
+  USER
+  SYSTEM
+  PROVIDER
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
 model User {
-  id                   String                @id @default(uuid()) @db.Char(36)
-  email                String                @unique @db.VarChar(254)
-  passwordHash         String                @map("password_hash") @db.VarChar(255)
-  displayName          String                @map("display_name") @db.VarChar(100)
-  status               UserStatus            @default(ACTIVE)
-  failedLoginAttempts  Int                   @default(0) @map("failed_login_attempts")
-  lockedUntil          DateTime?             @map("locked_until") @db.DateTime(3)
-  passwordChangedAt    DateTime              @default(now()) @map("password_changed_at") @db.DateTime(3)
-  createdAt            DateTime              @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt            DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
-  roles                UserRole[]            @relation("UserRoleUser")
-  roleAssignments      UserRole[]            @relation("UserRoleAssigner")
+  id                   String                 @id @default(uuid()) @db.Char(36)
+  email                String                 @unique @db.VarChar(254)
+  passwordHash         String                 @map("password_hash") @db.VarChar(255)
+  displayName          String                 @map("display_name") @db.VarChar(100)
+  status               UserStatus             @default(ACTIVE)
+  failedLoginAttempts  Int                    @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime?              @map("locked_until") @db.DateTime(3)
+  passwordChangedAt    DateTime               @default(now()) @map("password_changed_at") @db.DateTime(3)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  roles                UserRole[]             @relation("UserRoleUser")
+  roleAssignments      UserRole[]             @relation("UserRoleAssigner")
   sessions             AuthSession[]
-  actorSecurityEvents  SecurityEvent[]       @relation("SecurityEventActor")
-  targetSecurityEvents SecurityEvent[]       @relation("SecurityEventTarget")
-  inventoryAdjustments InventoryAdjustment[] @relation("InventoryAdjustmentActor")
+  actorSecurityEvents  SecurityEvent[]        @relation("SecurityEventActor")
+  targetSecurityEvents SecurityEvent[]        @relation("SecurityEventTarget")
+  inventoryAdjustments InventoryAdjustment[]  @relation("InventoryAdjustmentActor")
   cart                 Cart?
-  orders               Order[]               @relation("OrderCustomer")
-  orderStatusEvents    OrderStatusEvent[]    @relation("OrderStatusEventActor")
-  initiatedRefunds     Refund[]              @relation("RefundActor")
+  orders               Order[]                @relation("OrderCustomer")
+  orderStatusEvents    OrderStatusEvent[]     @relation("OrderStatusEventActor")
+  initiatedRefunds     Refund[]               @relation("RefundActor")
+  requestedTickets     SupportTicket[]        @relation("SupportTicketRequester")
+  assignedTickets      SupportTicket[]        @relation("SupportTicketAssignee")
+  supportMessages      SupportTicketMessage[] @relation("SupportTicketMessageAuthor")
+  supportTicketEvents  SupportTicketEvent[]   @relation("SupportTicketEventActor")
+  auditEvents          AuditEvent[]           @relation("AuditEventActor")
 
   @@index([status])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -367,6 +425,7 @@ model Order {
   reservations         InventoryReservation[]
   statusEvents         OrderStatusEvent[]
   payment              Payment?
+  supportTickets       SupportTicket[]
 
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
@@ -475,6 +534,8 @@ model PaymentAttempt {
   refunds           Refund[]
 
   @@index([paymentId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([status, currency, createdAt, amount])
   @@map("payment_attempts")
 }
 
@@ -501,6 +562,8 @@ model Refund {
   @@index([paymentAttemptId, createdAt])
   @@index([actorUserId, createdAt])
   @@index([status, createdAt])
+  @@index([status, updatedAt])
+  @@index([status, currency, updatedAt, amount])
   @@map("refunds")
 }
 
@@ -522,4 +585,111 @@ model ProviderWebhookEvent {
   @@index([paymentId, receivedAt])
   @@index([eventType, receivedAt])
   @@map("provider_webhook_events")
+}
+
+model SupportTicket {
+  id             String                 @id @default(uuid()) @db.Char(36)
+  ticketNumber   String                 @unique @map("ticket_number") @db.VarChar(24)
+  requesterId    String                 @map("requester_id") @db.Char(36)
+  orderId        String?                @map("order_id") @db.Char(36)
+  assigneeId     String?                @map("assignee_id") @db.Char(36)
+  category       SupportTicketCategory
+  subject        String                 @db.VarChar(160)
+  priority       SupportTicketPriority  @default(NORMAL)
+  status         SupportTicketStatus    @default(OPEN)
+  version        Int                    @default(0)
+  idempotencyKey String                 @map("idempotency_key") @db.Char(36)
+  requestHash    String                 @map("request_hash") @db.Char(64)
+  resolvedAt     DateTime?              @map("resolved_at") @db.DateTime(3)
+  closedAt       DateTime?              @map("closed_at") @db.DateTime(3)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  requester      User                   @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  order          Order?                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  assignee       User?                  @relation("SupportTicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  messages       SupportTicketMessage[]
+  events         SupportTicketEvent[]
+
+  @@unique([requesterId, idempotencyKey])
+  @@index([requesterId, updatedAt])
+  @@index([status, priority, updatedAt])
+  @@index([assigneeId, status, updatedAt])
+  @@index([orderId])
+  @@index([createdAt, status, priority])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id             String                   @id @default(uuid()) @db.Char(36)
+  ticketId       String                   @map("ticket_id") @db.Char(36)
+  authorUserId   String                   @map("author_user_id") @db.Char(36)
+  visibility     SupportMessageVisibility @default(CUSTOMER_VISIBLE)
+  body           String                   @db.Text
+  idempotencyKey String                   @map("idempotency_key") @db.Char(36)
+  requestHash    String                   @map("request_hash") @db.Char(64)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  ticket         SupportTicket            @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  author         User                     @relation("SupportTicketMessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, authorUserId, idempotencyKey], map: "support_messages_author_idempotency_key")
+  @@index([ticketId, createdAt])
+  @@index([authorUserId, createdAt])
+  @@map("support_ticket_messages")
+}
+
+model SupportTicketEvent {
+  id                 String                   @id @default(uuid()) @db.Char(36)
+  ticketId           String                   @map("ticket_id") @db.Char(36)
+  eventType          SupportTicketEventType   @map("event_type")
+  source             SupportTicketEventSource
+  fromStatus         SupportTicketStatus?     @map("from_status")
+  toStatus           SupportTicketStatus?     @map("to_status")
+  fromPriority       SupportTicketPriority?   @map("from_priority")
+  toPriority         SupportTicketPriority?   @map("to_priority")
+  previousAssigneeId String?                  @map("previous_assignee_id") @db.Char(36)
+  nextAssigneeId     String?                  @map("next_assignee_id") @db.Char(36)
+  reasonCode         String                   @map("reason_code") @db.VarChar(64)
+  actorUserId        String?                  @map("actor_user_id") @db.Char(36)
+  requestId          String?                  @map("request_id") @db.VarChar(64)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  ticket             SupportTicket            @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  actor              User?                    @relation("SupportTicketEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([requestId])
+  @@map("support_ticket_events")
+}
+
+model AuditChainHead {
+  id           Int      @id
+  headSequence BigInt   @default(0) @map("head_sequence")
+  headHash     String   @map("head_hash") @db.Char(64)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("audit_chain_heads")
+}
+
+model AuditEvent {
+  id           String         @id @default(uuid()) @db.Char(36)
+  sequence     BigInt         @unique
+  action       String         @db.VarChar(100)
+  outcome      AuditOutcome
+  actorKind    AuditActorKind @map("actor_kind")
+  actorUserId  String?        @map("actor_user_id") @db.Char(36)
+  targetType   String         @map("target_type") @db.VarChar(64)
+  targetId     String?        @map("target_id") @db.VarChar(100)
+  requestId    String?        @map("request_id") @db.VarChar(64)
+  metadata     Json?
+  occurredAt   DateTime       @default(now()) @map("occurred_at") @db.DateTime(3)
+  previousHash String         @map("previous_hash") @db.Char(64)
+  keyId        String         @map("key_id") @db.VarChar(64)
+  eventHash    String         @unique @map("event_hash") @db.Char(64)
+  actor        User?          @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorUserId, occurredAt])
+  @@index([targetType, targetId, occurredAt])
+  @@index([action, occurredAt])
+  @@index([requestId])
+  @@map("audit_events")
 }

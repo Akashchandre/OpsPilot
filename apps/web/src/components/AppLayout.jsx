@@ -33,6 +33,7 @@ export function AppLayout() {
             <>
               <NavLink to="/cart">Cart</NavLink>
               <NavLink to="/orders">Orders</NavLink>
+              <NavLink to="/support">Support</NavLink>
               <NavLink to="/dashboard">Dashboard</NavLink>
             </>
           ) : null}
@@ -46,6 +47,12 @@ export function AppLayout() {
             <NavLink to="/admin/orders">Order ops</NavLink>
           ) : null}
           {auth.hasPermission("users:read") ? <NavLink to="/admin/users">Users</NavLink> : null}
+          {auth.hasPermission("support:tickets:read") ? (
+            <NavLink to="/admin/support">Support ops</NavLink>
+          ) : null}
+          {auth.hasPermission("reports:read") ? (
+            <NavLink to="/admin/reports">Reports</NavLink>
+          ) : null}
         </nav>
         <div className="session-actions">
           {auth.user ? (

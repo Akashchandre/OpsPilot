@@ -16,7 +16,7 @@ import { createUsersService } from "./users.service.js";
 
 export function createUsersRouter(database, config) {
   const router = Router();
-  const controller = createUsersController(createUsersService(database));
+  const controller = createUsersController(createUsersService(database, config));
   const verifyCsrf = requireCsrf(config);
 
   router.use(authenticate(database, config));

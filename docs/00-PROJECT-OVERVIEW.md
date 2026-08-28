@@ -4,8 +4,9 @@
 
 **Name:** OpsPilot — AI Business Operations Platform  
 **Product type:** Full-stack business operations SaaS platform  
-**Current lifecycle state:** Phase 3 accepted; Phase 4 repository-complete with external Razorpay
-smoke deferred and acceptance pending; Phase 5 decision definition in progress
+**Current lifecycle state:** Phases 1–3 accepted; Phase 4 repository-complete with external Razorpay
+smoke deferred and acceptance pending; Phase 5 repository-complete with support, reports, audit,
+hardening, performance, and recovery gates passed
 
 ## Purpose
 
@@ -49,7 +50,8 @@ For the accepted single-business identity baseline, owners alone can manage owne
 administrators can manage non-owner identity access. Phase 3 assigns catalog/inventory permissions
 to both `OWNER` and `ADMIN`. Phase 4 also assigns order-read/manage and payment-read/refund/
 reconcile permissions to those roles; customer cart/order/payment access is authenticated and
-ownership-scoped.
+ownership-scoped. Phase 5 adds support read/manage and report read for owners/admins, owner-only
+audit read, and ownership-scoped customer support access.
 
 ### Future employees and managers
 
@@ -123,6 +125,13 @@ repository verification passed on 2026-08-27. External provider-delivery smoke a
 4 acceptance remain required. ADR 0006 records the user's 2026-08-27 direction to defer that
 external gate and begin Phase 5 decision-definition work without accepting Phase 4 or authorizing
 live payments.
+
+The Phase 5 baseline was accepted on 2026-08-27 in ADR 0007 and completed on 2026-08-28. Customer
+and staff support workflows, authoritative overview reporting, HMAC-chained audit evidence,
+structured logging, request/rate hardening, representative-data performance evidence, and a
+sanitized backup/restore exercise all pass their repository gates. Its acceptance report records
+the retained production decisions and blockers. Phase 6 begins with decision definition; no queue,
+real-time transport, cache, worker, or new dependency is implied by the transition.
 
 ## Overall system flow
 

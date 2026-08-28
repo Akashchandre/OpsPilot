@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+const routineTestAuditKey = Buffer.alloc(32, 0x5a).toString("base64");
+const routineTestAuditKeyId = "routine-test-v1";
+
+function isValidAuditKey(value) {
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    return false;
+  }
+  const decoded = Buffer.from(value, "base64");
+  const normalizedInput = value.replace(/=+$/, "");
+  const normalizedRoundTrip = decoded.toString("base64").replace(/=+$/, "");
+  return decoded.length >= 32 && normalizedInput === normalizedRoundTrip;
+}
+
 const environmentBoolean = z.preprocess((value) => {
   if (typeof value === "boolean" || value === undefined) return value;
   if (typeof value === "string" && value.toLowerCase() === "true") return true;
@@ -18,6 +31,8 @@ const environmentSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     API_HOST: z.string().trim().min(1).default("127.0.0.1"),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
     CORS_ORIGIN: z.url(),
     DATABASE_URL: z.string().startsWith("mysql://"),
     BUSINESS_CURRENCY: z
@@ -31,11 +46,30 @@ const environmentSchema = z
     AUTH_COOKIE_SECURE: environmentBoolean.default(false),
     AUTH_LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
     AUTH_LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
+    API_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(5),
+    API_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(300),
+    SUPPORT_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    SUPPORT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(30),
+    REPORT_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(5),
+    REPORT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(60),
+    WEBHOOK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(5),
+    WEBHOOK_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(600),
     RAZORPAY_ENABLED: environmentBoolean.default(false),
     RAZORPAY_KEY_ID: optionalEnvironmentString(z.string().trim().min(8).max(128)),
     RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     RAZORPAY_WEBHOOK_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     CHECKOUT_RESERVATION_TTL_MINUTES: z.coerce.number().int().min(3).max(15).default(15),
+    AUDIT_INTEGRITY_KEY: optionalEnvironmentString(
+      z.string().trim().max(512).refine(isValidAuditKey),
+    ),
+    AUDIT_INTEGRITY_KEY_ID: optionalEnvironmentString(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(64)
+        .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+    ),
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === "production" && !environment.AUTH_COOKIE_SECURE) {
@@ -65,6 +99,21 @@ const environmentSchema = z
         }
       }
     }
+
+    const auditConfigurationProvided = Boolean(
+      environment.AUDIT_INTEGRITY_KEY || environment.AUDIT_INTEGRITY_KEY_ID,
+    );
+    if (environment.NODE_ENV !== "test" || auditConfigurationProvided) {
+      for (const field of ["AUDIT_INTEGRITY_KEY", "AUDIT_INTEGRITY_KEY_ID"]) {
+        if (!environment[field]) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `${field} is required outside routine tests`,
+          });
+        }
+      }
+    }
   });
 
 export class ConfigurationError extends Error {
@@ -87,6 +136,8 @@ export function loadEnvironment(source = process.env) {
     nodeEnv: result.data.NODE_ENV,
     host: result.data.API_HOST,
     port: result.data.API_PORT,
+    logging: Object.freeze({ level: result.data.LOG_LEVEL }),
+    proxy: Object.freeze({ trustProxyHops: result.data.TRUST_PROXY_HOPS }),
     corsOrigin: result.data.CORS_ORIGIN,
     databaseUrl: result.data.DATABASE_URL,
     business: Object.freeze({ currency: result.data.BUSINESS_CURRENCY }),
@@ -97,6 +148,24 @@ export function loadEnvironment(source = process.env) {
       cookieSecure: result.data.AUTH_COOKIE_SECURE,
       loginRateLimitWindowMinutes: result.data.AUTH_LOGIN_RATE_LIMIT_WINDOW_MINUTES,
       loginRateLimitMax: result.data.AUTH_LOGIN_RATE_LIMIT_MAX,
+    }),
+    rateLimit: Object.freeze({
+      api: Object.freeze({
+        windowMinutes: result.data.API_RATE_LIMIT_WINDOW_MINUTES,
+        maximum: result.data.API_RATE_LIMIT_MAX,
+      }),
+      support: Object.freeze({
+        windowMinutes: result.data.SUPPORT_RATE_LIMIT_WINDOW_MINUTES,
+        maximum: result.data.SUPPORT_RATE_LIMIT_MAX,
+      }),
+      reports: Object.freeze({
+        windowMinutes: result.data.REPORT_RATE_LIMIT_WINDOW_MINUTES,
+        maximum: result.data.REPORT_RATE_LIMIT_MAX,
+      }),
+      webhook: Object.freeze({
+        windowMinutes: result.data.WEBHOOK_RATE_LIMIT_WINDOW_MINUTES,
+        maximum: result.data.WEBHOOK_RATE_LIMIT_MAX,
+      }),
     }),
     payments: Object.freeze({
       reservationTtlMinutes: result.data.CHECKOUT_RESERVATION_TTL_MINUTES,
@@ -109,6 +178,10 @@ export function loadEnvironment(source = process.env) {
         checkoutScriptUrl: "https://checkout.razorpay.com/v1/checkout.js",
         requestTimeoutMs: 8000,
       }),
+    }),
+    audit: Object.freeze({
+      integrityKey: result.data.AUDIT_INTEGRITY_KEY ?? routineTestAuditKey,
+      integrityKeyId: result.data.AUDIT_INTEGRITY_KEY_ID ?? routineTestAuditKeyId,
     }),
   });
 }

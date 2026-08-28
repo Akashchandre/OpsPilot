@@ -2,8 +2,9 @@
 
 ## Status
 
-**PROPOSED on 2026-08-27 — IMPLEMENTATION AND VERIFICATION PENDING.** This threat model accompanies
-the Phase 5 decision proposal and does not claim that the proposed controls exist yet.
+**IMPLEMENTED AND VERIFIED on 2026-08-28.** ADR 0007 accepts these security requirements. Focused
+support, report, audit, logging/redaction, proxy/rate/payload, representative-data, restore, and
+full regression gates pass. The production blockers at the end of this document remain unresolved.
 
 ## Scope
 
@@ -59,7 +60,7 @@ infrastructure, live payments, and AI remain out of scope.
 | Indefinite retention violates privacy duties | Clearly label temporary no-purge behavior as a production blocker; no casual delete endpoint | Jurisdiction, erasure, legal hold, and schedules require business/legal input |
 | Representative-data test leaks real data | Deterministic synthetic generator only; reject production connection; no copied identifiers/content | Performance may differ from production distributions |
 
-## Required verification after approval
+## Completed verification
 
 - Anonymous, disabled, cross-user, and under-permissioned callers cannot access ticket, internal
   note, report, or audit data.

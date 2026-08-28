@@ -166,11 +166,61 @@ Detailed bodies, responses, state machines, safe errors, and recovery behavior a
 
 ## Phase 5 — Production Backend Features
 
+**Status:** Implemented. ADR 0007 defines the contract and the Phase 5 support, report, audit, and
+hardening routes are active.
+
 ### `/api/v1/support`
 
-Planned customer operations: create/list/retrieve own tickets and participate in an approved conversation model. Planned staff operations: list, assign, update, and resolve tickets. Ticket comments, attachments, priority, escalation, SLA, visibility, and status model are **Decision Required**.
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/support/tickets` | Active session; CSRF; UUID idempotency key | Create a ticket for the session user with one optional owned order |
+| GET | `/api/v1/support/tickets` | Active session; `view=management` additionally needs `support:tickets:read` | List owned or management tickets with strict filters and pagination |
+| GET | `/api/v1/support/tickets/:ticketId` | Owned ticket, or `support:tickets:read` in management view | Read a safe thread; customer projection excludes internal notes |
+| POST | `/api/v1/support/tickets/:ticketId/messages` | Owned ticket or management reader; CSRF; UUID idempotency key | Add immutable plain-text customer-visible message or authorized internal note |
+| POST | `/api/v1/support/tickets/:ticketId/closure` | Owned ticket; CSRF | Close with the expected optimistic version |
+| PATCH | `/api/v1/support/tickets/:ticketId` | `support:tickets:manage`; CSRF | Apply allowed status, priority, and assignee changes with expected version |
 
-Reporting/dashboard endpoints and audit-log access may be added for authorized administrators. Exact metrics, aggregation boundaries, export behavior, retention, and permissions are **Decision Required**.
+Customer reads use ownership-scoped not-found behavior. Subjects are normalized plain text of
+5–160 characters and messages are normalized plain text of 1–4,000 characters. Statuses are
+`OPEN`, `IN_PROGRESS`, `WAITING_CUSTOMER`, `RESOLVED`, and `CLOSED`; allowed transitions,
+automatic customer-reply reopening, assignee eligibility, visibility, replay, and stable conflict
+codes follow ADR 0007. Lists default to 20 and cap at 100. There are no attachment, edit, delete,
+merge, bulk, email, or realtime routes.
+
+### `/api/v1/reports`
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/reports/overview` | `reports:read` | Return the accepted aggregate operations snapshot from authoritative MySQL data |
+
+The optional `from` and `to` values are strict RFC 3339 `Z` timestamps. The range is half-open,
+defaults to the exact prior 30 days, and is capped at 366 days. The response declares `UTC` and
+`INR`, returns zero-filled order/ticket breakdowns, captured amount, processed-refund amount, net
+payment flow, new customer count, and live low/out-of-stock counts. Money is a decimal string.
+There are no exports, arbitrary dimensions, forecasts, tax/profit recognition, or cached summaries.
+
+### `/api/v1/audit-events`
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/audit-events` | Owner-only `audit:read` | List integrity-protected audit evidence using bounded filters; each successful access is audited once |
+
+The audit collection defaults to the last 30 days, allows at most 366 days, uses a half-open
+`from <= occurredAt < to` UTC range, and supports `page`, `limit`, `from`, `to`, `action`, `outcome`,
+`actorKind`, `actorUserId`, `targetType`, and `targetId`. Results are newest sequence first and
+expose decimal-string sequences, canonical event fields, safe registered metadata, key ID, and
+chain hashes. There is no public create, update, delete, or verification route. Exact behavior and
+key operations are in `docs/phase-5/PHASE-05-AUDIT-IMPLEMENTATION-GUIDE.md`. Exports, arbitrary
+report dimensions, hosted observability, and deletion APIs remain deferred.
+
+### Phase 5 request controls
+
+Every response includes a new server-generated `X-Request-Id`; client-supplied IDs are ignored.
+General, support-write, report, authentication, and webhook limits are independent. Phase 5 limit
+failures use `429 RATE_LIMITED` plus `Retry-After` (authentication retains its existing stable auth
+limit code). Ordinary JSON is capped at 100 KiB, Razorpay raw JSON at 64 KiB, malformed JSON has a
+safe `400 INVALID_JSON`, oversized bodies have `413 PAYLOAD_TOO_LARGE`, and URL-encoded bodies have
+`415 UNSUPPORTED_MEDIA_TYPE`.
 
 ## Phase 6 — Real-time and Background Jobs
 
@@ -201,7 +251,8 @@ Planned AI operations expand to permission-aware business analysis and support w
 - Phases 3 and 4 use bounded offset pagination with `page`, `limit`, and a maximum limit of 100. Later high-volume resources may choose cursors in their owning phase.
 - Search/filter/sort values are resource-specific strict allowlists; user input never becomes an arbitrary database field or direction.
 - Field names use camelCase and timestamps are serialized as ISO 8601 UTC strings.
-- Phase 3/4 money uses decimal strings plus an uppercase three-letter currency code; Phase 4 is `INR` only.
+- Phase 3–5 money uses decimal strings plus an uppercase three-letter currency code; implemented
+  commerce/reporting is `INR` only.
 - Phase 3/4 mutable business resources use integer optimistic versions and stable `409` conflicts.
 - Phase 4 checkout/refund idempotency keys are UUIDs in `Idempotency-Key`; reuse with different normalized input returns `409 IDEMPOTENCY_KEY_REUSED`.
 - Rate limits by endpoint/user/IP and safe `Retry-After` behavior.

@@ -5,6 +5,9 @@ import {
   resourceNotFound,
   versionConflict,
 } from "./catalog.errors.js";
+import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import { CATEGORY_STATUSES, CATALOG_VIEWS, PRODUCT_STATUSES } from "./catalog.constants.js";
 import { createProductInclude, presentCategory, presentProduct } from "./catalog.presenter.js";
 
@@ -110,6 +113,7 @@ function mapCatalogWriteError(error, duplicateCode, duplicateMessage) {
 }
 
 export function createCatalogService(database, config) {
+  const appendAudit = createAuditService(database, config).append;
   return {
     async listProducts(query) {
       const management = query.view === CATALOG_VIEWS.MANAGEMENT;
@@ -178,6 +182,39 @@ export function createCatalogService(database, config) {
               },
               include: createProductInclude(),
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.PRODUCT_CREATED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.PRODUCT,
+                targetId: product.id,
+                requestId,
+                metadata: {
+                  categoryCount: input.categoryIds.length,
+                  initialQuantity: input.initialQuantity,
+                  currency: config.business.currency,
+                },
+              }),
+            );
+            if (input.initialQuantity > 0) {
+              await appendAudit(
+                transaction,
+                auditDescriptor({
+                  action: AUDIT_ACTIONS.INVENTORY_ADJUSTED,
+                  actorUserId: actor.id,
+                  targetType: AUDIT_TARGET_TYPES.INVENTORY,
+                  targetId: product.id,
+                  requestId,
+                  metadata: {
+                    delta: input.initialQuantity,
+                    quantityBefore: 0,
+                    quantityAfter: input.initialQuantity,
+                    reason: "INITIAL",
+                  },
+                }),
+              );
+            }
             return presentProduct(product);
           },
           { isolationLevel: "Serializable" },
@@ -187,7 +224,7 @@ export function createCatalogService(database, config) {
       }
     },
 
-    async updateProduct({ productId, input }) {
+    async updateProduct({ actor, productId, input, requestId }) {
       try {
         return await database.$transaction(
           async (transaction) => {
@@ -223,6 +260,21 @@ export function createCatalogService(database, config) {
                 });
               }
             }
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.PRODUCT_UPDATED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.PRODUCT,
+                targetId: productId,
+                requestId,
+                metadata: {
+                  changedFields: ["name", "description", "price", "categoryIds"].filter(
+                    (field) => input[field] !== undefined,
+                  ),
+                },
+              }),
+            );
             return presentProduct(await loadProduct(transaction, productId));
           },
           { isolationLevel: "Serializable" },
@@ -232,7 +284,7 @@ export function createCatalogService(database, config) {
       }
     },
 
-    async updateProductStatus({ productId, input }) {
+    async updateProductStatus({ actor, productId, input, requestId }) {
       try {
         return await database.$transaction(
           async (transaction) => {
@@ -259,6 +311,17 @@ export function createCatalogService(database, config) {
               data: { status: input.status, version: { increment: 1 } },
             });
             if (update.count !== 1) throw versionConflict();
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.PRODUCT_STATUS_CHANGED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.PRODUCT,
+                targetId: productId,
+                requestId,
+                metadata: { fromStatus: product.status, toStatus: input.status },
+              }),
+            );
             return presentProduct(await loadProduct(transaction, productId));
           },
           { isolationLevel: "Serializable" },
@@ -298,9 +361,26 @@ export function createCatalogService(database, config) {
       };
     },
 
-    async createCategory(input) {
+    async createCategory({ actor, input, requestId }) {
       try {
-        const category = await database.category.create({ data: input });
+        const category = await database.$transaction(
+          async (transaction) => {
+            const created = await transaction.category.create({ data: input });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.CATEGORY_CREATED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.CATEGORY,
+                targetId: created.id,
+                requestId,
+                metadata: {},
+              }),
+            );
+            return created;
+          },
+          { isolationLevel: "Serializable" },
+        );
         return presentCategory(category);
       } catch (error) {
         mapCatalogWriteError(
@@ -311,7 +391,7 @@ export function createCatalogService(database, config) {
       }
     },
 
-    async updateCategory({ categoryId, input }) {
+    async updateCategory({ actor, categoryId, input, requestId }) {
       try {
         return await database.$transaction(
           async (transaction) => {
@@ -327,6 +407,21 @@ export function createCatalogService(database, config) {
               },
             });
             if (update.count !== 1) throw versionConflict();
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.CATEGORY_UPDATED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.CATEGORY,
+                targetId: categoryId,
+                requestId,
+                metadata: {
+                  changedFields: ["slug", "name", "description"].filter(
+                    (field) => input[field] !== undefined,
+                  ),
+                },
+              }),
+            );
             return presentCategory(await loadCategory(transaction, categoryId), {
               includeCount: true,
             });
@@ -342,7 +437,7 @@ export function createCatalogService(database, config) {
       }
     },
 
-    async updateCategoryStatus({ categoryId, input }) {
+    async updateCategoryStatus({ actor, categoryId, input, requestId }) {
       try {
         return await database.$transaction(
           async (transaction) => {
@@ -368,6 +463,17 @@ export function createCatalogService(database, config) {
               data: { status: input.status, version: { increment: 1 } },
             });
             if (update.count !== 1) throw versionConflict();
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.CATEGORY_STATUS_CHANGED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.CATEGORY,
+                targetId: categoryId,
+                requestId,
+                metadata: { fromStatus: category.status, toStatus: input.status },
+              }),
+            );
             return presentCategory(await loadCategory(transaction, categoryId), {
               includeCount: true,
             });

@@ -2,12 +2,13 @@
 
 OpsPilot is a planned full-stack business operations SaaS platform for customers and business operators. It will combine commerce and operational workflows with customer and owner AI assistants introduced in later phases.
 
-Phases 1–3 are accepted. **Phase 4 — Orders and Payments** is implemented in the repository with
-versioned carts, transaction-safe orders/reservations, Razorpay Test Mode Standard Checkout,
-verified webhooks, full refunds, reconciliation, and customer/operator UI. External Test Mode
-delivery smoke is deferred because its local/provider configuration is unavailable, so explicit
-Phase 4 acceptance remains pending. **Phase 5 — Production Backend Features** has started at the
-decision-definition stage under ADR 0006; no Phase 5 schema or runtime work is approved yet.
+Phases 1–3 are accepted. **Phase 4 — Orders and Payments** is repository-complete, but explicit
+acceptance remains pending because the external Razorpay Test Mode delivery/recovery smoke is
+deferred. **Phase 5 — Production Backend Features** is repository-complete and verified under ADR
+0007, including support workflows and UI, authoritative overview reporting, HMAC-chained audit
+evidence, structured logging, request/rate hardening, representative performance evidence, and a
+sanitized backup/restore exercise. Phase 6 decision definition is next; no real-time or job
+technology is pre-approved.
 
 ## Source of truth
 
@@ -30,8 +31,13 @@ Start with:
 - [Phase 4 accepted decisions](docs/decisions/0005-phase-4-orders-payments.md)
 - [Phase 4 provider-smoke deferral](docs/decisions/0006-phase-4-provider-smoke-deferral.md)
 - [Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md)
-- [Phase 5 proposed permission matrix](docs/permissions/PHASE-05-PERMISSION-MATRIX.md)
-- [Phase 5 proposed threat model](docs/security/PHASE-05-THREAT-MODEL.md)
+- [Phase 5 audit implementation guide](docs/phase-5/PHASE-05-AUDIT-IMPLEMENTATION-GUIDE.md)
+- [Phase 5 operations runbook](docs/phase-5/PHASE-05-OPERATIONS-RUNBOOK.md)
+- [Phase 5 performance evidence](docs/phase-5/PHASE-05-PERFORMANCE-EVIDENCE.md)
+- [Phase 5 acceptance report](docs/phase-5/PHASE-05-ACCEPTANCE-REPORT.md)
+- [Phase 5 permission matrix](docs/permissions/PHASE-05-PERMISSION-MATRIX.md)
+- [Phase 5 threat model](docs/security/PHASE-05-THREAT-MODEL.md)
+- [Phase 5 accepted decisions](docs/decisions/0007-phase-5-production-backend-baseline.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -83,6 +89,12 @@ automatic capture, and configure a public HTTPS webhook endpoint. Follow the
 [Phase 4 operations runbook](docs/phase-4/PHASE-04-OPERATIONS-RUNBOOK.md). Never commit or paste
 provider secrets into project artifacts.
 
+Phase 5 audit writes require `AUDIT_INTEGRITY_KEY` and `AUDIT_INTEGRITY_KEY_ID` outside routine
+tests. The key is a Base64-encoded value containing at least 32 random bytes; the key ID is a
+stable, non-secret rotation identifier. Store both only in the ignored API environment or an
+approved secret manager. Routine tests use an isolated test-only key when both variables are
+absent. See the [audit implementation guide](docs/phase-5/PHASE-05-AUDIT-IMPLEMENTATION-GUIDE.md).
+
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
 
 The runtime adapter permits MySQL RSA public-key retrieval only for loopback database hosts so local `caching_sha2_password` accounts work reliably after MySQL restarts. Remote database hosts must use a reviewed TLS or pinned-public-key configuration; the application does not enable remote key retrieval implicitly.
@@ -120,17 +132,19 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 
 ## Current phase
 
-Phase 5 — Production Backend Features is **in decision definition** as of 2026-08-27. Its complete
-recommended baseline awaits explicit approval before implementation. Phase 4 remains
-repository-complete but unaccepted because external Razorpay Test Mode smoke is deferred. See the
+Phase 5 — Production Backend Features is **repository-complete and verified** as of 2026-08-28.
+Phase 4 remains repository-complete but unaccepted because external Razorpay Test Mode smoke is
+deferred. Phase 6 may now begin at decision definition, with its architecture and dependencies
+still requiring explicit approval. See the
 [Phase 5 specification](docs/phases/PHASE-05-PRODUCTION-BACKEND.md),
-[Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md), and
+[Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md),
+[Phase 5 acceptance report](docs/phase-5/PHASE-05-ACCEPTANCE-REPORT.md), and
 [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
-Phase 5 planning is limited to the proposed support, overview reporting, audit, logging, rate,
-performance, and recovery baseline. Until the proposal is approved, no Phase 5 schema/runtime
-change is authorized. Live payments, unresolved Phase 4 provider/go-live gates, attachments,
-exports, real-time infrastructure, background jobs, hosted observability, and AI remain outside
-the current implementation scope.
+Phase 5 stayed within the accepted support, overview reporting, audit, logging, rate, performance,
+and recovery baseline in ADR 0007. Live payments, unresolved Phase 4 provider/go-live gates,
+attachments, exports, real-time infrastructure, background jobs, hosted observability, and AI were
+not introduced. Phase 6 must make and record its own infrastructure, authorization, delivery,
+failure/recovery, and testing decisions before implementation.

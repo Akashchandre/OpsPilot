@@ -4,6 +4,9 @@ import {
   resourceNotFound,
   versionConflict,
 } from "../catalog/catalog.errors.js";
+import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import { MAX_INVENTORY_QUANTITY } from "../catalog/catalog.constants.js";
 import { inventoryInclude, presentAdjustment, presentInventory } from "./inventory.presenter.js";
 
@@ -26,7 +29,8 @@ function rethrowInventoryError(error) {
   throw error;
 }
 
-export function createInventoryService(database) {
+export function createInventoryService(database, config) {
+  const appendAudit = createAuditService(database, config).append;
   return {
     async list(query) {
       const where = query.search
@@ -121,6 +125,22 @@ export function createInventoryService(database) {
                 requestId,
               },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.INVENTORY_ADJUSTED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.INVENTORY,
+                targetId: productId,
+                requestId,
+                metadata: {
+                  delta: input.delta,
+                  quantityBefore: balance.onHand,
+                  quantityAfter,
+                  reason: input.reason,
+                },
+              }),
+            );
             return presentInventory(await loadInventory(transaction, productId));
           },
           { isolationLevel: "Serializable" },
@@ -130,7 +150,7 @@ export function createInventoryService(database) {
       }
     },
 
-    async updateThreshold({ productId, input }) {
+    async updateThreshold({ actor, productId, input, requestId }) {
       try {
         return await database.$transaction(
           async (transaction) => {
@@ -147,6 +167,20 @@ export function createInventoryService(database) {
               },
             });
             if (updated.count !== 1) throw versionConflict();
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.INVENTORY_THRESHOLD_UPDATED,
+                actorUserId: actor.id,
+                targetType: AUDIT_TARGET_TYPES.INVENTORY,
+                targetId: productId,
+                requestId,
+                metadata: {
+                  fromThreshold: balance.lowStockThreshold,
+                  toThreshold: input.lowStockThreshold,
+                },
+              }),
+            );
             return presentInventory(await loadInventory(transaction, productId));
           },
           { isolationLevel: "Serializable" },

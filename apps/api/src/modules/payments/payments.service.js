@@ -5,6 +5,9 @@ import {
   PAYMENT_STATUSES,
   REFUND_STATUSES,
 } from "../commerce/commerce.constants.js";
+import { AUDIT_ACTIONS, AUDIT_ACTOR_KINDS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
+import { auditDescriptor } from "../audit/audit.descriptor.js";
+import { createAuditService } from "../audit/audit.service.js";
 import {
   commerceError,
   commerceNotFound,
@@ -72,27 +75,80 @@ async function loadPayment(database, paymentId) {
   });
 }
 
-async function applyFetchedPayment(database, paymentId, entity, source, requestId) {
+async function applyFetchedPayment(
+  database,
+  paymentId,
+  entity,
+  source,
+  requestId,
+  appendAudit,
+  actorUserId = null,
+) {
   const eventType = paymentEntityStatus(entity);
   return database.$transaction(
-    (transaction) =>
-      applyProviderPayment(transaction, paymentId, entity, {
+    async (transaction) => {
+      const result = await applyProviderPayment(transaction, paymentId, entity, {
         eventType,
         source,
         requestId,
-      }),
+      });
+      const payment = await transaction.payment.findUnique({
+        where: { id: paymentId },
+        include: { order: true },
+      });
+      await appendAudit(
+        transaction,
+        auditDescriptor({
+          action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
+          actorKind: actorUserId ? AUDIT_ACTOR_KINDS.USER : AUDIT_ACTOR_KINDS.PROVIDER,
+          actorUserId,
+          targetType: AUDIT_TARGET_TYPES.PAYMENT,
+          targetId: paymentId,
+          requestId,
+          metadata: {
+            source,
+            paymentStatus: payment?.status ?? null,
+            orderStatus: payment?.order?.status ?? null,
+          },
+        }),
+      );
+      return result;
+    },
     { isolationLevel: "Serializable" },
   );
 }
 
-async function applyFetchedRefund(database, entity, source, requestId) {
+async function applyFetchedRefund(
+  database,
+  entity,
+  source,
+  requestId,
+  appendAudit,
+  actorUserId = null,
+) {
   return database.$transaction(
-    (transaction) =>
-      applyProviderRefund(transaction, entity, {
+    async (transaction) => {
+      const result = await applyProviderRefund(transaction, entity, {
         eventType: refundEntityStatus(entity),
         source,
         requestId,
-      }),
+      });
+      if (result.refund) {
+        await appendAudit(
+          transaction,
+          auditDescriptor({
+            action: AUDIT_ACTIONS.REFUND_PROVIDER_STATE_APPLIED,
+            actorKind: actorUserId ? AUDIT_ACTOR_KINDS.USER : AUDIT_ACTOR_KINDS.PROVIDER,
+            actorUserId,
+            targetType: AUDIT_TARGET_TYPES.REFUND,
+            targetId: result.refund.id,
+            requestId,
+            metadata: { source, refundStatus: result.refund.status },
+          }),
+        );
+      }
+      return result;
+    },
     { isolationLevel: "Serializable" },
   );
 }
@@ -110,6 +166,7 @@ function mapWriteError(error) {
 }
 
 export function createPaymentsService(database, config, paymentProvider) {
+  const appendAudit = createAuditService(database, config).append;
   return {
     async confirm({ userId, input, requestId }) {
       const payment = await database.payment.findFirst({
@@ -157,6 +214,8 @@ export function createPaymentsService(database, config, paymentProvider) {
           providerPayment,
           ORDER_EVENT_SOURCES.PROVIDER,
           requestId,
+          appendAudit,
+          userId,
         );
       } catch (error) {
         mapWriteError(error);
@@ -235,7 +294,7 @@ export function createPaymentsService(database, config, paymentProvider) {
               );
             }
 
-            return transaction.refund.create({
+            const created = await transaction.refund.create({
               data: {
                 paymentId: payment.id,
                 paymentAttemptId: payment.attempts[0].id,
@@ -246,6 +305,22 @@ export function createPaymentsService(database, config, paymentProvider) {
                 actorUserId,
               },
             });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.REFUND_REQUESTED,
+                actorUserId,
+                targetType: AUDIT_TARGET_TYPES.REFUND,
+                targetId: created.id,
+                requestId,
+                metadata: {
+                  paymentStatus: payment.status,
+                  orderStatus: payment.order.status,
+                  currency: payment.currency,
+                },
+              }),
+            );
+            return created;
           },
           { isolationLevel: "Serializable" },
         );
@@ -277,10 +352,28 @@ export function createPaymentsService(database, config, paymentProvider) {
       } catch (error) {
         failureCode = providerCode(error);
         if (!error?.ambiguous) {
-          await database.refund.updateMany({
-            where: { id: refund.id, status: REFUND_STATUSES.PENDING },
-            data: { status: REFUND_STATUSES.FAILED, failureCode },
-          });
+          await database.$transaction(
+            async (transaction) => {
+              const update = await transaction.refund.updateMany({
+                where: { id: refund.id, status: REFUND_STATUSES.PENDING },
+                data: { status: REFUND_STATUSES.FAILED, failureCode },
+              });
+              if (update.count === 1) {
+                await appendAudit(
+                  transaction,
+                  auditDescriptor({
+                    action: AUDIT_ACTIONS.REFUND_PROVIDER_STATE_APPLIED,
+                    actorKind: AUDIT_ACTOR_KINDS.PROVIDER,
+                    targetType: AUDIT_TARGET_TYPES.REFUND,
+                    targetId: refund.id,
+                    requestId,
+                    metadata: { source: "PROVIDER", refundStatus: REFUND_STATUSES.FAILED },
+                  }),
+                );
+              }
+            },
+            { isolationLevel: "Serializable" },
+          );
         }
       }
 
@@ -291,6 +384,7 @@ export function createPaymentsService(database, config, paymentProvider) {
             providerRefund,
             ORDER_EVENT_SOURCES.PROVIDER,
             requestId,
+            appendAudit,
           );
         } catch (error) {
           mapWriteError(error);
@@ -313,7 +407,7 @@ export function createPaymentsService(database, config, paymentProvider) {
       };
     },
 
-    async reconcile({ paymentId, requestId }) {
+    async reconcile({ actorUserId, paymentId, requestId }) {
       const payment = await loadPayment(database, paymentId);
       if (!payment) throw commerceNotFound("PAYMENT");
       if (!payment.providerOrderId) {
@@ -348,15 +442,33 @@ export function createPaymentsService(database, config, paymentProvider) {
                 reasonCode: "PROVIDER_ORDER_MISMATCH",
                 requestId,
               });
+              const refreshed = await transaction.payment.findUnique({
+                where: { id: payment.id },
+                include: { order: true },
+              });
+              await appendAudit(
+                transaction,
+                auditDescriptor({
+                  action: AUDIT_ACTIONS.PAYMENT_RECONCILED,
+                  actorUserId,
+                  targetType: AUDIT_TARGET_TYPES.PAYMENT,
+                  targetId: payment.id,
+                  requestId,
+                  metadata: {
+                    paymentStatus: refreshed?.status ?? null,
+                    orderStatus: refreshed?.order?.status ?? null,
+                    observedPaymentCount: Array.isArray(providerPayments?.items)
+                      ? providerPayments.items.length
+                      : 0,
+                    observedRefundCount: 0,
+                  },
+                }),
+              );
             }
           },
           { isolationLevel: "Serializable" },
         );
       } else {
-        await database.payment.updateMany({
-          where: { id: payment.id },
-          data: { providerOrderStatus: providerOrder.status },
-        });
         const entities = Array.isArray(providerPayments?.items) ? providerPayments.items : [];
         for (const entity of entities) {
           await applyFetchedPayment(
@@ -365,6 +477,8 @@ export function createPaymentsService(database, config, paymentProvider) {
             entity,
             ORDER_EVENT_SOURCES.RECONCILIATION,
             requestId,
+            appendAudit,
+            actorUserId,
           );
         }
 
@@ -384,6 +498,25 @@ export function createPaymentsService(database, config, paymentProvider) {
                   reasonCode: "PAID_ORDER_WITHOUT_VERIFIED_CAPTURE",
                   requestId,
                 });
+                const refreshed = await transaction.payment.findUnique({
+                  where: { id: payment.id },
+                  include: { order: true },
+                });
+                await appendAudit(
+                  transaction,
+                  auditDescriptor({
+                    action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
+                    actorUserId,
+                    targetType: AUDIT_TARGET_TYPES.PAYMENT,
+                    targetId: payment.id,
+                    requestId,
+                    metadata: {
+                      source: "RECONCILIATION",
+                      paymentStatus: refreshed?.status ?? null,
+                      orderStatus: refreshed?.order?.status ?? null,
+                    },
+                  }),
+                );
               }
             },
             { isolationLevel: "Serializable" },
@@ -402,11 +535,43 @@ export function createPaymentsService(database, config, paymentProvider) {
               entity,
               ORDER_EVENT_SOURCES.RECONCILIATION,
               requestId,
+              appendAudit,
+              actorUserId,
             );
           } catch (error) {
             throw commerceError(503, providerCode(error), "Payment reconciliation is incomplete");
           }
         }
+
+        await database.$transaction(
+          async (transaction) => {
+            await transaction.payment.updateMany({
+              where: { id: payment.id },
+              data: { providerOrderStatus: providerOrder.status },
+            });
+            const refreshed = await transaction.payment.findUnique({
+              where: { id: payment.id },
+              include: { order: true },
+            });
+            await appendAudit(
+              transaction,
+              auditDescriptor({
+                action: AUDIT_ACTIONS.PAYMENT_RECONCILED,
+                actorUserId,
+                targetType: AUDIT_TARGET_TYPES.PAYMENT,
+                targetId: payment.id,
+                requestId,
+                metadata: {
+                  paymentStatus: refreshed?.status ?? null,
+                  orderStatus: refreshed?.order?.status ?? null,
+                  observedPaymentCount: entities.length,
+                  observedRefundCount: knownRefunds.length,
+                },
+              }),
+            );
+          },
+          { isolationLevel: "Serializable" },
+        );
       }
 
       return presentPaymentDetail(await loadPayment(database, payment.id));

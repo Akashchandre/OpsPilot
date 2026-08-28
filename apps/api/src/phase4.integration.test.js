@@ -161,6 +161,11 @@ function withCsrf(requestBuilder, csrf) {
 }
 
 async function clearDatabase() {
+  await database.auditEvent.deleteMany();
+  await database.auditChainHead.update({
+    where: { id: 1 },
+    data: { headSequence: 0n, headHash: "0".repeat(64) },
+  });
   await database.providerWebhookEvent.deleteMany();
   await database.refund.deleteMany();
   await database.paymentAttempt.deleteMany();
@@ -477,6 +482,15 @@ describe.sequential("Phase 4 cart, order, and Razorpay lifecycle", () => {
     ).send({ version: pending.response.body.data.order.version });
     expect(customerCancelled.status).toBe(200);
     expect(customerCancelled.body.data.order.status).toBe("CANCELLED");
+    expect((await database.auditEvent.findMany()).map((event) => event.action)).toEqual(
+      expect.arrayContaining([
+        "ORDER_CREATED",
+        "PAYMENT_PROVIDER_ORDER_LINKED",
+        "PAYMENT_PROVIDER_STATE_APPLIED",
+        "ORDER_STATUS_CHANGED",
+        "ORDER_CANCELLED",
+      ]),
+    );
   });
 
   it("confirms only provider-fetched captures and performs one authorized full refund", async () => {
@@ -579,6 +593,9 @@ describe.sequential("Phase 4 cart, order, and Razorpay lifecycle", () => {
     expect(
       (await database.inventoryBalance.findUnique({ where: { productId: product.id } })).onHand,
     ).toBe(5);
+    expect((await database.auditEvent.findMany()).map((event) => event.action)).toEqual(
+      expect.arrayContaining(["REFUND_REQUESTED", "REFUND_PROVIDER_STATE_APPLIED"]),
+    );
   });
 
   it("keeps an ambiguous refund pending, applies failure evidence, and permits a safe retry", async () => {
@@ -723,6 +740,9 @@ describe.sequential("Phase 4 cart, order, and Razorpay lifecycle", () => {
     );
     expect(badEventId.status).toBe(400);
     expect(await database.providerWebhookEvent.count()).toBe(4);
+    expect(
+      await database.auditEvent.count({ where: { action: "PAYMENT_WEBHOOK_PROCESSED" } }),
+    ).toBe(4);
   });
 
   it("releases expired stock and quarantines a later capture for review", async () => {
@@ -769,7 +789,7 @@ describe.sequential("Phase 4 cart, order, and Razorpay lifecycle", () => {
 
   it("allows only authorized operators to reconcile a lost capture", async () => {
     await seedUser("customer-reconcile@example.com", "CUSTOMER");
-    await seedUser("admin-reconcile@example.com", "ADMIN");
+    const adminUser = await seedUser("admin-reconcile@example.com", "ADMIN");
     const product = await seedProduct();
     const customer = await login("customer-reconcile@example.com");
     const admin = await login("admin-reconcile@example.com");
@@ -803,6 +823,11 @@ describe.sequential("Phase 4 cart, order, and Razorpay lifecycle", () => {
     expect((await database.order.findUnique({ where: { id: secondOrder.id } })).status).toBe(
       "PAYMENT_REVIEW",
     );
+    const reconciliationAudits = await database.auditEvent.findMany({
+      where: { action: "PAYMENT_RECONCILED" },
+    });
+    expect(reconciliationAudits).toHaveLength(2);
+    expect(reconciliationAudits.every((event) => event.actorUserId === adminUser.id)).toBe(true);
   });
 
   it("allows only one concurrent checkout to reserve the final unit", async () => {

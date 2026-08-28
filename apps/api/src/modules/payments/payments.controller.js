@@ -51,6 +51,7 @@ export function createPaymentsController(paymentsService) {
     async reconcile(request, response, next) {
       try {
         const payment = await paymentsService.reconcile({
+          actorUserId: request.auth.user.id,
           paymentId: request.validated.params.paymentId,
           requestId: request.id,
         });

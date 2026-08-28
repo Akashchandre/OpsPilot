@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 
 const config = {
+  nodeEnv: "test",
+  logging: { level: "error" },
+  proxy: { trustProxyHops: 0 },
   corsOrigin: "http://127.0.0.1:5173",
+  audit: {
+    integrityKey: Buffer.alloc(32, 0x5a).toString("base64"),
+    integrityKeyId: "routine-test-v1",
+  },
   payments: {
     reservationTtlMinutes: 15,
     razorpay: {
@@ -23,6 +30,12 @@ const config = {
     cookieSecure: false,
     loginRateLimitWindowMinutes: 15,
     loginRateLimitMax: 100,
+  },
+  rateLimit: {
+    api: { windowMinutes: 5, maximum: 1000 },
+    support: { windowMinutes: 15, maximum: 1000 },
+    reports: { windowMinutes: 5, maximum: 1000 },
+    webhook: { windowMinutes: 5, maximum: 1000 },
   },
 };
 

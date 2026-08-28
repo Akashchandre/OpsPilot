@@ -55,8 +55,10 @@ export function createInventoryController(inventoryService) {
     async updateThreshold(request, response, next) {
       try {
         const inventory = await inventoryService.updateThreshold({
+          actor: request.auth.user,
           productId: request.validated.params.productId,
           input: request.validated.body,
+          requestId: request.id,
         });
         response.status(200).json({ success: true, data: { inventory } });
       } catch (error) {

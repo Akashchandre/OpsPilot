@@ -19,6 +19,10 @@ export const PERMISSIONS = Object.freeze({
   PAYMENTS_READ: "payments:read",
   PAYMENTS_REFUND: "payments:refund",
   PAYMENTS_RECONCILE: "payments:reconcile",
+  SUPPORT_TICKETS_READ: "support:tickets:read",
+  SUPPORT_TICKETS_MANAGE: "support:tickets:manage",
+  REPORTS_READ: "reports:read",
+  AUDIT_READ: "audit:read",
 });
 
 export const USER_STATUSES = Object.freeze({

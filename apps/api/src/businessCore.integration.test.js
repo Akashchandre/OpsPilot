@@ -22,6 +22,11 @@ function cookieValue(response, name) {
 }
 
 async function clearBusinessData() {
+  await database.auditEvent.deleteMany();
+  await database.auditChainHead.update({
+    where: { id: 1 },
+    data: { headSequence: 0n, headHash: "0".repeat(64) },
+  });
   await database.providerWebhookEvent.deleteMany();
   await database.refund.deleteMany();
   await database.paymentAttempt.deleteMany();
@@ -152,6 +157,14 @@ describe.sequential("Phase 3 business core API", () => {
     );
     expect(detail.status).toBe(200);
     expect(detail.body.data.product.categories[0].slug).toBe("office-chairs");
+    expect((await database.auditEvent.findMany()).map((event) => event.action)).toEqual(
+      expect.arrayContaining([
+        "CATEGORY_CREATED",
+        "PRODUCT_CREATED",
+        "INVENTORY_ADJUSTED",
+        "PRODUCT_STATUS_CHANGED",
+      ]),
+    );
   });
 
   it("protects management views and mutations from customers and missing CSRF", async () => {
@@ -236,6 +249,9 @@ describe.sequential("Phase 3 business core API", () => {
     ).send({ status: "INACTIVE", version: category.version });
     expect(deactivateCategory.status).toBe(409);
     expect(deactivateCategory.body.error.code).toBe("CATEGORY_IN_USE");
+    expect((await database.auditEvent.findMany()).map((event) => event.action)).toContain(
+      "PRODUCT_UPDATED",
+    );
   });
 
   it("protects exact inventory and atomically records valid adjustments", async () => {
@@ -278,6 +294,9 @@ describe.sequential("Phase 3 business core API", () => {
     });
     expect(threshold.status).toBe(200);
     expect(threshold.body.data.inventory).toMatchObject({ lowStockThreshold: 1, lowStock: false });
+    expect((await database.auditEvent.findMany()).map((event) => event.action)).toEqual(
+      expect.arrayContaining(["INVENTORY_ADJUSTED", "INVENTORY_THRESHOLD_UPDATED"]),
+    );
   });
 
   it("allows only one concurrent adjustment for the same inventory version", async () => {
