@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/auth-context.js";
+import { NotificationCenter } from "./NotificationCenter.jsx";
 
 export function AppLayout() {
   const auth = useAuth();
@@ -53,10 +54,12 @@ export function AppLayout() {
           {auth.hasPermission("reports:read") ? (
             <NavLink to="/admin/reports">Reports</NavLink>
           ) : null}
+          {auth.hasPermission("jobs:read") ? <NavLink to="/admin/jobs">Jobs</NavLink> : null}
         </nav>
         <div className="session-actions">
           {auth.user ? (
             <>
+              <NotificationCenter />
               <span className="session-user">{auth.user.displayName}</span>
               <button className="button button--quiet" type="button" onClick={handleLogout}>
                 Log out

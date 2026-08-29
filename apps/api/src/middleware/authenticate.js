@@ -12,6 +12,10 @@ function authenticationRequired() {
 }
 
 function assignAuthentication(request, session) {
+  request.auth = authenticationFromSession(session);
+}
+
+function authenticationFromSession(session) {
   const roleCodes = new Set(session.user.roles.map((assignment) => assignment.role.code));
   const permissions = new Set(
     session.user.roles.flatMap((assignment) =>
@@ -19,7 +23,24 @@ function assignAuthentication(request, session) {
     ),
   );
 
-  request.auth = { session, user: session.user, roleCodes, permissions };
+  return { session, user: session.user, roleCodes, permissions };
+}
+
+export async function resolveActiveSessionToken(database, sessionToken, now = new Date()) {
+  if (!sessionToken) return null;
+  const session = await database.authSession.findUnique({
+    where: { tokenHash: digestToken(sessionToken) },
+    include: { user: { include: authorizationInclude } },
+  });
+  if (
+    !session ||
+    session.revokedAt ||
+    session.expiresAt <= now ||
+    session.user.status !== USER_STATUSES.ACTIVE
+  ) {
+    return null;
+  }
+  return authenticationFromSession(session);
 }
 
 async function resolveAuthentication(database, config, request) {
@@ -31,23 +52,10 @@ async function resolveAuthentication(database, config, request) {
     return null;
   }
 
-  const session = await database.authSession.findUnique({
-    where: { tokenHash: digestToken(sessionToken) },
-    include: { user: { include: authorizationInclude } },
-  });
-
   request.authenticationResolved = true;
-  const now = new Date();
-  if (
-    !session ||
-    session.revokedAt ||
-    session.expiresAt <= now ||
-    session.user.status !== USER_STATUSES.ACTIVE
-  ) {
-    return null;
-  }
-
-  assignAuthentication(request, session);
+  const authentication = await resolveActiveSessionToken(database, sessionToken);
+  if (!authentication) return null;
+  assignAuthentication(request, authentication.session);
   return request.auth;
 }
 

@@ -1,14 +1,14 @@
 # Work Progress
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 
 ## Current Phase
 
-Phase 5 — Production Backend Features (complete)
+Phase 6 — Real-time and Background Jobs (repository complete)
 
 ## Status
 
-REPOSITORY COMPLETE AND VERIFIED — PHASE 6 DECISION DEFINITION NEXT
+REPOSITORY COMPLETE — VERIFIED
 
 ## Completed
 
@@ -120,19 +120,47 @@ REPOSITORY COMPLETE AND VERIFIED — PHASE 6 DECISION DEFINITION NEXT
 - The final gate passes lint, formatting/Prisma validation, 87 API tests, 34 web tests, both
   coverage suites, production build, eight-migration status/drift checks, live ephemeral API/web
   smoke, audit verification, whitespace checks, and tracked/ignored secret checks.
+- Phase 5 was committed as `10e73ac` (`feat: complete phase 5 production backend`) with no
+  remaining Phase 5 worktree changes.
+- Phase 6's specification and relevant transaction/session/audit/log/rate/provider boundaries were
+  reviewed together with current official MySQL queue locking and Socket.IO delivery/recovery
+  behavior.
+- A complete proposed MySQL transactional job/outbox, worker, persistent notification, Socket.IO
+  hint, permission, security, dependency, configuration, and test baseline is documented for
+  explicit approval. No Phase 6 package, schema, service, account, route, or runtime was added.
+- The user approved the complete Phase 6 baseline and authorized installation of `socket.io` and
+  `socket.io-client` on 2026-08-28. ADR 0008 records the accepted implementation boundary.
+- Exact `socket.io@4.8.3` and `socket.io-client@4.8.3` dependencies passed license, engine, and
+  compatibility review; no Redis, BullMQ, broker, hosted channel, or additional package was added.
+- Migration `20260828094016_phase_6_realtime_jobs` adds durable jobs, attempts, worker heartbeats,
+  recipient-owned notifications, owner-only job permissions, constraints, and queue/read indexes.
+- Transactional domain enqueueing now covers reservation expiry, payment reconciliation, webhook
+  processing, refunds, support activity, persistent notification materialization, and both fixed
+  maintenance schedules without weakening the existing audit or provider-recovery boundaries.
+- The separate worker implements atomic MySQL claiming with `FOR UPDATE SKIP LOCKED`, leases and
+  renewals, bounded exponential retry with jitter, dead-letter evidence, stale-work recovery,
+  graceful shutdown, heartbeats, and audited owner-only replay.
+- Persistent notification APIs and responsive UI provide bounded recipient-owned reads, unread
+  counts, mark-one/mark-all-read behavior, and Socket.IO refresh hints with authenticated rooms,
+  origin/session revalidation, connection/rate caps, and reconnect-safe database refresh.
+- The owner-only jobs API and `/admin/jobs` UI provide bounded filters, detail/attempt evidence,
+  manual refresh, and explicit replay for terminal jobs; customers and non-owner operators remain
+  denied by default.
+- Phase 6 documentation, operations/recovery guidance, threat and permission reviews, performance
+  evidence, and acceptance report are synchronized. The final regression passes 121 API tests,
+  36 web tests, coverage gates, build, migrations/drift, live API/worker/web smoke, performance
+  targets, audit verification, whitespace, and secret checks.
 
 ## In Progress
 
-- No Phase 5 implementation remains.
 - The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain a deferred backlog
   gate and a live-payment blocker.
+- No Phase 7 implementation is authorized.
 
 ## Next Task
 
-Begin Phase 6 by reading its specification and defining the real-time/job architecture, dependency,
-service/account, event/job semantics, authorization, delivery, failure/recovery, observability, and
-testing decisions. Do not install or implement a queue, Redis, Socket.IO, worker, or other Phase 6
-technology until that baseline is explicitly approved.
+Await explicit authorization and an accepted decision boundary before beginning Phase 7. Keep the
+deferred real Razorpay Test Mode delivery/recovery gate visible before any live-payment decision.
 
 ## Accepted Decisions
 
@@ -160,6 +188,9 @@ technology until that baseline is explicitly approved.
   single-instance rate/proxy, performance, permission, temporary retention, and implementation
   baseline. Attachments, exports, hosted observability, queues/realtime, distributed limits, live
   payments, and AI remain deferred.
+- ADR 0008 accepts a MySQL transactional job/outbox, separate JavaScript worker, persistent
+  recipient-owned in-app notifications, Socket.IO as a non-durable hint layer, owner-only job
+  inspection/replay, and no Redis/BullMQ/external broker or multi-instance topology.
 
 ## Phase 3 Acceptance Evidence
 
@@ -218,8 +249,12 @@ technology until that baseline is explicitly approved.
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- `npm audit` reports three high-severity findings associated with the existing recursive-object stack-exhaustion advisory in `deepmerge-ts` through the local Prisma CLI configuration path. npm offers only a breaking Prisma downgrade; no forced fix was applied. Runtime application requests do not process Prisma configuration.
-- Phase 5 rate stores are per process and need a shared store or edge policy before horizontal scaling.
+- `npm audit --omit=dev` reports five transitive findings (one moderate and four high): the existing
+  `deepmerge-ts`/Prisma configuration issue plus MariaDB connector credential/TLS/escaping
+  advisories in the Prisma adapter tree. No compatible fix is available in the installed tree;
+  npm proposes a breaking forced Prisma downgrade for the former, so no forced fix was applied.
+- Phase 5 rate stores and Phase 6 connection/rate accounting are per process and need reviewed
+  shared or edge policy before horizontal scaling.
 - The Razorpay Test Mode provider-delivery gate is not runnable: the ignored API environment has no
   enabled provider/key/webhook-secret configuration, and the public HTTPS endpoint plus
   automatic-capture dashboard setting are not recorded. The real-looking Test Mode key pair found
@@ -228,11 +263,41 @@ technology until that baseline is explicitly approved.
   generations, RPO/RTO, restore cadence, hosted monitoring/alerting, and incident ownership remain
   undecided production blockers. The local performance result is a regression baseline, not an
   external SLA or concurrent-load/soak result.
+- Job, attempt, heartbeat, and notification retention is temporarily indefinite in development and
+  test. Production worker/API supervision, remote database TLS/credential handling, capacity/SLOs,
+  deploy rollback, and Phase 6 retention/purge policy remain unresolved production blockers.
+
+## Phase 6 Acceptance Evidence
+
+- Phase specification: `docs/phases/PHASE-06-REALTIME-JOBS.md`.
+- Accepted baseline: `docs/decisions/0008-phase-6-realtime-jobs-baseline.md` and
+  `docs/phase-6/PHASE-06-DECISION-PROPOSAL.md`.
+- Implemented authorization mapping: `docs/permissions/PHASE-06-PERMISSION-MATRIX.md`.
+- Verified security requirements: `docs/security/PHASE-06-THREAT-MODEL.md`.
+- Implementation guide: `docs/phase-6/PHASE-06-IMPLEMENTATION-GUIDE.md`.
+- Operations and recovery runbook: `docs/phase-6/PHASE-06-OPERATIONS-RUNBOOK.md`.
+- Performance evidence: `docs/phase-6/PHASE-06-PERFORMANCE-EVIDENCE.md`.
+- Acceptance report: `docs/phase-6/PHASE-06-ACCEPTANCE-REPORT.md`.
+- Persistence migration:
+  `apps/api/prisma/migrations/20260828094016_phase_6_realtime_jobs/migration.sql`.
+- Development and test databases report all nine migrations applied; development schema drift is
+  absent. Current development and test audit chains verify successfully.
+- Full regression: 26 API files / 121 tests and 5 web files / 36 tests pass.
+- API coverage: 83.87% statements, 72.95% branches, 93.54% functions, 87.75% lines.
+- Web coverage: 83.52% statements, 73.47% branches, 82.25% functions, 85.88% lines.
+- Production build: 96 modules; 379.89 kB main JavaScript, 108.32 kB gzip; 25.20 kB CSS.
+- Representative p95 at 10,000 notifications: list 19.195 ms, unread count 63.766 ms, committed-job
+  visibility 41.988 ms, materialization 10.814 ms, and Socket.IO hint 36.674 ms.
+- Lint, formatting/Prisma validation, build, migration/drift checks, live API/worker/built-web smoke,
+  Git whitespace, high-confidence credential scans, and ignored-environment checks pass.
+- Exact `socket.io@4.8.3` and `socket.io-client@4.8.3` are pinned. Existing MySQL is the only
+  persistence service; no Redis, BullMQ, external broker/channel account, or new secret was added.
 
 ## Phase Gate
 
 Phases 1, 2, and 3 are accepted. Phase 4 repository implementation and internal review gates pass,
 but the phase remains unaccepted while real Test Mode delivery/recovery is deferred under ADR 0006.
-Phase 5 is repository-complete and verified under ADR 0007 and its acceptance report. Phase 6 may
-start only with decision definition; real-time/job implementation remains unauthorized until that
-baseline is approved. Live-payment and AI implementation remain out of scope.
+Phase 5 is repository-complete and verified under ADR 0007 and its acceptance report. Phase 6 is
+repository-complete and verified under ADR 0008 and its acceptance report. Phase 7 is not
+authorized. Redis, BullMQ, external channels, live payments, multi-instance deployment, and AI
+remain out of scope.

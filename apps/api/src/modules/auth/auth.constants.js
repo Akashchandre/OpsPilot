@@ -23,6 +23,8 @@ export const PERMISSIONS = Object.freeze({
   SUPPORT_TICKETS_MANAGE: "support:tickets:manage",
   REPORTS_READ: "reports:read",
   AUDIT_READ: "audit:read",
+  JOBS_READ: "jobs:read",
+  JOBS_REPLAY: "jobs:replay",
 });
 
 export const USER_STATUSES = Object.freeze({

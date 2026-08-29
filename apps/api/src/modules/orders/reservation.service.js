@@ -9,6 +9,8 @@ import {
   commerceVersionConflict,
   isPrismaWriteConflict,
 } from "../commerce/commerce.errors.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 
 export async function releaseReservations(
   transaction,
@@ -106,7 +108,7 @@ export async function consumeReservations(transaction, orderId, now = new Date()
   }
 }
 
-async function expireOrder(database, orderId, now) {
+async function expireOrder(database, orderId, now, config) {
   try {
     return await database.$transaction(
       async (transaction) => {
@@ -129,7 +131,7 @@ async function expireOrder(database, orderId, now) {
           },
         });
         if (update.count !== 1) throw commerceVersionConflict();
-        await transaction.orderStatusEvent.create({
+        const orderEvent = await transaction.orderStatusEvent.create({
           data: {
             orderId: order.id,
             fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
@@ -138,6 +140,13 @@ async function expireOrder(database, orderId, now) {
             reasonCode: "RESERVATION_EXPIRED",
           },
         });
+        if (config) {
+          await enqueueJob(transaction, config, {
+            type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+            dedupeKey: `order-status:${orderEvent.id}`,
+            payload: { sourceEventId: orderEvent.id, orderId: order.id },
+          });
+        }
         return true;
       },
       { isolationLevel: "Serializable" },
@@ -148,7 +157,10 @@ async function expireOrder(database, orderId, now) {
   }
 }
 
-export async function expireDueOrders(database, { now = new Date(), limit = 25 } = {}) {
+export async function expireDueOrders(
+  database,
+  { now = new Date(), limit = 25, config = null } = {},
+) {
   const dueOrders = await database.order.findMany({
     where: {
       status: ORDER_STATUSES.PENDING_PAYMENT,
@@ -161,7 +173,7 @@ export async function expireDueOrders(database, { now = new Date(), limit = 25 }
 
   let expired = 0;
   for (const order of dueOrders) {
-    if (await expireOrder(database, order.id, now)) expired += 1;
+    if (await expireOrder(database, order.id, now, config)) expired += 1;
   }
   return expired;
 }

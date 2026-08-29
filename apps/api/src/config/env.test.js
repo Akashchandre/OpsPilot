@@ -34,6 +34,21 @@ describe("loadEnvironment", () => {
         reports: { windowMinutes: 5, maximum: 60 },
         webhook: { windowMinutes: 5, maximum: 600 },
       },
+      jobs: {
+        pollIntervalMs: 500,
+        concurrency: 4,
+        leaseSeconds: 30,
+        maxAttempts: 8,
+        retryBaseMs: 1000,
+        retryMaxMs: 900000,
+        shutdownGraceSeconds: 30,
+      },
+      realtime: {
+        notificationPollIntervalMs: 500,
+        sessionRecheckSeconds: 30,
+        maxConnectionsPerUser: 5,
+        connectionRateLimitMax: 20,
+      },
       payments: {
         reservationTtlMinutes: 15,
         razorpay: {
@@ -87,6 +102,19 @@ describe("loadEnvironment", () => {
     expect(() => loadEnvironment({ ...validEnvironment, API_RATE_LIMIT_MAX: "0" })).toThrow(
       ConfigurationError,
     );
+    expect(() => loadEnvironment({ ...validEnvironment, WORKER_CONCURRENCY: "0" })).toThrow(
+      ConfigurationError,
+    );
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        JOB_RETRY_BASE_MS: "2000",
+        JOB_RETRY_MAX_MS: "1000",
+      }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadEnvironment({ ...validEnvironment, REALTIME_MAX_CONNECTIONS_PER_USER: "21" }),
+    ).toThrow(ConfigurationError);
   });
 
   it("validates the single-business currency code", () => {

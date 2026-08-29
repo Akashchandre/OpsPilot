@@ -8,6 +8,8 @@ import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from "../audit/audit.constants.js";
 import { auditDescriptor } from "../audit/audit.descriptor.js";
 import { createAuditService } from "../audit/audit.service.js";
 import { MAX_INVENTORY_QUANTITY } from "../catalog/catalog.constants.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 import { inventoryInclude, presentAdjustment, presentInventory } from "./inventory.presenter.js";
 
 function paginationMeta(page, limit, total) {
@@ -113,7 +115,7 @@ export function createInventoryService(database, config) {
             });
             if (updated.count !== 1) throw versionConflict();
 
-            await transaction.inventoryAdjustment.create({
+            const adjustment = await transaction.inventoryAdjustment.create({
               data: {
                 productId,
                 delta: input.delta,
@@ -141,6 +143,18 @@ export function createInventoryService(database, config) {
                 },
               }),
             );
+            if (
+              balance.onHand > balance.lowStockThreshold &&
+              quantityAfter <= balance.lowStockThreshold
+            ) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_INVENTORY_LOW,
+                dedupeKey: `inventory-low:${adjustment.id}`,
+                payload: { sourceEventId: adjustment.id, productId },
+                sourceRequestId: requestId,
+                sourceActorUserId: actor.id,
+              });
+            }
             return presentInventory(await loadInventory(transaction, productId));
           },
           { isolationLevel: "Serializable" },

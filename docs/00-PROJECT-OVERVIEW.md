@@ -5,8 +5,8 @@
 **Name:** OpsPilot — AI Business Operations Platform  
 **Product type:** Full-stack business operations SaaS platform  
 **Current lifecycle state:** Phases 1–3 accepted; Phase 4 repository-complete with external Razorpay
-smoke deferred and acceptance pending; Phase 5 repository-complete with support, reports, audit,
-hardening, performance, and recovery gates passed
+smoke deferred and acceptance pending; Phase 5 repository-complete and committed; Phase 6
+repository-complete and verified under ADR 0008; Phase 7 not authorized
 
 ## Purpose
 
@@ -52,6 +52,8 @@ to both `OWNER` and `ADMIN`. Phase 4 also assigns order-read/manage and payment-
 reconcile permissions to those roles; customer cart/order/payment access is authenticated and
 ownership-scoped. Phase 5 adds support read/manage and report read for owners/admins, owner-only
 audit read, and ownership-scoped customer support access.
+Phase 6 gives only `OWNER` the cross-domain `jobs:read`/`jobs:replay` operations while every active
+authenticated user receives only recipient-owned notification history and hints.
 
 ### Future employees and managers
 
@@ -100,7 +102,7 @@ AI is not part of Phase 1 and is not authorized for implementation during docume
 | Relational data | MySQL with Prisma | Agreed |
 | AI service | Python, FastAPI, LangChain, LangGraph | Future, agreed direction |
 | Retrieval | RAG plus a vector database | Vector technology **Decision Required** |
-| Supporting infrastructure | Redis, queues, Socket.IO/WebSockets, object storage | Future, introduce only when justified |
+| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints implemented; Redis/shared adapters and object storage future | Conditional |
 | Delivery | Docker, GitHub Actions, AWS | Future; detailed choices **Decision Required** |
 
 The main frontend and backend must remain JavaScript. TypeScript migration is out of scope unless the project direction is explicitly changed.
@@ -130,8 +132,16 @@ The Phase 5 baseline was accepted on 2026-08-27 in ADR 0007 and completed on 202
 and staff support workflows, authoritative overview reporting, HMAC-chained audit evidence,
 structured logging, request/rate hardening, representative-data performance evidence, and a
 sanitized backup/restore exercise all pass their repository gates. Its acceptance report records
-the retained production decisions and blockers. Phase 6 begins with decision definition; no queue,
-real-time transport, cache, worker, or new dependency is implied by the transition.
+the retained production decisions and blockers. Its transition did not pre-authorize a queue,
+real-time transport, cache, worker, or new dependency; those choices were made separately in ADR
+0008.
+
+Phase 6's complete baseline was approved on 2026-08-28 in ADR 0008. It uses a MySQL transactional
+job/outbox, a separate JavaScript worker, persistent recipient-owned notifications, and Socket.IO
+only as an authenticated change-hint layer. The repository implementation and verification gate
+passed on 2026-08-29 with exact `socket.io@4.8.3`/`socket.io-client@4.8.3` pins. Redis, BullMQ,
+distributed scaling, and external channels remain out of scope. Phase 7 requires new explicit
+authorization and AI/provider/data-governance decisions.
 
 ## Overall system flow
 
@@ -146,7 +156,11 @@ real-time transport, cache, worker, or new dependency is implied by the transiti
    relationship/amount/currency-matched provider evidence; payment credentials stay in hosted
    Checkout.
 7. Prisma reads or writes relational data in MySQL.
-8. The API returns a consistent success or error response to the client.
+8. Committed transitions that need asynchronous notification insert a registered job inside the
+   same transaction; a separately supervised worker later validates and executes it from MySQL.
+9. Persistent notification state is read through REST. Socket.IO may send a recipient-scoped UUID/
+   cursor hint, but it never establishes business truth or authorization.
+10. The API returns a consistent success or error response to the client.
 
 ### Future AI flow
 

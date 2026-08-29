@@ -8,11 +8,14 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.js",
+    "dev:worker": "tsx watch src/worker.js",
     "start": "tsx src/server.js",
+    "start:worker": "tsx src/worker.js",
     "auth:bootstrap-owner": "tsx src/scripts/bootstrapOwner.js",
     "phase5:performance:data": "tsx src/scripts/phase5PerformanceData.js",
     "phase5:performance:profile": "tsx src/scripts/phase5PerformanceProfile.js",
     "phase5:audit:verify": "tsx src/scripts/verifyAuditChain.js",
+    "phase6:performance:profile": "tsx src/scripts/phase6PerformanceProfile.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "db:format": "prisma format",
@@ -32,6 +35,7 @@
     "express": "5.2.1",
     "express-rate-limit": "8.6.2",
     "helmet": "8.3.0",
+    "socket.io": "4.8.3",
     "zod": "4.4.3"
   },
   "devDependencies": {

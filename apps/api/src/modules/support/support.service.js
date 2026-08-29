@@ -8,6 +8,8 @@ import {
 } from "../audit/audit.constants.js";
 import { createAuditService } from "../audit/audit.service.js";
 import { digestRequest } from "../commerce/commerce.money.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 import {
   SUPPORT_EVENT_SOURCES,
   SUPPORT_EVENT_TYPES,
@@ -188,6 +190,7 @@ export function createSupportService(database, config) {
             }
 
             const ticketId = randomUUID();
+            const ticketEventId = randomUUID();
             await transaction.supportTicket.create({
               data: {
                 id: ticketId,
@@ -212,6 +215,7 @@ export function createSupportService(database, config) {
                 },
                 events: {
                   create: {
+                    id: ticketEventId,
                     eventType: SUPPORT_EVENT_TYPES.CREATED,
                     source: SUPPORT_EVENT_SOURCES.CUSTOMER,
                     toStatus: SUPPORT_STATUSES.OPEN,
@@ -233,6 +237,13 @@ export function createSupportService(database, config) {
                 metadata: { category: input.category, orderLinked: Boolean(input.orderId) },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_SUPPORT_TICKET_CREATED,
+              dedupeKey: `support-created:${ticketEventId}`,
+              payload: { sourceEventId: ticketEventId, supportTicketId: ticketId },
+              sourceRequestId: requestId,
+              sourceActorUserId: actor.id,
+            });
 
             return {
               ticket: await loadTicket(transaction, {
@@ -337,7 +348,7 @@ export function createSupportService(database, config) {
               [SUPPORT_STATUSES.WAITING_CUSTOMER, SUPPORT_STATUSES.RESOLVED].includes(
                 ticket.status,
               );
-            await transaction.supportTicketMessage.create({
+            const message = await transaction.supportTicketMessage.create({
               data: {
                 ticketId,
                 authorUserId: actor.id,
@@ -359,7 +370,7 @@ export function createSupportService(database, config) {
                   version: { increment: 1 },
                 },
               });
-              await transaction.supportTicketEvent.create({
+              const statusEvent = await transaction.supportTicketEvent.create({
                 data: {
                   ticketId,
                   eventType: SUPPORT_EVENT_TYPES.STATUS_CHANGED,
@@ -389,6 +400,13 @@ export function createSupportService(database, config) {
                   },
                 }),
               );
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_SUPPORT_STATUS_CHANGED,
+                dedupeKey: `support-status:${statusEvent.id}`,
+                payload: { sourceEventId: statusEvent.id, supportTicketId: ticketId },
+                sourceRequestId: requestId,
+                sourceActorUserId: actor.id,
+              });
             } else {
               await transaction.supportTicket.update({
                 where: { id: ticketId },
@@ -411,6 +429,19 @@ export function createSupportService(database, config) {
                 },
               }),
             );
+            if (message.visibility === SUPPORT_MESSAGE_VISIBILITIES.CUSTOMER_VISIBLE) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_SUPPORT_PUBLIC_REPLY_CREATED,
+                dedupeKey: `support-reply:${message.id}`,
+                payload: {
+                  sourceEventId: message.id,
+                  supportTicketId: ticketId,
+                  messageId: message.id,
+                },
+                sourceRequestId: requestId,
+                sourceActorUserId: actor.id,
+              });
+            }
 
             return {
               ticket: await loadTicket(transaction, {
@@ -482,7 +513,7 @@ export function createSupportService(database, config) {
               },
             });
             if (updated.count !== 1) throw supportVersionConflict();
-            await transaction.supportTicketEvent.create({
+            const statusEvent = await transaction.supportTicketEvent.create({
               data: {
                 ticketId,
                 eventType: SUPPORT_EVENT_TYPES.STATUS_CHANGED,
@@ -504,6 +535,13 @@ export function createSupportService(database, config) {
                 metadata: { fromStatus: current.status, toStatus: SUPPORT_STATUSES.CLOSED },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_SUPPORT_STATUS_CHANGED,
+              dedupeKey: `support-status:${statusEvent.id}`,
+              payload: { sourceEventId: statusEvent.id, supportTicketId: ticketId },
+              sourceRequestId: requestId,
+              sourceActorUserId: actor.id,
+            });
             return loadTicket(transaction, {
               actorUserId: actor.id,
               ticketId,
@@ -600,8 +638,10 @@ export function createSupportService(database, config) {
             });
             if (updated.count !== 1) throw supportVersionConflict();
 
+            let statusEvent = null;
+            let assigneeEvent = null;
             if (changeKinds.includes("STATUS")) {
-              await transaction.supportTicketEvent.create({
+              statusEvent = await transaction.supportTicketEvent.create({
                 data: {
                   ticketId,
                   eventType: SUPPORT_EVENT_TYPES.STATUS_CHANGED,
@@ -629,7 +669,7 @@ export function createSupportService(database, config) {
               });
             }
             if (changeKinds.includes("ASSIGNEE")) {
-              await transaction.supportTicketEvent.create({
+              assigneeEvent = await transaction.supportTicketEvent.create({
                 data: {
                   ticketId,
                   eventType: SUPPORT_EVENT_TYPES.ASSIGNEE_CHANGED,
@@ -652,6 +692,24 @@ export function createSupportService(database, config) {
                 metadata: updateAuditMetadata(current, input, changeKinds),
               }),
             );
+            if (statusEvent) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_SUPPORT_STATUS_CHANGED,
+                dedupeKey: `support-status:${statusEvent.id}`,
+                payload: { sourceEventId: statusEvent.id, supportTicketId: ticketId },
+                sourceRequestId: requestId,
+                sourceActorUserId: actor.id,
+              });
+            }
+            if (assigneeEvent) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_SUPPORT_ASSIGNMENT_CHANGED,
+                dedupeKey: `support-assignment:${assigneeEvent.id}`,
+                payload: { sourceEventId: assigneeEvent.id, supportTicketId: ticketId },
+                sourceRequestId: requestId,
+                sourceActorUserId: actor.id,
+              });
+            }
             return loadTicket(transaction, {
               actorUserId: actor.id,
               ticketId,

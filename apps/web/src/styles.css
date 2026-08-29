@@ -1399,6 +1399,308 @@ address {
   border-top: 1px solid rgba(148, 163, 184, 0.16);
 }
 
+.notification-center {
+  position: relative;
+}
+.notification-trigger {
+  display: inline-flex;
+  min-height: 40px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  color: #d5deeb;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+.notification-badge {
+  display: grid;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  color: #07101f;
+  background: #6ee7b7;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 30;
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 100px));
+  padding: 18px;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 18px;
+  background: #0b1425;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+}
+.notification-panel__heading,
+.job-detail__heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.notification-panel h2,
+.job-detail h2 {
+  margin: 0;
+}
+.notification-mark-all {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+}
+.connection-state {
+  margin: 5px 0 0;
+  color: #94a3b8;
+  font-size: 0.76rem;
+}
+.connection-state--live {
+  color: #6ee7b7;
+}
+.connection-state--reconnecting,
+.connection-state--connecting {
+  color: #fbbf24;
+}
+.notification-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.notification-item {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  color: #b8c4d6;
+  background: rgba(2, 6, 23, 0.38);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-decoration: none;
+}
+.notification-item:hover {
+  border-color: rgba(125, 211, 252, 0.4);
+}
+.notification-item--unread {
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(6, 78, 59, 0.17);
+}
+.notification-item__title {
+  color: #f8fafc;
+  font-weight: 800;
+}
+.notification-item time,
+.notification-history-note {
+  color: #8291a8;
+  font-size: 0.72rem;
+}
+.notification-history-note {
+  margin: 14px 0 0;
+  text-align: center;
+}
+
+.jobs-page {
+  display: grid;
+  gap: 22px;
+}
+.job-health-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+.job-health-card {
+  display: grid;
+  min-height: 112px;
+  gap: 9px;
+  align-content: center;
+  padding: 16px;
+}
+.job-health-card span {
+  color: #8fa0b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.job-health-card strong {
+  color: #f8fafc;
+  font-size: 1.45rem;
+}
+.job-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(280px, 1fr);
+  gap: 12px;
+}
+.job-filters label {
+  display: grid;
+  gap: 7px;
+  color: #a9b6ca;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.job-filters select {
+  min-height: 43px;
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 9px;
+  color: #f8fafc;
+  background: #080f1f;
+}
+.jobs-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 0.9fr) minmax(460px, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+.job-list,
+.job-attempts {
+  display: grid;
+  gap: 10px;
+}
+.job-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  padding: 15px;
+  color: #bdc9da;
+  text-align: left;
+  cursor: pointer;
+}
+.job-row:hover,
+.job-row--selected {
+  border-color: rgba(110, 231, 183, 0.45);
+}
+.job-row > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.job-row small {
+  overflow: hidden;
+  color: #77869d;
+  text-overflow: ellipsis;
+}
+.job-row time,
+.job-row > span:nth-child(3) {
+  color: #8291a8;
+  font-size: 0.76rem;
+}
+.job-status {
+  align-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #bfdbfe;
+  background: rgba(30, 64, 175, 0.22);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+.job-status--dead_letter {
+  color: #fecdd3;
+  background: rgba(190, 18, 60, 0.22);
+}
+.job-status--succeeded {
+  color: #a7f3d0;
+  background: rgba(5, 150, 105, 0.18);
+}
+.job-detail {
+  position: sticky;
+  top: 92px;
+  display: grid;
+  gap: 18px;
+  max-height: calc(100vh - 112px);
+  padding: 20px;
+  overflow-y: auto;
+}
+.job-evidence {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.job-evidence > div,
+.job-attempts > div {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.3fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.job-evidence dt {
+  color: #8190a7;
+}
+.job-evidence dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.job-payload summary,
+.worker-health summary {
+  color: #7dd3fc;
+  font-weight: 750;
+  cursor: pointer;
+}
+.job-payload pre {
+  max-width: 100%;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 10px;
+  color: #cbd5e1;
+  background: #050b16;
+  font-size: 0.75rem;
+}
+.job-attempts > div {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  color: #91a0b5;
+  font-size: 0.8rem;
+}
+.worker-health {
+  padding: 18px;
+}
+.worker-health p {
+  color: #93a2b8;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1080px) {
+  .job-health-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .jobs-layout {
+    grid-template-columns: 1fr;
+  }
+  .job-detail {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .notification-trigger {
+    padding-inline: 9px;
+    font-size: 0.78rem;
+  }
+  .notification-panel {
+    position: fixed;
+    top: 70px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+  }
+  .job-health-grid,
+  .job-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .job-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 960px) {
   .support-filters--admin {
     grid-template-columns: repeat(2, minmax(0, 1fr));

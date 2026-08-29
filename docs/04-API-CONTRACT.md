@@ -226,9 +226,50 @@ safe `400 INVALID_JSON`, oversized bodies have `413 PAYLOAD_TOO_LARGE`, and URL-
 
 ### `/api/v1/notifications`
 
-Planned operations: list a user's notifications, retrieve unread state, and mark notifications read. WebSocket/Socket.IO handshake and rooms must derive identity server-side. Notification types, channels, preferences, retention, delivery receipts, and bulk-read behavior are **Decision Required**.
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/notifications?after=<cursor>&limit=<1..100>` | Active session; recipient is session-derived | Latest history when `after` is absent, or ascending cursor catch-up when present |
+| GET | `/api/v1/notifications/unread-count` | Active session; recipient is session-derived | Return the exact unread count |
+| PATCH | `/api/v1/notifications/:notificationId/read` | Owned notification + CSRF/exact origin | Idempotently mark one row read; another recipient's UUID is not found |
+| POST | `/api/v1/notifications/read-all` | Active session + CSRF/exact origin | Mark owned unread rows through a validated decimal `highWaterCursor` |
 
-Background job management endpoints should not be public unless an explicit administrative need is approved.
+Notification cursors are decimal strings backed by a monotonic MySQL `BIGINT`. Collection metadata
+contains `nextCursor`, `hasMore`, `truncatedBefore`, and `limit`. The response is a registered safe
+presentation (`title`, plain message, authorized route hint, allowlisted metadata/resource UUIDs,
+read/create timestamps); it never includes source job data, support bodies/subjects, addresses,
+provider payloads, credentials, or arbitrary HTML. The client cannot choose a recipient.
+
+### `/api/v1/jobs`
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/jobs` | Owner-only `jobs:read` | Bounded page/filter list without payload JSON; access is audited |
+| GET | `/api/v1/jobs/health` | Owner-only `jobs:read` | Status counts, oldest pending age, stale claims, and recent safe heartbeat state; access is audited |
+| GET | `/api/v1/jobs/:jobId` | Owner-only `jobs:read` | Registered safe payload plus immutable attempt evidence; access is audited |
+| POST | `/api/v1/jobs/:jobId/replay` | Owner-only `jobs:replay` + CSRF/exact origin | Idempotently create one linked replay of an eligible dead letter and audit it |
+
+Job lists accept `page`, `limit` (maximum 100), registered `status`, and registered `type` filters.
+Replay accepts only `{ "idempotencyKey": "uuid" }`; it copies the stored descriptor after current
+schema/state validation. There is no browser API to enqueue arbitrary work, replace a payload/type,
+edit state, force success, cancel, or delete jobs/attempts.
+
+### Socket.IO `/notifications` namespace
+
+The handshake requires the exact configured origin and active opaque session cookie. The server
+derives only `user:<sessionUserId>`, runs middleware on recovered connections, revalidates session
+state, and applies per-process source/user handshake, connection, packet-size, and event-allowlist
+bounds. Browser application events are rejected.
+
+The only application event is server-to-client `notification.changed`:
+
+```json
+{"id":"notification-uuid","cursor":"12345"}
+```
+
+This hint is best effort. It does not establish authorization or delivery; the client recovers
+through the persistent REST cursor contract on load, connect, reconnect, and missed/duplicate hint.
+External channels/preferences, delivery receipts, purge/retention, shared adapters, and
+multi-instance topology remain undecided and unimplemented.
 
 ## Phase 7 — AI Foundation
 

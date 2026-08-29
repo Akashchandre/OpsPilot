@@ -54,6 +54,35 @@ describe("JSON logger", () => {
     expect(JSON.parse(production[0]).level).toBe("info");
   });
 
+  it("keeps worker records to safe scalar evidence without payload or stack content", () => {
+    const lines = [];
+    const logger = createJsonLogger(
+      { nodeEnv: "test", logging: { level: "info" } },
+      { write: (line) => lines.push(line), service: "opspilot-worker" },
+    );
+    logger.log("warn", "job.failed", {
+      workerId: "00000000-0000-4000-8000-000000000001",
+      jobId: "00000000-0000-4000-8000-000000000002",
+      jobType: "NOTIFICATION_PAYMENT_STATUS_CHANGED",
+      jobStatus: "FAILED",
+      attempt: 2,
+      durationMs: 25,
+      errorCode: "TEMPORARY_FAILURE",
+      payload: { address: "canary-private-address" },
+      stack: "canary-private-stack",
+      cookie: "canary-private-cookie",
+    });
+
+    expect(JSON.parse(lines[0])).toMatchObject({
+      service: "opspilot-worker",
+      event: "job.failed",
+      jobType: "NOTIFICATION_PAYMENT_STATUS_CHANGED",
+      errorCode: "TEMPORARY_FAILURE",
+      attempt: 2,
+    });
+    expect(lines[0]).not.toContain("canary");
+  });
+
   it("does not let a writer failure escape into application code", () => {
     const logger = createJsonLogger(
       { nodeEnv: "test", logging: { level: "info" } },

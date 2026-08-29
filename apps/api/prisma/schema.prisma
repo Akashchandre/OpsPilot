@@ -156,6 +156,54 @@ enum AuditOutcome {
   FAILURE
 }
 
+enum BackgroundJobType {
+  NOTIFICATION_ORDER_PLACED
+  NOTIFICATION_ORDER_STATUS_CHANGED
+  NOTIFICATION_PAYMENT_STATUS_CHANGED
+  NOTIFICATION_REFUND_STATUS_CHANGED
+  NOTIFICATION_SUPPORT_TICKET_CREATED
+  NOTIFICATION_SUPPORT_PUBLIC_REPLY_CREATED
+  NOTIFICATION_SUPPORT_ASSIGNMENT_CHANGED
+  NOTIFICATION_SUPPORT_STATUS_CHANGED
+  NOTIFICATION_INVENTORY_LOW
+  ORDER_RESERVATION_EXPIRY_SWEEP
+  AUDIT_CHAIN_VERIFY
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  DEAD_LETTER
+}
+
+enum BackgroundJobAttemptOutcome {
+  SUCCEEDED
+  RETRY_SCHEDULED
+  TERMINAL_FAILURE
+  DEAD_LETTER
+  LEASE_EXPIRED
+}
+
+enum WorkerState {
+  STARTING
+  ACTIVE
+  STOPPING
+  STOPPED
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_STATUS_CHANGED
+  PAYMENT_STATUS_CHANGED
+  REFUND_STATUS_CHANGED
+  SUPPORT_TICKET_CREATED
+  SUPPORT_PUBLIC_REPLY_CREATED
+  SUPPORT_ASSIGNMENT_CHANGED
+  SUPPORT_STATUS_CHANGED
+  INVENTORY_LOW
+}
+
 model User {
   id                   String                 @id @default(uuid()) @db.Char(36)
   email                String                 @unique @db.VarChar(254)
@@ -182,6 +230,8 @@ model User {
   supportMessages      SupportTicketMessage[] @relation("SupportTicketMessageAuthor")
   supportTicketEvents  SupportTicketEvent[]   @relation("SupportTicketEventActor")
   auditEvents          AuditEvent[]           @relation("AuditEventActor")
+  sourceJobs           BackgroundJob[]        @relation("BackgroundJobSourceActor")
+  notifications        Notification[]         @relation("NotificationRecipient")
 
   @@index([status])
   @@index([createdAt])
@@ -307,6 +357,7 @@ model Product {
   cartItems             CartItem[]
   orderItems            OrderItem[]
   inventoryReservations InventoryReservation[]
+  notifications         Notification[]
 
   @@index([status, createdAt])
   @@index([status, name])
@@ -426,6 +477,7 @@ model Order {
   statusEvents         OrderStatusEvent[]
   payment              Payment?
   supportTickets       SupportTicket[]
+  notifications        Notification[]
 
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
@@ -514,6 +566,7 @@ model Payment {
   attempts            PaymentAttempt[]
   refunds             Refund[]
   webhookEvents       ProviderWebhookEvent[]
+  notifications       Notification[]
 
   @@index([status, createdAt])
   @@map("payments")
@@ -557,6 +610,7 @@ model Refund {
   payment           Payment        @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   paymentAttempt    PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
   actor             User?          @relation("RefundActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  notifications     Notification[]
 
   @@unique([paymentId, idempotencyKey])
   @@index([paymentAttemptId, createdAt])
@@ -609,6 +663,7 @@ model SupportTicket {
   assignee       User?                  @relation("SupportTicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   messages       SupportTicketMessage[]
   events         SupportTicketEvent[]
+  notifications  Notification[]
 
   @@unique([requesterId, idempotencyKey])
   @@index([requesterId, updatedAt])
@@ -692,4 +747,111 @@ model AuditEvent {
   @@index([action, occurredAt])
   @@index([requestId])
   @@map("audit_events")
+}
+
+model WorkerHeartbeat {
+  id         String                 @id @db.Char(36)
+  state      WorkerState            @default(STARTING)
+  startedAt  DateTime               @default(now()) @map("started_at") @db.DateTime(3)
+  lastSeenAt DateTime               @default(now()) @map("last_seen_at") @db.DateTime(3)
+  stoppedAt  DateTime?              @map("stopped_at") @db.DateTime(3)
+  createdAt  DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  leasedJobs BackgroundJob[]
+  attempts   BackgroundJobAttempt[]
+
+  @@index([state, lastSeenAt])
+  @@map("worker_heartbeats")
+}
+
+model BackgroundJob {
+  id                   String                 @id @default(uuid()) @db.Char(36)
+  type                 BackgroundJobType
+  schemaVersion        Int                    @default(1) @map("schema_version")
+  status               BackgroundJobStatus    @default(PENDING)
+  dedupeKey            String                 @unique @map("dedupe_key") @db.VarChar(191)
+  payload              Json
+  availableAt          DateTime               @default(now()) @map("available_at") @db.DateTime(3)
+  attemptCount         Int                    @default(0) @map("attempt_count")
+  maxAttempts          Int                    @default(8) @map("max_attempts")
+  leaseToken           String?                @map("lease_token") @db.Char(64)
+  leaseOwnerId         String?                @map("lease_owner_id") @db.Char(36)
+  leaseExpiresAt       DateTime?              @map("lease_expires_at") @db.DateTime(3)
+  lastErrorCode        String?                @map("last_error_code") @db.VarChar(64)
+  sourceRequestId      String?                @map("source_request_id") @db.VarChar(64)
+  sourceActorUserId    String?                @map("source_actor_user_id") @db.Char(36)
+  replayedFromJobId    String?                @map("replayed_from_job_id") @db.Char(36)
+  replayIdempotencyKey String?                @map("replay_idempotency_key") @db.Char(36)
+  completedAt          DateTime?              @map("completed_at") @db.DateTime(3)
+  deadLetteredAt       DateTime?              @map("dead_lettered_at") @db.DateTime(3)
+  version              Int                    @default(0)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  leaseOwner           WorkerHeartbeat?       @relation(fields: [leaseOwnerId], references: [id], onDelete: SetNull)
+  sourceActor          User?                  @relation("BackgroundJobSourceActor", fields: [sourceActorUserId], references: [id], onDelete: SetNull)
+  replayedFrom         BackgroundJob?         @relation("BackgroundJobReplay", fields: [replayedFromJobId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  replays              BackgroundJob[]        @relation("BackgroundJobReplay")
+  attempts             BackgroundJobAttempt[]
+
+  @@unique([replayedFromJobId, replayIdempotencyKey], map: "background_jobs_replay_idempotency_key")
+  @@index([status, availableAt, createdAt])
+  @@index([status, leaseExpiresAt])
+  @@index([type, status, createdAt])
+  @@index([leaseOwnerId, status])
+  @@index([sourceActorUserId, createdAt])
+  @@index([replayedFromJobId])
+  @@map("background_jobs")
+}
+
+model BackgroundJobAttempt {
+  id               String                       @id @default(uuid()) @db.Char(36)
+  jobId            String                       @map("job_id") @db.Char(36)
+  attemptNumber    Int                          @map("attempt_number")
+  workerInstanceId String                       @map("worker_instance_id") @db.Char(36)
+  leaseTokenHash   String                       @map("lease_token_hash") @db.Char(64)
+  outcome          BackgroundJobAttemptOutcome?
+  errorCode        String?                      @map("error_code") @db.VarChar(64)
+  startedAt        DateTime                     @default(now()) @map("started_at") @db.DateTime(3)
+  finishedAt       DateTime?                    @map("finished_at") @db.DateTime(3)
+  durationMs       Int?                         @map("duration_ms")
+  createdAt        DateTime                     @default(now()) @map("created_at") @db.DateTime(3)
+  job              BackgroundJob                @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  worker           WorkerHeartbeat              @relation(fields: [workerInstanceId], references: [id], onDelete: Restrict)
+
+  @@unique([jobId, attemptNumber])
+  @@index([workerInstanceId, startedAt])
+  @@index([outcome, finishedAt])
+  @@map("background_job_attempts")
+}
+
+model Notification {
+  id              String           @id @default(uuid()) @db.Char(36)
+  sequence        BigInt           @unique @default(autoincrement())
+  recipientId     String           @map("recipient_id") @db.Char(36)
+  type            NotificationType
+  dedupeKey       String           @unique @map("dedupe_key") @db.VarChar(191)
+  metadata        Json?
+  orderId         String?          @map("order_id") @db.Char(36)
+  paymentId       String?          @map("payment_id") @db.Char(36)
+  refundId        String?          @map("refund_id") @db.Char(36)
+  supportTicketId String?          @map("support_ticket_id") @db.Char(36)
+  productId       String?          @map("product_id") @db.Char(36)
+  readAt          DateTime?        @map("read_at") @db.DateTime(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  recipient       User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  order           Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payment         Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  refund          Refund?          @relation(fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  supportTicket   SupportTicket?   @relation(fields: [supportTicketId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  product         Product?         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([recipientId, sequence])
+  @@index([recipientId, readAt, sequence])
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([refundId])
+  @@index([supportTicketId])
+  @@index([productId])
+  @@map("notifications")
 }

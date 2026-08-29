@@ -25,6 +25,8 @@ import {
   sumSubunits,
 } from "../commerce/commerce.money.js";
 import { expireDueOrders, releaseReservations } from "./reservation.service.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 import {
   orderDetailInclude,
   orderSummaryInclude,
@@ -85,7 +87,14 @@ async function loadOrder(database, orderId, { userId, management = false } = {})
   return order;
 }
 
-async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendAudit, requestId) {
+async function moveOrderToPaymentReview(
+  database,
+  config,
+  paymentId,
+  reasonCode,
+  appendAudit,
+  requestId,
+) {
   await database.$transaction(
     async (transaction) => {
       const payment = await transaction.payment.findUnique({
@@ -99,6 +108,7 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendA
         data: { status: PAYMENT_STATUSES.REVIEW_REQUIRED, version: { increment: 1 } },
       });
       let changed = paymentUpdate.count === 1;
+      let orderEvent = null;
       if (payment.order.status !== ORDER_STATUSES.PAYMENT_REVIEW) {
         const update = await transaction.order.updateMany({
           where: { id: payment.order.id, version: payment.order.version },
@@ -106,7 +116,7 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendA
         });
         if (update.count === 1) {
           changed = true;
-          await transaction.orderStatusEvent.create({
+          orderEvent = await transaction.orderStatusEvent.create({
             data: {
               orderId: payment.order.id,
               fromStatus: payment.order.status,
@@ -118,7 +128,7 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendA
         }
       }
       if (changed) {
-        await appendAudit(
+        const auditEvent = await appendAudit(
           transaction,
           auditDescriptor({
             action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
@@ -133,6 +143,20 @@ async function moveOrderToPaymentReview(database, paymentId, reasonCode, appendA
             },
           }),
         );
+        await enqueueJob(transaction, config, {
+          type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+          dedupeKey: `payment-status:${auditEvent.id}`,
+          payload: { sourceEventId: auditEvent.id, paymentId: payment.id },
+          sourceRequestId: requestId,
+        });
+        if (orderEvent) {
+          await enqueueJob(transaction, config, {
+            type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+            dedupeKey: `order-status:${orderEvent.id}`,
+            payload: { sourceEventId: orderEvent.id, orderId: payment.order.id },
+            sourceRequestId: requestId,
+          });
+        }
       }
     },
     { isolationLevel: "Serializable" },
@@ -177,6 +201,7 @@ async function prepareProviderOrder(
   if (!providerOrderMatches(payment, providerOrder)) {
     await moveOrderToPaymentReview(
       database,
+      config,
       payment.id,
       "PROVIDER_ORDER_MISMATCH",
       appendAudit,
@@ -200,7 +225,7 @@ async function prepareProviderOrder(
         },
       });
       if (result.count === 1) {
-        await appendAudit(
+        const auditEvent = await appendAudit(
           transaction,
           auditDescriptor({
             action: AUDIT_ACTIONS.PAYMENT_PROVIDER_ORDER_LINKED,
@@ -214,6 +239,12 @@ async function prepareProviderOrder(
             },
           }),
         );
+        await enqueueJob(transaction, config, {
+          type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+          dedupeKey: `payment-status:${auditEvent.id}`,
+          payload: { sourceEventId: auditEvent.id, paymentId: payment.id },
+          sourceRequestId: requestId,
+        });
       }
       return result;
     },
@@ -225,6 +256,7 @@ async function prepareProviderOrder(
   if (update.count === 0 && payment.providerOrderId !== providerOrder.id) {
     await moveOrderToPaymentReview(
       database,
+      config,
       payment.id,
       "PROVIDER_ORDER_CONFLICT",
       appendAudit,
@@ -235,6 +267,7 @@ async function prepareProviderOrder(
   if (nextPaymentStatus === PAYMENT_STATUSES.REVIEW_REQUIRED) {
     await moveOrderToPaymentReview(
       database,
+      config,
       payment.id,
       "PROVIDER_ORDER_ALREADY_PAID",
       appendAudit,
@@ -387,6 +420,7 @@ export function createOrdersService(database, config, paymentProvider) {
             }
 
             const orderId = randomUUID();
+            const orderStatusEventId = randomUUID();
             const orderNumber = orderNumberFromId(orderId);
             const reservationExpiresAt = new Date(
               Date.now() + config.payments.reservationTtlMinutes * 60 * 1000,
@@ -413,7 +447,7 @@ export function createOrdersService(database, config, paymentProvider) {
                   [{ productId: line.product.id }],
                 );
               }
-              await transaction.inventoryAdjustment.create({
+              const adjustment = await transaction.inventoryAdjustment.create({
                 data: {
                   productId: line.product.id,
                   delta: -line.quantity,
@@ -425,6 +459,21 @@ export function createOrdersService(database, config, paymentProvider) {
                   requestId,
                 },
               });
+              if (
+                balance.onHand > balance.lowStockThreshold &&
+                quantityAfter <= balance.lowStockThreshold
+              ) {
+                await enqueueJob(transaction, config, {
+                  type: JOB_TYPES.NOTIFICATION_INVENTORY_LOW,
+                  dedupeKey: `inventory-low:${adjustment.id}`,
+                  payload: {
+                    sourceEventId: adjustment.id,
+                    productId: line.product.id,
+                  },
+                  sourceRequestId: requestId,
+                  sourceActorUserId: userId,
+                });
+              }
             }
 
             await transaction.order.create({
@@ -471,6 +520,7 @@ export function createOrdersService(database, config, paymentProvider) {
                 },
                 statusEvents: {
                   create: {
+                    id: orderStatusEventId,
                     toStatus: ORDER_STATUSES.PENDING_PAYMENT,
                     source: ORDER_EVENT_SOURCES.CUSTOMER,
                     reasonCode: "CHECKOUT_CREATED",
@@ -510,6 +560,13 @@ export function createOrdersService(database, config, paymentProvider) {
                 },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_ORDER_PLACED,
+              dedupeKey: `order-placed:${orderStatusEventId}`,
+              payload: { sourceEventId: orderStatusEventId, orderId },
+              sourceRequestId: requestId,
+              sourceActorUserId: userId,
+            });
 
             return transaction.order.findUnique({
               where: { id: orderId },
@@ -530,7 +587,7 @@ export function createOrdersService(database, config, paymentProvider) {
     },
 
     async list({ userId, query, management = false }) {
-      await expireDueOrders(database);
+      await expireDueOrders(database, { config });
       const where = {
         ...(management ? {} : { userId }),
         ...(query.status === "ALL" ? {} : { status: query.status }),
@@ -552,14 +609,14 @@ export function createOrdersService(database, config, paymentProvider) {
     },
 
     async get({ userId, orderId, management = false }) {
-      await expireDueOrders(database);
+      await expireDueOrders(database, { config });
       return presentOrder(await loadOrder(database, orderId, { userId, management }), {
         management,
       });
     },
 
     async paymentSession({ userId, orderId, requestId }) {
-      await expireDueOrders(database);
+      await expireDueOrders(database, { config });
       const order = await loadOrder(database, orderId, { userId });
       if (
         order.status !== ORDER_STATUSES.PENDING_PAYMENT ||
@@ -614,7 +671,7 @@ export function createOrdersService(database, config, paymentProvider) {
               },
             });
             if (update.count !== 1) throw commerceVersionConflict();
-            await transaction.orderStatusEvent.create({
+            const orderEvent = await transaction.orderStatusEvent.create({
               data: {
                 orderId: current.id,
                 fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
@@ -640,6 +697,13 @@ export function createOrdersService(database, config, paymentProvider) {
                 },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+              dedupeKey: `order-status:${orderEvent.id}`,
+              payload: { sourceEventId: orderEvent.id, orderId: current.id },
+              sourceRequestId: requestId,
+              sourceActorUserId: userId,
+            });
             return transaction.order.findUnique({
               where: { id: current.id },
               include: orderDetailInclude,
@@ -688,6 +752,7 @@ export function createOrdersService(database, config, paymentProvider) {
             const now = new Date();
             const data = { status: input.status, version: { increment: 1 } };
             let reasonCode = `OPERATOR_${input.status}`;
+            let paymentStatusChanged = false;
 
             if (input.status === ORDER_STATUSES.CANCELLED) {
               if (
@@ -721,6 +786,7 @@ export function createOrdersService(database, config, paymentProvider) {
                     "Captured payment is not ready for refund",
                   );
                 }
+                paymentStatusChanged = true;
                 reasonCode = "OPERATOR_CANCELLED_REFUND_REQUIRED";
               }
             } else if (input.status === ORDER_STATUSES.PROCESSING) {
@@ -738,7 +804,7 @@ export function createOrdersService(database, config, paymentProvider) {
               data,
             });
             if (update.count !== 1) throw commerceVersionConflict();
-            await transaction.orderStatusEvent.create({
+            const orderEvent = await transaction.orderStatusEvent.create({
               data: {
                 orderId: current.id,
                 fromStatus: current.status,
@@ -764,6 +830,22 @@ export function createOrdersService(database, config, paymentProvider) {
                 },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+              dedupeKey: `order-status:${orderEvent.id}`,
+              payload: { sourceEventId: orderEvent.id, orderId: current.id },
+              sourceRequestId: requestId,
+              sourceActorUserId: actorUserId,
+            });
+            if (paymentStatusChanged) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+                dedupeKey: `payment-status:${orderEvent.id}`,
+                payload: { sourceEventId: orderEvent.id, paymentId: current.payment.id },
+                sourceRequestId: requestId,
+                sourceActorUserId: actorUserId,
+              });
+            }
             return transaction.order.findUnique({
               where: { id: current.id },
               include: orderDetailInclude,

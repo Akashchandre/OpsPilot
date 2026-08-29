@@ -8,6 +8,8 @@ import {
   RAZORPAY_WEBHOOK_EVENTS,
 } from "../commerce/commerce.constants.js";
 import { commerceError, isPrismaUniqueViolation } from "../commerce/commerce.errors.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 import { applyProviderPayment, applyProviderRefund } from "./payments.state.js";
 import { verifyWebhookSignature } from "./razorpay.signatures.js";
 
@@ -167,7 +169,7 @@ export function createRazorpayWebhookService(database, config) {
             if (existing) return sameEvent(existing, bodyDigest);
 
             const result = await applyEvent(transaction, eventType, payload, requestId);
-            await transaction.providerWebhookEvent.create({
+            const webhookEvent = await transaction.providerWebhookEvent.create({
               data: {
                 provider: RAZORPAY_PROVIDER,
                 providerEventId,
@@ -196,6 +198,56 @@ export function createRazorpayWebhookService(database, config) {
                 },
               }),
             );
+            if (
+              result.paymentId &&
+              paymentEvents.has(eventType) &&
+              result.safeCode !== "CAPTURE_ALREADY_APPLIED"
+            ) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+                dedupeKey: `payment-status:${webhookEvent.id}`,
+                payload: { sourceEventId: webhookEvent.id, paymentId: result.paymentId },
+                sourceRequestId: requestId,
+              });
+            }
+            if (result.refund && refundEvents.has(eventType)) {
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_REFUND_STATUS_CHANGED,
+                dedupeKey: `refund-status:${webhookEvent.id}`,
+                payload: { sourceEventId: webhookEvent.id, refundId: result.refund.id },
+                sourceRequestId: requestId,
+              });
+              await enqueueJob(transaction, config, {
+                type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+                dedupeKey: `payment-status:${webhookEvent.id}`,
+                payload: { sourceEventId: webhookEvent.id, paymentId: result.paymentId },
+                sourceRequestId: requestId,
+              });
+            }
+            if (result.paymentId) {
+              const payment = await transaction.payment.findUnique({
+                where: { id: result.paymentId },
+                select: { orderId: true, order: { select: { status: true } } },
+              });
+              const orderEvent = payment
+                ? await transaction.orderStatusEvent.findFirst({
+                    where: {
+                      orderId: payment.orderId,
+                      requestId,
+                      toStatus: payment.order.status,
+                    },
+                    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  })
+                : null;
+              if (orderEvent) {
+                await enqueueJob(transaction, config, {
+                  type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+                  dedupeKey: `order-status:${orderEvent.id}`,
+                  payload: { sourceEventId: orderEvent.id, orderId: payment.orderId },
+                  sourceRequestId: requestId,
+                });
+              }
+            }
             return {
               accepted: true,
               duplicate: false,

@@ -105,6 +105,27 @@ priority, and covering INR amount aggregates. The fixed refund aggregate uses it
 explicitly because MySQL 8.4 otherwise selected a materially slower older created-time index on the
 representative dataset.
 
+## Implemented Phase 6 persistence
+
+Migration `20260828094016_phase_6_realtime_jobs` seeds owner-only `jobs:read`/`jobs:replay` and
+creates the accepted durable asynchronous boundary:
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `worker_heartbeats` | Worker identity, state, start/last-seen/stop evidence | Valid state/timestamp combinations; state/last-seen index |
+| `background_jobs` | Registered durable descriptor and lifecycle | Unique dedupe; positive schema/version/attempt bounds; <= 8 KiB JSON; strict status/lease/completion state; replay pair/idempotency; claim/lease/type/owner indexes |
+| `background_job_attempts` | Append-oriented execution evidence | Unique job/attempt; SHA-256 lease-token hash; bounded safe error; consistent outcome/finish/duration; restrictive job/worker deletion |
+| `notifications` | Recipient-owned durable in-app history | Monotonic auto-increment sequence; unique dedupe; <= 2 KiB safe metadata; type-specific exactly-one resource shape; recipient/read cursor indexes; restrictive recipient/resource deletion |
+
+Job source actors and active lease owners may become null through deliberate `SET NULL` foreign
+keys; replay ancestry, attempts, recipients, and linked business resources are restrictive so
+history cannot be silently severed. Foundation tests inspect the actual MySQL indexes/delete rules
+and exercise uniqueness, sequence, state, resource, size/hash, and deletion checks.
+
+There is no purge or direct mutation API. At-least-once safety comes from descriptor validation,
+unique source/dedupe keys, lease-token compare-and-set, immutable attempts, and recipient/type/
+source-event notification uniqueness.
+
 ## Expected entities
 
 | Entity | Purpose | Key relationships | Planned phase |
@@ -135,6 +156,9 @@ representative dataset.
 | `support_ticket_events` | Append-only support state evidence | Ticket + optional actor | 5 |
 | `audit_chain_heads` | Serialized integrity-chain state | One application audit stream | 5 |
 | `audit_events` | Integrity-protected security/business action evidence | Optional actor; generic bounded target | 5 |
+| `worker_heartbeats` | Worker lifecycle and liveness evidence | Claimed jobs and attempts | 6 |
+| `background_jobs` | Durable registered asynchronous work | Optional source actor, lease worker, replay parent, attempts | 6 |
+| `background_job_attempts` | Immutable safe execution evidence | Job and worker heartbeat | 6 |
 | `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
 | `documents` | Company document metadata and processing state | Uploader; chunks/index records later | 8 |
 | `chat_sessions` | Customer/owner AI conversation scope | User; messages | 7 |
@@ -191,7 +215,10 @@ Implemented Phase 2–4 rows are recorded alongside planning hints for future en
 | `support_tickets` | Unique ticket number; requester-scoped idempotency/digest; optional order/assignee; category; subject; priority/status timestamps; optimistic version |
 | `support_ticket_messages` | Immutable bounded plain text; customer-visible/internal visibility; ticket/author-scoped idempotency/digest |
 | `support_ticket_events` | Append-only typed source/change snapshots plus optional actor/request evidence |
-| `notifications` | Recipient; type; safe payload/reference; read/delivery timestamps; deduplication key if needed |
+| `worker_heartbeats` | UUID instance; starting/active/stopping/stopped state; monotonic timestamps |
+| `background_jobs` | Registered type/version; bounded safe JSON; unique dedupe; attempts/lease/error/completion; replay ancestry/idempotency; no arbitrary update/delete API |
+| `background_job_attempts` | Positive attempt; worker; token hash; safe outcome/error; consistent timing; no payload/stack |
+| `notifications` | Recipient; monotonic sequence; registered type; safe metadata; exactly one valid linked resource shape; read timestamp; unique dedupe |
 | `documents` | Owner/uploader; storage key, display name, MIME/size, checksum/version, processing status; never public raw storage path |
 | `chat_messages` | Session; role; safe content/reference; ordering/timestamp; model metadata only if policy permits |
 | `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata |
@@ -209,7 +236,10 @@ Indexes must align with chosen tenancy and query patterns. Implemented and futur
 - Payment order, provider transaction/event ID, and state.
 - Ticket requester/updated time, status/priority/updated time, assignee/status/updated time, and
   report creation/status/priority.
-- Notification recipient/read state/creation time.
+- Background-job eligible status/available/creation, expired status/lease, type/status/creation,
+  lease owner/status, source actor/time, and replay ancestry.
+- Attempt worker/start and outcome/finish.
+- Notification recipient/sequence and recipient/read/sequence plus linked-resource lookup.
 - Document business scope/status/creation time/checksum.
 - Chat session user/updated time and message session/sequence.
 - Audit unique sequence/hash, target/time, actor/time, action/time, and correlation ID.
@@ -230,21 +260,25 @@ Do not add broad indexes blindly: write amplification, cardinality, prefix limit
 - Creating/replying/closing/managing support tickets plus their event and general-audit evidence.
 - Recording registered identity, catalog, inventory, commerce, payment, refund, reconciliation, and
   provider-state mutations with the local change in one transaction.
-- Claiming jobs and recording delivery/notification outcomes.
+- Inserting a registered job with its owning domain mutation; claiming/renewing/completing/failing
+  by token and owner; appending attempt outcomes; materializing deduped notifications.
 - Publishing a new document version and replacing its searchable index safely.
 
 Payment providers and external queues cannot join database transactions. Phase 4 therefore commits
 local checkout state first, calls Razorpay through an adapter, recovers ambiguous order creation by
 the unique receipt, and applies verified results in later idempotent transactions. Signed webhooks
-and an authorized per-payment reconciliation action recover lost or delayed effects. A durable
-outbox/worker and bulk scheduling remain decisions for Phase 6.
+and an authorized per-payment reconciliation action recover lost or delayed effects. Phase 6's
+MySQL outbox can atomically record later local notification work, but it still cannot make an
+external Razorpay call part of a MySQL transaction.
 
 ## Retention and deletion
 
-Phases 4–5 expose no deletion for orders, financial evidence, support history, or audit evidence and
-use restrictive foreign keys for historical integrity. No automatic purge is implemented.
+Phases 4–6 expose no deletion for orders, financial evidence, support history, audit evidence,
+jobs/attempts, or notifications and use restrictive foreign keys for historical integrity. No
+automatic purge is implemented.
 Indefinite development/test retention is temporary behavior, not an approved production policy.
 The final duration remains unresolved: orders, payments, audit events, documents, tickets, chats,
-personal information, and AI traces may have different legal and operational requirements.
+personal information, jobs/attempts, notifications, and AI traces may have different legal and
+operational requirements.
 **Decision Required:** jurisdiction, privacy obligations, account deletion/anonymization, backup
 propagation, soft deletion, legal holds, and retention schedules.

@@ -7,8 +7,10 @@ acceptance remains pending because the external Razorpay Test Mode delivery/reco
 deferred. **Phase 5 — Production Backend Features** is repository-complete and verified under ADR
 0007, including support workflows and UI, authoritative overview reporting, HMAC-chained audit
 evidence, structured logging, request/rate hardening, representative performance evidence, and a
-sanitized backup/restore exercise. Phase 6 decision definition is next; no real-time or job
-technology is pre-approved.
+sanitized backup/restore exercise. **Phase 6 — Real-time and Background Jobs** is repository-
+complete and verified under ADR 0008 with a MySQL job/outbox, JavaScript worker, persistent
+notifications, owner failure tooling, and authenticated Socket.IO hints. Redis, BullMQ, external
+brokers/channels, and multi-instance topology remain out of scope.
 
 ## Source of truth
 
@@ -38,6 +40,14 @@ Start with:
 - [Phase 5 permission matrix](docs/permissions/PHASE-05-PERMISSION-MATRIX.md)
 - [Phase 5 threat model](docs/security/PHASE-05-THREAT-MODEL.md)
 - [Phase 5 accepted decisions](docs/decisions/0007-phase-5-production-backend-baseline.md)
+- [Phase 6 decision proposal](docs/phase-6/PHASE-06-DECISION-PROPOSAL.md)
+- [Phase 6 implementation guide](docs/phase-6/PHASE-06-IMPLEMENTATION-GUIDE.md)
+- [Phase 6 operations runbook](docs/phase-6/PHASE-06-OPERATIONS-RUNBOOK.md)
+- [Phase 6 performance evidence](docs/phase-6/PHASE-06-PERFORMANCE-EVIDENCE.md)
+- [Phase 6 acceptance report](docs/phase-6/PHASE-06-ACCEPTANCE-REPORT.md)
+- [Phase 6 permission matrix](docs/permissions/PHASE-06-PERMISSION-MATRIX.md)
+- [Phase 6 threat model](docs/security/PHASE-06-THREAT-MODEL.md)
+- [Phase 6 accepted decisions](docs/decisions/0008-phase-6-realtime-jobs-baseline.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -46,7 +56,8 @@ Start with:
 - Main API: Node.js, Express, JavaScript.
 - Data: MySQL and Prisma.
 - AI service (later phases only): Python, FastAPI, LangChain, LangGraph, RAG, and a vector database selected when required.
-- Future infrastructure only when its phase requires it: Redis, queues, Socket.IO/WebSockets, object storage, Docker, GitHub Actions, and AWS.
+- Phase 6 runtime: MySQL-backed jobs, a separate JavaScript worker, and Socket.IO notification hints.
+- Future infrastructure only when explicitly justified: Redis/shared adapters, object storage, Docker, GitHub Actions, and AWS.
 
 ## Local prerequisites
 
@@ -95,6 +106,11 @@ stable, non-secret rotation identifier. Store both only in the ignored API envir
 approved secret manager. Routine tests use an isolated test-only key when both variables are
 absent. See the [audit implementation guide](docs/phase-5/PHASE-05-AUDIT-IMPLEMENTATION-GUIDE.md).
 
+Phase 6 worker and real-time limits are listed in both API environment examples and validated at
+startup. Keep API and worker values aligned. The web Socket.IO origin is derived from
+`VITE_API_BASE_URL`; no socket token, room, user ID, or separate browser secret is configured.
+See the [Phase 6 operations runbook](docs/phase-6/PHASE-06-OPERATIONS-RUNBOOK.md).
+
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
 
 The runtime adapter permits MySQL RSA public-key retrieval only for loopback database hosts so local `caching_sha2_password` accounts work reliably after MySQL restarts. Remote database hosts must use a reviewed TLS or pinned-public-key configuration; the application does not enable remote key retrieval implicitly.
@@ -111,10 +127,14 @@ npm run db:deploy
 npm run db:status
 npm run auth:bootstrap-owner -- --display-name "Business Owner" --email owner@example.com
 npm run dev:api
+npm run dev:worker --workspace @opspilot/api
 npm run dev:web
 ```
 
-Use separate terminals for the API and web development processes. The web app uses `http://127.0.0.1:5173`; the API uses `http://127.0.0.1:4000`; the versioned health endpoint is `GET /api/v1/health`.
+Use separate terminals for the API, worker, and web development processes. The web app uses
+`http://127.0.0.1:5173`; the API uses `http://127.0.0.1:4000`; the versioned health endpoint is
+`GET /api/v1/health`. The worker shares the API's validated environment and MySQL connection but
+runs as an independently supervised process.
 
 `npm run db:deploy` applies committed migrations to a fresh database. Create a development migration with `npm run db:migrate -- --name meaningful_name` only after the owning phase's schema and business rules are approved.
 
@@ -126,25 +146,27 @@ npm run format:check
 npm test
 npm run test:coverage
 npm run build
+npm run phase6:performance:profile --workspace @opspilot/api
 ```
 
 The owner bootstrap prompts for the password and confirmation without accepting the password in command-line arguments or environment variables. Run it only after migrations and only once.
 
 ## Current phase
 
-Phase 5 — Production Backend Features is **repository-complete and verified** as of 2026-08-28.
-Phase 4 remains repository-complete but unaccepted because external Razorpay Test Mode smoke is
-deferred. Phase 6 may now begin at decision definition, with its architecture and dependencies
-still requiring explicit approval. See the
-[Phase 5 specification](docs/phases/PHASE-05-PRODUCTION-BACKEND.md),
-[Phase 5 decision proposal](docs/phase-5/PHASE-05-DECISION-PROPOSAL.md),
-[Phase 5 acceptance report](docs/phase-5/PHASE-05-ACCEPTANCE-REPORT.md), and
+Phase 6 — Real-time and Background Jobs is **repository-complete and verified** as of 2026-08-29.
+ADR 0008's MySQL transactional job/outbox, separate JavaScript worker, persistent notifications,
+owner health/replay UI, and Socket.IO authenticated change hints are implemented without Redis or
+an external broker. Phase 4 remains repository-complete but unaccepted because external Razorpay
+Test Mode smoke is deferred. Phase 7 has not been authorized.
+See the
+[Phase 6 specification](docs/phases/PHASE-06-REALTIME-JOBS.md),
+[Phase 6 decision proposal](docs/phase-6/PHASE-06-DECISION-PROPOSAL.md), and
 [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
-Phase 5 stayed within the accepted support, overview reporting, audit, logging, rate, performance,
-and recovery baseline in ADR 0007. Live payments, unresolved Phase 4 provider/go-live gates,
-attachments, exports, real-time infrastructure, background jobs, hosted observability, and AI were
-not introduced. Phase 6 must make and record its own infrastructure, authorization, delivery,
-failure/recovery, and testing decisions before implementation.
+Phase 5 stayed within ADR 0007 and is committed as `10e73ac`. Phase 6 stayed within ADR 0008's
+approved job/outbox, worker, notification, real-time hint, owner tooling, and verification baseline.
+Live payments, unresolved Phase 4 provider/go-live gates, attachments, exports, Redis,
+BullMQ, external brokers/channels, hosted observability, multi-instance/production deployment, and
+AI remain outside authorized implementation scope.

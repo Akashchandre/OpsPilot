@@ -200,6 +200,23 @@ const paymentWebhookMetadataSchema = z.strictObject({
     .nullable(),
   paymentMatched: z.boolean(),
 });
+const backgroundJobsReadMetadataSchema = z.strictObject({
+  view: z.enum(["LIST", "DETAIL", "HEALTH"]),
+  page: z.number().int().min(1).nullable(),
+  limit: z.number().int().min(1).max(100).nullable(),
+  returnedCount: z.number().int().min(0).max(100),
+  total: z.number().int().min(0),
+  statusFilterSet: z.boolean(),
+  typeFilterSet: z.boolean(),
+});
+const backgroundJobReplayMetadataSchema = z.strictObject({
+  replayedJobId: z.uuid(),
+  originalAttemptCount: z.number().int().min(0).max(20),
+  originalErrorCode: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9_]{0,63}$/)
+    .nullable(),
+});
 
 export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
   [AUDIT_ACTIONS.AUDIT_EVENTS_READ]: Object.freeze({
@@ -326,6 +343,16 @@ export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
     targetType: AUDIT_TARGET_TYPES.PROVIDER_WEBHOOK_EVENT,
     targetIdRequired: true,
     metadataSchema: paymentWebhookMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.BACKGROUND_JOBS_READ]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.BACKGROUND_JOB_QUEUE,
+    targetIdRequired: false,
+    metadataSchema: backgroundJobsReadMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.BACKGROUND_JOB_REPLAYED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.BACKGROUND_JOB,
+    targetIdRequired: true,
+    metadataSchema: backgroundJobReplayMetadataSchema,
   }),
 });
 

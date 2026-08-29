@@ -54,6 +54,22 @@ const environmentSchema = z
     REPORT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(60),
     WEBHOOK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(5),
     WEBHOOK_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000000).default(600),
+    WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(50).max(60000).default(500),
+    WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+    JOB_LEASE_SECONDS: z.coerce.number().int().min(10).max(300).default(30),
+    JOB_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(8),
+    JOB_RETRY_BASE_MS: z.coerce.number().int().min(100).max(60000).default(1000),
+    JOB_RETRY_MAX_MS: z.coerce.number().int().min(1000).max(86400000).default(900000),
+    WORKER_SHUTDOWN_GRACE_SECONDS: z.coerce.number().int().min(1).max(300).default(30),
+    REALTIME_NOTIFICATION_POLL_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(60000)
+      .default(500),
+    REALTIME_SESSION_RECHECK_SECONDS: z.coerce.number().int().min(5).max(300).default(30),
+    REALTIME_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
+    REALTIME_CONNECTION_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(20),
     RAZORPAY_ENABLED: environmentBoolean.default(false),
     RAZORPAY_KEY_ID: optionalEnvironmentString(z.string().trim().min(8).max(128)),
     RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
@@ -98,6 +114,14 @@ const environmentSchema = z
           });
         }
       }
+    }
+
+    if (environment.JOB_RETRY_MAX_MS < environment.JOB_RETRY_BASE_MS) {
+      context.addIssue({
+        code: "custom",
+        path: ["JOB_RETRY_MAX_MS"],
+        message: "JOB_RETRY_MAX_MS must be at least JOB_RETRY_BASE_MS",
+      });
     }
 
     const auditConfigurationProvided = Boolean(
@@ -166,6 +190,21 @@ export function loadEnvironment(source = process.env) {
         windowMinutes: result.data.WEBHOOK_RATE_LIMIT_WINDOW_MINUTES,
         maximum: result.data.WEBHOOK_RATE_LIMIT_MAX,
       }),
+    }),
+    jobs: Object.freeze({
+      pollIntervalMs: result.data.WORKER_POLL_INTERVAL_MS,
+      concurrency: result.data.WORKER_CONCURRENCY,
+      leaseSeconds: result.data.JOB_LEASE_SECONDS,
+      maxAttempts: result.data.JOB_MAX_ATTEMPTS,
+      retryBaseMs: result.data.JOB_RETRY_BASE_MS,
+      retryMaxMs: result.data.JOB_RETRY_MAX_MS,
+      shutdownGraceSeconds: result.data.WORKER_SHUTDOWN_GRACE_SECONDS,
+    }),
+    realtime: Object.freeze({
+      notificationPollIntervalMs: result.data.REALTIME_NOTIFICATION_POLL_INTERVAL_MS,
+      sessionRecheckSeconds: result.data.REALTIME_SESSION_RECHECK_SECONDS,
+      maxConnectionsPerUser: result.data.REALTIME_MAX_CONNECTIONS_PER_USER,
+      connectionRateLimitMax: result.data.REALTIME_CONNECTION_RATE_LIMIT_MAX,
     }),
     payments: Object.freeze({
       reservationTtlMinutes: result.data.CHECKOUT_RESERVATION_TTL_MINUTES,

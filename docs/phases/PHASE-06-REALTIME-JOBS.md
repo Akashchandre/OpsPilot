@@ -1,5 +1,12 @@
 # Phase 6 — Real-time and Background Jobs
 
+## Status
+
+**REPOSITORY COMPLETE AND VERIFIED on 2026-08-29.** ADR 0008's MySQL job/outbox, worker,
+notification, Socket.IO hint, permission, security, dependency, configuration, recovery, and test
+baseline is implemented. Only exact `socket.io@4.8.3` and `socket.io-client@4.8.3` were added.
+Redis, BullMQ, external services/accounts, and multi-instance topology remain out of scope.
+
 ## Objective
 
 Introduce justified asynchronous processing and authorized real-time notifications with durable, observable, retry-safe behavior.
@@ -18,7 +25,21 @@ Initial job/event inventory; queue technology and Redis role/topology; at-least-
 
 ## Tasks
 
-Approve architecture/dependencies/services/accounts/env variables; model durable events/jobs/notifications; implement transactional enqueue/outbox consistency where needed; build workers with idempotent handlers and graceful shutdown; add authenticated real-time gateway and server-derived subscriptions; persist/read notification state; add telemetry, failure tooling and runbooks; load/failure/security test; update docs/progress.
+- [x] Confirm the Phase 5 gate/commit and the user's authorization to start Phase 6 planning.
+- [x] Inspect current transaction, session, audit, logging, rate, payment-recovery, schema, and
+      deployment boundaries plus current official MySQL/Socket.IO/queue behavior.
+- [x] Draft the complete Phase 6 decision proposal, proposed permission matrix, and proposed threat
+      model.
+- [x] Explicitly approve or change the architecture, event/job inventory, delivery/retry/replay,
+      notification, real-time, permission, dependency, service/account, configuration, and test
+      baseline.
+- [x] Obtain explicit instruction before installing the proposed Socket.IO packages.
+- [x] Record the accepted baseline in ADR 0008.
+- [x] Implement the reviewed persistence migration.
+- [x] Implement transactional enqueue/claims, worker execution/recovery, persistent notifications,
+      owner failure tooling, and authenticated real-time hints.
+- [x] Complete observability/runbooks, load/failure/security/regression tests, documentation, and
+      explicit acceptance review.
 
 ## Acceptance criteria
 
@@ -45,6 +66,12 @@ Authenticate handshake and revalidate sensitive subscriptions/actions; derive ro
 
 Delivery semantics and failure/recovery behavior are documented and tested; observability/runbooks exist; isolation/load/recovery tests pass; prior phases remain stable; no AI is added; and explicit phase acceptance is recorded.
 
+The repository completion review passes. See the
+[implementation guide](../phase-6/PHASE-06-IMPLEMENTATION-GUIDE.md),
+[operations runbook](../phase-6/PHASE-06-OPERATIONS-RUNBOOK.md),
+[performance evidence](../phase-6/PHASE-06-PERFORMANCE-EVIDENCE.md), and
+[acceptance report](../phase-6/PHASE-06-ACCEPTANCE-REPORT.md).
+
 ## Documentation updates
 
 Update architecture/API/database, event/job/notification catalog, topology, environment configuration, retries/replay/incident runbooks, decision records, this phase status, and `WORK-PROGRESS.md`.
@@ -52,4 +79,3 @@ Update architecture/API/database, event/job/notification catalog, topology, envi
 ## Explicit exclusions
 
 Python/FastAPI, model providers, AI assistants, embeddings, RAG, vector databases, and LangGraph remain out of scope.
-

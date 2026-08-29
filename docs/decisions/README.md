@@ -25,3 +25,4 @@ Do not create a decision record merely to disguise an unresolved choice. Until r
 - `0005-phase-4-orders-payments.md` — accepted Phase 4 cart, order, inventory reservation, Razorpay Test Mode, refund, reconciliation, permission, and scope baseline.
 - `0006-phase-4-provider-smoke-deferral.md` — accepted deferral of the unresolved external Razorpay Test Mode smoke and authorization to begin Phase 5 decision-definition work without accepting Phase 4 or live payments.
 - `0007-phase-5-production-backend-baseline.md` — accepted Phase 5 support, reporting, audit, hardening, permission, dependency, retention, and implementation baseline.
+- `0008-phase-6-realtime-jobs-baseline.md` — accepted Phase 6 MySQL job/outbox, worker, persistent notification, Socket.IO hint, permission, dependency, recovery, and test baseline.

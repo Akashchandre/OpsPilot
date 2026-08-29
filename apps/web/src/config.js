@@ -19,7 +19,14 @@ function normalizeCookieName(value) {
   return cookieName;
 }
 
+function realtimeBaseUrl(apiBaseUrl) {
+  return new URL(apiBaseUrl).origin;
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+
 export const webConfig = Object.freeze({
-  apiBaseUrl: normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL),
+  apiBaseUrl,
+  realtimeBaseUrl: realtimeBaseUrl(apiBaseUrl),
   csrfCookieName: normalizeCookieName(import.meta.env.VITE_CSRF_COOKIE_NAME),
 });

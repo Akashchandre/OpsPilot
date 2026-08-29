@@ -10,6 +10,7 @@ import { CheckoutPage } from "./pages/CheckoutPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { InventoryPage } from "./pages/InventoryPage.jsx";
+import { JobsPage } from "./pages/JobsPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { NewSupportTicketPage } from "./pages/NewSupportTicketPage.jsx";
 import { NotFoundPage } from "./pages/NotFoundPage.jsx";
@@ -153,6 +154,16 @@ export function AppRoutes() {
             <ProtectedRoute>
               <PermissionRoute permission="reports:read">
                 <ReportsPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/jobs"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="jobs:read">
+                <JobsPage />
               </PermissionRoute>
             </ProtectedRoute>
           }

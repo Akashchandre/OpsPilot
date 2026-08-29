@@ -154,7 +154,41 @@ resolves a valid session for user-plus-source rate keys, and enforces isolated g
 report/webhook limits. Completion logging emits one allowlisted JSON record with no header, cookie,
 query, body, PII, payment, ticket, or audit content. This remains a single-process boundary until a
 later phase approves shared rate/observability infrastructure. Attachments, realtime, workers,
-Redis, exports, and AI do not enter this topology.
+Redis, exports, and AI did not enter the Phase 5 topology.
+
+## Phase 6 real-time and background-job foundation
+
+Phase 6 adds two runtime boundaries without changing MySQL's authority:
+
+```text
+React notification center                         owner /admin/jobs
+        |                                               |
+        | REST history + Socket.IO UUID/cursor hint     | owner-only REST
+        v                                               v
+Node.js/Express API + API-local notification cursor poller
+        |                         |
+        | source mutation + job  | notification reads
+        | in one transaction     |
+        v                         v
+MySQL background jobs/attempts/heartbeats/notifications
+        ^
+        | lease/renew/complete/fail + current-state handler
+        |
+separately supervised JavaScript worker
+```
+
+The MySQL queue uses registered versioned descriptors, unique dedupe keys, bounded
+`FOR UPDATE SKIP LOCKED` claims, opaque owner/token leases, attempt evidence, capped exponential
+retry with jitter, terminal dead letters, fixed UTC schedules, and owner-only audited replay.
+Domain services enqueue notification work inside their current business transaction. Every
+handler validates the stored descriptor and committed source, reloads current state, and creates a
+recipient/type/source-deduped notification.
+
+Socket.IO is attached to the existing HTTP server only as a best-effort hint layer. Exact-origin
+opaque-session middleware derives one user room, periodically revalidates the session, applies
+in-process connection/rate/packet/event bounds, and emits only notification UUID plus cursor. REST
+and MySQL remain the authorization, recovery, and durability path. Redis/BullMQ, external channels,
+shared adapters, multi-instance topology, attachments, exports, and AI remain outside this phase.
 
 ## Main application layering
 
@@ -196,8 +230,8 @@ Customers / Owners / Admins / Future Employees
           Node.js + Express public API
              |        |         |
              |        |         +--> Object storage (documents/files)
-             |        +------------> Redis / queues / workers
-             |                       and Socket.IO notifications
+             |        +------------> MySQL job worker + Socket.IO hints
+             |                       (implemented single-instance baseline)
              v
         Business services
              |
@@ -223,9 +257,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 
 | Component | Intended responsibility | Earliest planned phase | Unresolved choice |
 |---|---|---:|---|
-| Redis | Cache, coordination, rate-limit or job support if justified | 6 | Use cases and topology |
-| Queue and workers | Durable asynchronous/background work | 6 | Queue technology, delivery semantics, retry/dead-letter policy |
-| Socket.IO/WebSockets | Authorized real-time notifications | 6 | Protocol, scale-out adapter, fallback behavior |
+| Redis/shared adapters | Future cache or multi-instance queue/socket/rate coordination if justified | After 6 | Need, topology, ownership, failure behavior |
 | Object storage | Durable private document/file storage | 8 unless earlier justified | Provider, access model, scanning, retention |
 | Python/FastAPI | Isolated AI orchestration boundary | 7 | Service authentication and deployment topology |
 | Vector database | Permission-aware document retrieval | 8 | Technology, metadata/filter model, tenancy |

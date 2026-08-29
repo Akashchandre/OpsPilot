@@ -5,12 +5,16 @@ const stringFields = Object.freeze({
   errorCode: 64,
   host: 255,
   method: 16,
+  jobId: 36,
+  jobStatus: 32,
+  jobType: 64,
   requestId: 64,
   route: 256,
   signal: 16,
+  workerId: 36,
 });
 
-const numberFields = new Set(["durationMs", "port", "statusCode"]);
+const numberFields = new Set(["attempt", "durationMs", "port", "queueAgeMs", "statusCode"]);
 
 function safeEventName(event) {
   return typeof event === "string" && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(event)
@@ -34,7 +38,10 @@ function allowlistedFields(fields) {
   return safe;
 }
 
-export function createJsonLogger(config, { write = (line) => console.log(line) } = {}) {
+export function createJsonLogger(
+  config,
+  { write = (line) => console.log(line), service = "opspilot-api" } = {},
+) {
   const configuredLevel = config.logging?.level ?? "info";
   const minimumLevel =
     config.nodeEnv === "production" && configuredLevel === "debug" ? "info" : configuredLevel;
@@ -45,7 +52,7 @@ export function createJsonLogger(config, { write = (line) => console.log(line) }
     const record = {
       timestamp: new Date().toISOString(),
       level,
-      service: "opspilot-api",
+      service,
       environment: config.nodeEnv,
       event: safeEventName(event),
       ...allowlistedFields(fields),

@@ -6,6 +6,8 @@ import { createCatalogRouter } from "../modules/catalog/catalog.routes.js";
 import { createCartRouter } from "../modules/cart/cart.routes.js";
 import { createHealthRouter } from "../modules/health/health.routes.js";
 import { createInventoryRouter } from "../modules/inventory/inventory.routes.js";
+import { createJobsRouter } from "../modules/jobs/jobs.routes.js";
+import { createNotificationsRouter } from "../modules/notifications/notifications.routes.js";
 import { createOrdersRouter } from "../modules/orders/orders.routes.js";
 import { createPaymentsRouter } from "../modules/payments/payments.routes.js";
 import { createReportsRouter } from "../modules/reports/reports.routes.js";
@@ -26,6 +28,8 @@ export function createApiRouter(database, config, paymentProvider) {
   router.use("/support", createSupportRouter(database, config));
   router.use(createCatalogRouter(database, config));
   router.use("/inventory", createInventoryRouter(database, config));
+  router.use("/jobs", createJobsRouter(database, config));
+  router.use("/notifications", createNotificationsRouter(database, config));
   router.use(createAuthorizationRouter(database, config));
 
   return router;

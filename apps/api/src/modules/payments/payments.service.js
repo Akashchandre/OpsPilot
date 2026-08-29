@@ -16,6 +16,8 @@ import {
   isPrismaWriteConflict,
 } from "../commerce/commerce.errors.js";
 import { digestRequest, moneyToSubunits } from "../commerce/commerce.money.js";
+import { JOB_TYPES } from "../jobs/jobs.constants.js";
+import { enqueueJob } from "../jobs/jobs.queue.js";
 import { orderDetailInclude, presentOrder, presentPayment } from "../orders/orders.presenter.js";
 import { applyProviderPayment, applyProviderRefund, markPaymentReview } from "./payments.state.js";
 import { verifyCheckoutSignature } from "./razorpay.signatures.js";
@@ -77,6 +79,7 @@ async function loadPayment(database, paymentId) {
 
 async function applyFetchedPayment(
   database,
+  config,
   paymentId,
   entity,
   source,
@@ -87,6 +90,10 @@ async function applyFetchedPayment(
   const eventType = paymentEntityStatus(entity);
   return database.$transaction(
     async (transaction) => {
+      const before = await transaction.payment.findUnique({
+        where: { id: paymentId },
+        include: { order: true },
+      });
       const result = await applyProviderPayment(transaction, paymentId, entity, {
         eventType,
         source,
@@ -96,7 +103,7 @@ async function applyFetchedPayment(
         where: { id: paymentId },
         include: { order: true },
       });
-      await appendAudit(
+      const auditEvent = await appendAudit(
         transaction,
         auditDescriptor({
           action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
@@ -112,6 +119,30 @@ async function applyFetchedPayment(
           },
         }),
       );
+      if (before && payment && before.status !== payment.status) {
+        await enqueueJob(transaction, config, {
+          type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+          dedupeKey: `payment-status:${auditEvent.id}`,
+          payload: { sourceEventId: auditEvent.id, paymentId },
+          sourceRequestId: requestId,
+          sourceActorUserId: actorUserId,
+        });
+      }
+      if (before && payment && before.order.status !== payment.order.status) {
+        const orderEvent = await transaction.orderStatusEvent.findFirst({
+          where: { orderId: payment.order.id, requestId, toStatus: payment.order.status },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        });
+        if (orderEvent) {
+          await enqueueJob(transaction, config, {
+            type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+            dedupeKey: `order-status:${orderEvent.id}`,
+            payload: { sourceEventId: orderEvent.id, orderId: payment.order.id },
+            sourceRequestId: requestId,
+            sourceActorUserId: actorUserId,
+          });
+        }
+      }
       return result;
     },
     { isolationLevel: "Serializable" },
@@ -120,6 +151,7 @@ async function applyFetchedPayment(
 
 async function applyFetchedRefund(
   database,
+  config,
   entity,
   source,
   requestId,
@@ -128,13 +160,37 @@ async function applyFetchedRefund(
 ) {
   return database.$transaction(
     async (transaction) => {
+      const priorRefund =
+        typeof entity?.id === "string"
+          ? await transaction.refund.findUnique({ where: { providerRefundId: entity.id } })
+          : null;
+      const priorAttempt =
+        typeof entity?.payment_id === "string"
+          ? await transaction.paymentAttempt.findUnique({
+              where: { providerPaymentId: entity.payment_id },
+              include: { payment: { include: { order: true } } },
+            })
+          : null;
+      const pendingRefund =
+        priorRefund ??
+        (priorAttempt
+          ? await transaction.refund.findFirst({
+              where: {
+                paymentId: priorAttempt.paymentId,
+                paymentAttemptId: priorAttempt.id,
+                providerRefundId: null,
+                status: REFUND_STATUSES.PENDING,
+              },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            })
+          : null);
       const result = await applyProviderRefund(transaction, entity, {
         eventType: refundEntityStatus(entity),
         source,
         requestId,
       });
       if (result.refund) {
-        await appendAudit(
+        const auditEvent = await appendAudit(
           transaction,
           auditDescriptor({
             action: AUDIT_ACTIONS.REFUND_PROVIDER_STATE_APPLIED,
@@ -146,6 +202,55 @@ async function applyFetchedRefund(
             metadata: { source, refundStatus: result.refund.status },
           }),
         );
+        if (!pendingRefund || pendingRefund.status !== result.refund.status) {
+          await enqueueJob(transaction, config, {
+            type: JOB_TYPES.NOTIFICATION_REFUND_STATUS_CHANGED,
+            dedupeKey: `refund-status:${auditEvent.id}`,
+            payload: { sourceEventId: auditEvent.id, refundId: result.refund.id },
+            sourceRequestId: requestId,
+            sourceActorUserId: actorUserId,
+          });
+        }
+        const currentPayment = await transaction.payment.findUnique({
+          where: { id: result.refund.paymentId },
+          include: { order: true },
+        });
+        if (
+          priorAttempt?.payment &&
+          currentPayment &&
+          priorAttempt.payment.status !== currentPayment.status
+        ) {
+          await enqueueJob(transaction, config, {
+            type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+            dedupeKey: `payment-status:${auditEvent.id}`,
+            payload: { sourceEventId: auditEvent.id, paymentId: currentPayment.id },
+            sourceRequestId: requestId,
+            sourceActorUserId: actorUserId,
+          });
+        }
+        if (
+          priorAttempt?.payment?.order &&
+          currentPayment &&
+          priorAttempt.payment.order.status !== currentPayment.order.status
+        ) {
+          const orderEvent = await transaction.orderStatusEvent.findFirst({
+            where: {
+              orderId: currentPayment.order.id,
+              requestId,
+              toStatus: currentPayment.order.status,
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          });
+          if (orderEvent) {
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+              dedupeKey: `order-status:${orderEvent.id}`,
+              payload: { sourceEventId: orderEvent.id, orderId: currentPayment.order.id },
+              sourceRequestId: requestId,
+              sourceActorUserId: actorUserId,
+            });
+          }
+        }
       }
       return result;
     },
@@ -163,6 +268,38 @@ function mapWriteError(error) {
     );
   }
   throw error;
+}
+
+async function enqueuePaymentTransitions(
+  transaction,
+  config,
+  { before, after, sourceEventId, requestId, actorUserId = null },
+) {
+  if (!before || !after) return;
+  if (before.status !== after.status) {
+    await enqueueJob(transaction, config, {
+      type: JOB_TYPES.NOTIFICATION_PAYMENT_STATUS_CHANGED,
+      dedupeKey: `payment-status:${sourceEventId}`,
+      payload: { sourceEventId, paymentId: after.id },
+      sourceRequestId: requestId,
+      sourceActorUserId: actorUserId,
+    });
+  }
+  if (before.order.status !== after.order.status) {
+    const orderEvent = await transaction.orderStatusEvent.findFirst({
+      where: { orderId: after.order.id, requestId, toStatus: after.order.status },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (orderEvent) {
+      await enqueueJob(transaction, config, {
+        type: JOB_TYPES.NOTIFICATION_ORDER_STATUS_CHANGED,
+        dedupeKey: `order-status:${orderEvent.id}`,
+        payload: { sourceEventId: orderEvent.id, orderId: after.order.id },
+        sourceRequestId: requestId,
+        sourceActorUserId: actorUserId,
+      });
+    }
+  }
 }
 
 export function createPaymentsService(database, config, paymentProvider) {
@@ -210,6 +347,7 @@ export function createPaymentsService(database, config, paymentProvider) {
       try {
         await applyFetchedPayment(
           database,
+          config,
           payment.id,
           providerPayment,
           ORDER_EVENT_SOURCES.PROVIDER,
@@ -320,6 +458,13 @@ export function createPaymentsService(database, config, paymentProvider) {
                 },
               }),
             );
+            await enqueueJob(transaction, config, {
+              type: JOB_TYPES.NOTIFICATION_REFUND_STATUS_CHANGED,
+              dedupeKey: `refund-status:${created.id}`,
+              payload: { sourceEventId: created.id, refundId: created.id },
+              sourceRequestId: requestId,
+              sourceActorUserId: actorUserId,
+            });
             return created;
           },
           { isolationLevel: "Serializable" },
@@ -359,7 +504,7 @@ export function createPaymentsService(database, config, paymentProvider) {
                 data: { status: REFUND_STATUSES.FAILED, failureCode },
               });
               if (update.count === 1) {
-                await appendAudit(
+                const auditEvent = await appendAudit(
                   transaction,
                   auditDescriptor({
                     action: AUDIT_ACTIONS.REFUND_PROVIDER_STATE_APPLIED,
@@ -370,6 +515,12 @@ export function createPaymentsService(database, config, paymentProvider) {
                     metadata: { source: "PROVIDER", refundStatus: REFUND_STATUSES.FAILED },
                   }),
                 );
+                await enqueueJob(transaction, config, {
+                  type: JOB_TYPES.NOTIFICATION_REFUND_STATUS_CHANGED,
+                  dedupeKey: `refund-status:${auditEvent.id}`,
+                  payload: { sourceEventId: auditEvent.id, refundId: refund.id },
+                  sourceRequestId: requestId,
+                });
               }
             },
             { isolationLevel: "Serializable" },
@@ -381,6 +532,7 @@ export function createPaymentsService(database, config, paymentProvider) {
         try {
           await applyFetchedRefund(
             database,
+            config,
             providerRefund,
             ORDER_EVENT_SOURCES.PROVIDER,
             requestId,
@@ -446,7 +598,7 @@ export function createPaymentsService(database, config, paymentProvider) {
                 where: { id: payment.id },
                 include: { order: true },
               });
-              await appendAudit(
+              const auditEvent = await appendAudit(
                 transaction,
                 auditDescriptor({
                   action: AUDIT_ACTIONS.PAYMENT_RECONCILED,
@@ -464,6 +616,13 @@ export function createPaymentsService(database, config, paymentProvider) {
                   },
                 }),
               );
+              await enqueuePaymentTransitions(transaction, config, {
+                before: current,
+                after: refreshed,
+                sourceEventId: auditEvent.id,
+                requestId,
+                actorUserId,
+              });
             }
           },
           { isolationLevel: "Serializable" },
@@ -473,6 +632,7 @@ export function createPaymentsService(database, config, paymentProvider) {
         for (const entity of entities) {
           await applyFetchedPayment(
             database,
+            config,
             payment.id,
             entity,
             ORDER_EVENT_SOURCES.RECONCILIATION,
@@ -502,7 +662,7 @@ export function createPaymentsService(database, config, paymentProvider) {
                   where: { id: payment.id },
                   include: { order: true },
                 });
-                await appendAudit(
+                const auditEvent = await appendAudit(
                   transaction,
                   auditDescriptor({
                     action: AUDIT_ACTIONS.PAYMENT_PROVIDER_STATE_APPLIED,
@@ -517,6 +677,13 @@ export function createPaymentsService(database, config, paymentProvider) {
                     },
                   }),
                 );
+                await enqueuePaymentTransitions(transaction, config, {
+                  before: current,
+                  after: refreshed,
+                  sourceEventId: auditEvent.id,
+                  requestId,
+                  actorUserId,
+                });
               }
             },
             { isolationLevel: "Serializable" },
@@ -532,6 +699,7 @@ export function createPaymentsService(database, config, paymentProvider) {
             const entity = await paymentProvider.fetchRefund(knownRefund.providerRefundId);
             await applyFetchedRefund(
               database,
+              config,
               entity,
               ORDER_EVENT_SOURCES.RECONCILIATION,
               requestId,
