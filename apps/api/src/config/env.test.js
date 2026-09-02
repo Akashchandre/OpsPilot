@@ -138,11 +138,33 @@ describe("loadEnvironment", () => {
       loadEnvironment({
         ...validEnvironment,
         RAZORPAY_ENABLED: "true",
-        RAZORPAY_KEY_ID: "safe-test-key-id",
+        RAZORPAY_KEY_ID: "rzp_test_unitidentifier",
         RAZORPAY_KEY_SECRET: "safe-test-key-secret",
         RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
       }).payments.razorpay.enabled,
     ).toBe(true);
+  });
+
+  it("rejects Live Mode and malformed Razorpay key IDs", () => {
+    const liveKeyId = ["rzp", "live", "unitidentifier"].join("_");
+    for (const keyId of [liveKeyId, "not-a-razorpay-key"]) {
+      let error;
+      try {
+        loadEnvironment({
+          ...validEnvironment,
+          RAZORPAY_ENABLED: "true",
+          RAZORPAY_KEY_ID: keyId,
+          RAZORPAY_KEY_SECRET: "safe-test-key-secret",
+          RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
+        });
+      } catch (caughtError) {
+        error = caughtError;
+      }
+
+      expect(error).toBeInstanceOf(ConfigurationError);
+      expect(error.fields).toContain("RAZORPAY_KEY_ID");
+      expect(error.message).not.toContain(keyId);
+    }
   });
 
   it("requires a valid audit key and key ID outside routine tests", () => {

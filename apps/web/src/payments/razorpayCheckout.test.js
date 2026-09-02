@@ -17,6 +17,7 @@ const result = {
 describe("hosted Razorpay Checkout loader", () => {
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     delete window.Razorpay;
     document
       .querySelectorAll('script[data-opspilot-checkout="razorpay"]')
@@ -54,19 +55,56 @@ describe("hosted Razorpay Checkout loader", () => {
     expect(open).toHaveBeenCalledOnce();
   });
 
-  it("reports failures from both a new and an existing Checkout script", async () => {
+  it("removes a failed script and permits a clean retry", async () => {
     const callbacks = { onResult() {}, onDismiss() {}, onFailure() {} };
     const firstLoad = openRazorpayCheckout(result, callbacks);
-    const script = document.querySelector('script[data-opspilot-checkout="razorpay"]');
+    const failedScript = document.querySelector('script[data-opspilot-checkout="razorpay"]');
     const firstFailure = expect(firstLoad).rejects.toThrow("Secure checkout could not load");
 
-    script.dispatchEvent(new Event("error"));
+    failedScript.dispatchEvent(new Event("error"));
     await firstFailure;
+    expect(failedScript).not.toBeInTheDocument();
 
     const retryLoad = openRazorpayCheckout(result, callbacks);
-    const retryFailure = expect(retryLoad).rejects.toThrow("Secure checkout could not load");
+    const retryScript = document.querySelector('script[data-opspilot-checkout="razorpay"]');
+    expect(retryScript).not.toBe(failedScript);
+    const open = vi.fn();
+    window.Razorpay = vi.fn(function Razorpay() {
+      this.on = vi.fn();
+      this.open = open;
+    });
 
-    script.dispatchEvent(new Event("error"));
-    await retryFailure;
+    retryScript.dispatchEvent(new Event("load"));
+    await retryLoad;
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed when the script loads without initializing Razorpay", async () => {
+    const pending = openRazorpayCheckout(result, {
+      onResult() {},
+      onDismiss() {},
+      onFailure() {},
+    });
+    const script = document.querySelector('script[data-opspilot-checkout="razorpay"]');
+    const failure = expect(pending).rejects.toThrow("Secure checkout did not initialize");
+
+    script.dispatchEvent(new Event("load"));
+    await failure;
+    expect(script).not.toBeInTheDocument();
+  });
+
+  it("times out a stalled Checkout script so the UI can recover", async () => {
+    vi.useFakeTimers();
+    const pending = openRazorpayCheckout(result, {
+      onResult() {},
+      onDismiss() {},
+      onFailure() {},
+    });
+    const script = document.querySelector('script[data-opspilot-checkout="razorpay"]');
+    const failure = expect(pending).rejects.toThrow("Secure checkout loading timed out");
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await failure;
+    expect(script).not.toBeInTheDocument();
   });
 });

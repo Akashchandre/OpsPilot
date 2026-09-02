@@ -116,7 +116,7 @@ The implemented endpoint table and request rules are in `docs/04-API-CONTRACT.md
 | Provider fetch unavailable after valid callback | API returns confirmation pending | Wait for webhook or reconcile |
 | Duplicate/out-of-order webhook | Event is deduplicated; state is monotonic | No manual action unless review is shown |
 | Capture after expiry/cancellation or mismatch | Order/payment enter review; no fulfillment | Operator reconciles and refunds as required |
-| Refund call times out ambiguously | Refund remains pending | Retry with the same key and reconcile |
+| Refund call times out or returns provider `409` while the idempotent request is still processing | Refund remains pending | Retry with the same key and reconcile |
 | Refund fails conclusively | Failure is retained; order stays non-fulfillable | Retry with a new key after reviewing provider state |
 
 ## Configuration
@@ -127,7 +127,7 @@ Safe variable names are present in `apps/api/.env.example` and
 | Variable | Meaning |
 |---|---|
 | `RAZORPAY_ENABLED` | Explicitly activates provider calls and webhook verification |
-| `RAZORPAY_KEY_ID` | Test Mode API identity and browser-safe Checkout key |
+| `RAZORPAY_KEY_ID` | Test Mode API identity and browser-safe Checkout key; must use the `rzp_test_` prefix |
 | `RAZORPAY_KEY_SECRET` | Server-only API authentication and Checkout HMAC secret |
 | `RAZORPAY_WEBHOOK_SECRET` | Separate server-only dashboard webhook HMAC secret |
 | `CHECKOUT_RESERVATION_TTL_MINUTES` | Reservation timeout from 3 to 15 minutes; default 15 |
@@ -135,6 +135,12 @@ Safe variable names are present in `apps/api/.env.example` and
 When Razorpay is enabled, all three provider values are required. Secret values belong only in
 ignored local environment files or a future approved secret manager. They must never enter source,
 documentation, fixtures, migrations, responses, browser bundles, URLs, or logs.
+
+Run `npm run payments:razorpay:check` before a provider smoke. It performs a read-only Test Mode
+Orders API lookup, emits only safe status codes, and never prints the key ID, API secret, webhook
+secret, authorization header, or provider response body. A successful result verifies local
+configuration, Test Mode key shape, outbound HTTPS, and API authentication; dashboard automatic
+capture, public HTTPS webhook delivery, and event subscriptions still require manual confirmation.
 
 ## Main implementation locations
 
@@ -153,6 +159,7 @@ The Phase 4 integration suite covers cart versions and ownership, price review, 
 concurrent checkout, self/management reads, exact-capture confirmation, fulfillment, cancellation,
 refund retry/idempotency, invalid/duplicate/out-of-order webhooks, expiry/late capture, and
 reconciliation. Frontend tests cover cart actions, hosted Checkout success/recovery, owned order
-flows, permission-gated operations, fulfillment, refund, reconciliation, and script-load failure.
+flows, permission-gated operations, fulfillment, refund, reconciliation, and recoverable
+script-load failure, missing-SDK, and timeout behavior.
 
 The final command/coverage snapshot is recorded in `docs/phase-4/PHASE-04-REVIEW-REPORT.md`.

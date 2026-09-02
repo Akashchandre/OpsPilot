@@ -15,8 +15,9 @@ are configured.
 ## Dashboard and local setup
 
 1. In the Razorpay dashboard, select **Test Mode** and confirm account-level automatic capture.
-2. Generate or rotate a Test Mode key pair. Put the key ID and secret only in the ignored
-   `apps/api/.env`; do not modify either example file with real values.
+2. Generate or rotate a Test Mode key pair. The key ID must begin with `rzp_test_`. Put the key ID
+   and secret only in the ignored `apps/api/.env`; do not modify either example file with real
+   values.
 3. Create a separate strong webhook secret in the Test Mode webhook configuration. It is not the
    API key secret.
 4. Expose the API through a reviewed public HTTPS URL and configure this exact endpoint:
@@ -55,6 +56,16 @@ The API uses `https://api.razorpay.com/v1`; the browser loader accepts only
 
 ## Pre-smoke checks
 
+- From the repository root, run:
+
+  ```text
+  npm run payments:razorpay:check
+  ```
+
+  The command is read-only and redacts all credential/provider-response values. It must report
+  `razorpay.preflight_completed`, `mode: test`, and `apiCredentials: verified`. Its listed external
+  checks are reminders, not failures: automatic capture, public HTTPS webhook delivery, and
+  webhook event subscriptions are verified in the dashboard steps below.
 - Apply all committed migrations and confirm both development and test databases are current.
 - Confirm the API health endpoint reports database readiness.
 - Ensure there is one active `INR` product with sufficient whole-number stock and an active

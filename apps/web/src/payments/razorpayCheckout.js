@@ -1,4 +1,6 @@
 const checkoutScriptUrl = "https://checkout.razorpay.com/v1/checkout.js";
+const checkoutScriptSelector = 'script[data-opspilot-checkout="razorpay"]';
+const checkoutScriptTimeoutMs = 15_000;
 
 function loadCheckoutScript(scriptUrl) {
   if (window.Razorpay) return Promise.resolve();
@@ -7,25 +9,56 @@ function loadCheckoutScript(scriptUrl) {
   }
 
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-opspilot-checkout="razorpay"]');
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("Secure checkout could not load.")),
-        { once: true },
-      );
-      return;
+    let script = document.querySelector(checkoutScriptSelector);
+    if (script?.dataset.opspilotCheckoutState === "loaded") {
+      script.remove();
+      script = null;
     }
-    const script = document.createElement("script");
-    script.src = checkoutScriptUrl;
-    script.async = true;
-    script.dataset.opspilotCheckout = "razorpay";
-    script.addEventListener("load", resolve, { once: true });
-    script.addEventListener("error", () => reject(new Error("Secure checkout could not load.")), {
-      once: true,
-    });
-    document.head.append(script);
+
+    const isNewScript = !script;
+    script ??= document.createElement("script");
+    if (isNewScript) {
+      script.src = checkoutScriptUrl;
+      script.async = true;
+      script.dataset.opspilotCheckout = "razorpay";
+      script.dataset.opspilotCheckoutState = "loading";
+    }
+
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      finish(reject, new Error("Secure checkout loading timed out."), { removeScript: true });
+    }, checkoutScriptTimeoutMs);
+
+    function cleanup() {
+      window.clearTimeout(timeoutId);
+      script.removeEventListener("load", onLoad);
+      script.removeEventListener("error", onError);
+    }
+
+    function finish(callback, value, { removeScript = false } = {}) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (removeScript) script.remove();
+      callback(value);
+    }
+
+    function onLoad() {
+      script.dataset.opspilotCheckoutState = "loaded";
+      if (window.Razorpay) finish(resolve);
+      else
+        finish(reject, new Error("Secure checkout did not initialize."), {
+          removeScript: true,
+        });
+    }
+
+    function onError() {
+      finish(reject, new Error("Secure checkout could not load."), { removeScript: true });
+    }
+
+    script.addEventListener("load", onLoad);
+    script.addEventListener("error", onError);
+    if (isNewScript) document.head.append(script);
   });
 }
 

@@ -7,6 +7,19 @@ transactional job/outbox, separate JavaScript worker, persistent notification, o
 authenticated Socket.IO hint baseline is implemented. This is a repository/phase gate, not
 production-launch approval; retained blockers are listed below.
 
+## 2026-09-02 re-verification
+
+The Phase 1–6 gate was rerun while repairing the deferred Razorpay integration. It passes 26 API
+files / 123 tests, 5 web files / 38 tests, API coverage 83.90/73.04/93.54/87.77 and web coverage
+83.55/73.36/82.36/85.93 (statements/branches/functions/lines), lint, formatting/Prisma validation,
+production build, nine-migration status and drift for development/test, both audit verifiers, and
+live API/worker/built-web smoke. The worker completed `ORDER_RESERVATION_EXPIRY_SWEEP` and
+`AUDIT_CHAIN_VERIFY`, stopped cleanly, and its isolated test evidence was removed.
+
+The representative Phase 6 profile was also rerun at 10,000 notifications. Current p95 values are
+15.781 ms list, 34.647 ms unread count, 22.369 ms committed-job visibility, 24.423 ms persistent
+materialization, and 32.766 ms connected-client hint. Every accepted target remains green.
+
 ## Acceptance criteria
 
 | Criterion | Evidence | Result |
@@ -82,11 +95,13 @@ the rerun passes at 82.25%. The threshold was not reduced.
 
 - The Phase 4 external Razorpay Test Mode delivery/recovery gate remains deferred. Live payments
   remain prohibited.
-- `npm audit --omit=dev` reports five transitive findings (one moderate, four high): the existing
-  `deepmerge-ts`/Prisma configuration issue for which npm proposes only a breaking forced Prisma
-  downgrade, and MariaDB connector credential/TLS/escaping advisories in the Prisma adapter tree
-  with no available fix. No forced or out-of-scope dependency change was made. Compatible patched
-  releases or a reviewed adapter alternative are required before production.
+- The 2026-09-02 `npm audit --omit=dev` reports six dependency findings (one moderate, five high):
+  the existing `deepmerge-ts`/Prisma configuration issue, MariaDB connector credential/TLS/escaping
+  advisories in the Prisma adapter tree, and a newer `mysql2` authentication-downgrade advisory in
+  the Prisma CLI tree. Stable Prisma 7.10.0 retains all three affected transitive versions; npm
+  offers only a breaking downgrade for part of the tree and no adapter fix. No forced or
+  out-of-scope dependency change was made; compatible patched releases or a reviewed adapter
+  alternative are required before production.
 - Connection and rate accounting is per process. Multi-instance transport, shared hint/rate state,
   proxy topology, and failure behavior require a new decision and testing.
 - Production worker/API supervision, remote database TLS/credential handling, monitoring/alerts,

@@ -97,6 +97,7 @@ describe("Razorpay adapter", () => {
     });
     for (const [status, code] of [
       [401, "PAYMENT_PROVIDER_AUTHENTICATION_FAILED"],
+      [408, "PAYMENT_PROVIDER_TIMEOUT"],
       [429, "PAYMENT_PROVIDER_RATE_LIMITED"],
       [500, "PAYMENT_PROVIDER_UNAVAILABLE"],
       [400, "PAYMENT_PROVIDER_REQUEST_REJECTED"],
@@ -134,6 +135,27 @@ describe("Razorpay adapter", () => {
     });
     await expect(duplicate.findOrderByReceipt("op_unit")).rejects.toMatchObject({
       code: "PAYMENT_PROVIDER_DUPLICATE_RECEIPT",
+    });
+  });
+
+  it("keeps a conflicting idempotent write retriable and ambiguous", async () => {
+    const adapter = createRazorpayAdapter(providerConfig(), {
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: { code: "BAD_REQUEST_ERROR" } }),
+      }),
+    });
+
+    await expect(
+      adapter.createRefund("pay_unit_123", {
+        amountSubunits: 12_345,
+        idempotencyKey: "11111111-1111-4111-8111-111111111111",
+      }),
+    ).rejects.toMatchObject({
+      code: "PAYMENT_PROVIDER_REQUEST_IN_PROGRESS",
+      retriable: true,
+      ambiguous: true,
     });
   });
 });

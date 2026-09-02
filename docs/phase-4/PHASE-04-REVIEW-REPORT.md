@@ -10,6 +10,36 @@ delivery has not been run because its external dashboard inputs are not yet conf
 This report does not authorize live keys, real-money processing, or production deployment. ADR
 0006 separately authorizes Phase 5 decision-definition work while preserving this unresolved gate.
 
+## 2026-09-02 repair and re-verification
+
+The reported non-working local integration was reproduced before code changes. The ignored API
+environment contains none of `RAZORPAY_ENABLED`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, or
+`RAZORPAY_WEBHOOK_SECRET`, so the existing fail-closed checkout correctly returned
+`PAYMENT_PROVIDER_NOT_CONFIGURED`. No current credential was recovered from source/history and no
+secret was invented or logged.
+
+Repository hardening completed within ADR 0005's Test Mode boundary:
+
+- Enabled configuration rejects malformed and `rzp_live_` key IDs and accepts only `rzp_test_`.
+- `npm run payments:razorpay:check` performs a read-only Orders API credential/connectivity
+  preflight with redacted output and no financial write.
+- HTTP `408` and in-progress idempotent-write `409` responses remain retriable/ambiguous, so a
+  refund is not incorrectly classified as conclusively failed while Razorpay is processing it.
+- A failed, incomplete, or 15-second-stalled hosted Checkout script is removed; the customer can
+  retry with a fresh script element instead of waiting indefinitely.
+
+The full Phase 1–6 rerun passes 26 API files / 123 tests, 5 web files / 38 tests, both coverage
+gates, lint, formatting/Prisma validation, production build, nine-migration status and drift for
+development/test, both audit-chain verifiers, live API/worker/built-web smoke, and all five Phase 6
+performance targets.
+
+Later on 2026-09-02, the API was restarted with an enabled ignored configuration. Public health
+and rejected-signature webhook probes pass through a temporary Cloudflare Quick Tunnel. After the
+initial Test Mode pair was rejected, a freshly rotated matched pair passed the redacted preflight;
+resuming an existing pending order created and verified its Razorpay provider order and returned a
+hosted Checkout payload. Payment completion plus dashboard capture, secret, endpoint, and event
+configuration remain required; the external smoke row below is pending and Phase 4 is not accepted.
+
 ## Delivered implementation
 
 - Versioned authenticated cart with authoritative price/lifecycle/stock review.

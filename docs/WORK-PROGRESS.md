@@ -1,6 +1,6 @@
 # Work Progress
 
-**Last updated:** 2026-08-29
+**Last updated:** 2026-09-02
 
 ## Current Phase
 
@@ -8,7 +8,7 @@ Phase 6 — Real-time and Background Jobs (repository complete)
 
 ## Status
 
-REPOSITORY COMPLETE — VERIFIED
+REPOSITORY COMPLETE — VERIFIED; PHASE 4 EXTERNAL PROVIDER GATE OPEN
 
 ## Completed
 
@@ -150,17 +150,36 @@ REPOSITORY COMPLETE — VERIFIED
   evidence, and acceptance report are synchronized. The final regression passes 121 API tests,
   36 web tests, coverage gates, build, migrations/drift, live API/worker/web smoke, performance
   targets, audit verification, whitespace, and secret checks.
+- The reported Razorpay failure was reproduced on 2026-09-02 as fail-closed local configuration:
+  the ignored API environment has no provider enablement, Test Mode key pair, or webhook secret.
+- Phase 4 integration hardening now enforces `rzp_test_` key IDs, adds a redacted read-only provider
+  preflight, preserves ambiguous/retriable Razorpay `408` and idempotent-write `409` outcomes, and
+  makes failed, incomplete, or stalled hosted Checkout script loads recoverable.
+- The 2026-09-02 Phase 1–6 rerun passes lint, formatting/Prisma validation, 26 API files / 123 tests,
+  5 web files / 38 tests, both coverage gates, production build, development/test nine-migration
+  status and drift, both audit-chain verifiers, live API/worker/built-web smoke, and all five Phase
+  6 performance targets. Test-smoke queue evidence was removed afterward.
+- The local API was restarted with Razorpay enabled and remains healthy with a reachable database,
+  a freshly rotated matched Test Mode key pair passes the redacted provider preflight, and an
+  existing pending payment was resumed to a verified Razorpay provider order with Checkout ready.
+- The expired ephemeral zrok webhook was replaced for local testing by a temporary Cloudflare Quick
+  Tunnel without adding a repository dependency. Public health returned `200`, and an invalid-signature
+  webhook probe reached the raw-body route and was correctly rejected with `401` without data changes.
 
 ## In Progress
 
-- The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain a deferred backlog
-  gate and a live-payment blocker.
+- The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain blocked on a
+  completed hosted Test Mode payment plus copying the current temporary HTTPS webhook endpoint into
+  the Test Mode dashboard, matching its separate secret, confirming automatic capture, and
+  subscribing only to the seven allowlisted events. Live Mode remains prohibited.
 - No Phase 7 implementation is authorized.
 
 ## Next Task
 
-Await explicit authorization and an accepted decision boundary before beginning Phase 7. Keep the
-deferred real Razorpay Test Mode delivery/recovery gate visible before any live-payment decision.
+Complete the resumed hosted Test Mode payment, update the Test Mode dashboard to the current
+temporary webhook endpoint and allowlisted events, confirm automatic capture, and execute the
+remaining Phase 4 external smoke matrix. Phase 7 still requires separate explicit authorization
+and an accepted decision boundary.
 
 ## Accepted Decisions
 
@@ -215,6 +234,9 @@ deferred real Razorpay Test Mode delivery/recovery gate visible before any live-
 - Web coverage: 82.56% statements, 71.09% branches, 80.25% functions, 85.10% lines.
 - Lint, formatting/Prisma validation, development/test migration status, production build, local
   API/web smoke, Git whitespace, and secret-literal scans pass.
+- 2026-09-02 re-verification: Phase 4 hardening is included in the passing 123-API/38-web full
+  regression and current coverage/build/database/live-smoke gate. The redacted provider preflight
+  correctly reports `PAYMENT_PROVIDER_NOT_CONFIGURED`; real Test Mode delivery remains pending.
 
 ## Phase 5 Acceptance Evidence
 
@@ -249,16 +271,19 @@ deferred real Razorpay Test Mode delivery/recovery gate visible before any live-
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- `npm audit --omit=dev` reports five transitive findings (one moderate and four high): the existing
-  `deepmerge-ts`/Prisma configuration issue plus MariaDB connector credential/TLS/escaping
-  advisories in the Prisma adapter tree. No compatible fix is available in the installed tree;
-  npm proposes a breaking forced Prisma downgrade for the former, so no forced fix was applied.
+- The 2026-09-02 `npm audit --omit=dev` reports six dependency findings (one moderate and five
+  high): `deepmerge-ts` through Prisma configuration, MariaDB connector credential/TLS/escaping
+  advisories through `@prisma/adapter-mariadb`, and a `mysql2` authentication-downgrade advisory
+  through the Prisma CLI tree. Stable Prisma 7.10.0 still pins `deepmerge-ts@7.1.5`,
+  `mariadb@3.4.5`, and `mysql2@3.15.3`; npm offers only a breaking Prisma downgrade for part of the
+  tree and no adapter fix. No unapproved dependency change was made.
 - Phase 5 rate stores and Phase 6 connection/rate accounting are per process and need reviewed
   shared or edge policy before horizontal scaling.
-- The Razorpay Test Mode provider-delivery gate is not runnable: the ignored API environment has no
-  enabled provider/key/webhook-secret configuration, and the public HTTPS endpoint plus
-  automatic-capture dashboard setting are not recorded. The real-looking Test Mode key pair found
-  in the tracked example before commit must be treated as exposed and rotated before this smoke.
+- The Razorpay Test Mode provider-delivery gate is not yet complete end to end: the rotated API
+  credentials authenticate, provider-order creation succeeds, and the temporary public HTTPS
+  tunnel is verified, but dashboard capture, matching webhook secret/current endpoint, the
+  seven-event allowlist, and the remaining payment/refund delivery matrix require confirmation.
+  The real-looking Test Mode key pair found in the tracked example before commit remains rotated.
 - Production retention/privacy/erasure/legal-hold rules, encrypted backup ownership/vendor,
   generations, RPO/RTO, restore cadence, hosted monitoring/alerting, and incident ownership remain
   undecided production blockers. The local performance result is a regression baseline, not an
@@ -292,6 +317,11 @@ deferred real Razorpay Test Mode delivery/recovery gate visible before any live-
   Git whitespace, high-confidence credential scans, and ignored-environment checks pass.
 - Exact `socket.io@4.8.3` and `socket.io-client@4.8.3` are pinned. Existing MySQL is the only
   persistence service; no Redis, BullMQ, external broker/channel account, or new secret was added.
+- 2026-09-02 re-verification passes 123 API tests, 38 web tests, API coverage
+  83.90/73.04/93.54/87.77 and web coverage 83.55/73.36/82.36/85.93 (statements/branches/functions/
+  lines), build, both database drift checks, both audit verifiers, and live API/worker/web smoke.
+  Current Phase 6 p95 values are 15.781 ms list, 34.647 ms unread count, 22.369 ms committed-job
+  visibility, 24.423 ms materialization, and 32.766 ms Socket.IO hint; all targets pass.
 
 ## Phase Gate
 

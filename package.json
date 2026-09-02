@@ -14,6 +14,7 @@
     "dev:web": "npm run dev --workspace @opspilot/web",
     "dev:api": "npm run dev --workspace @opspilot/api",
     "auth:bootstrap-owner": "npm run auth:bootstrap-owner --workspace @opspilot/api --",
+    "payments:razorpay:check": "npm run payments:razorpay:check --workspace @opspilot/api",
     "build": "npm run build --workspace @opspilot/web",
     "lint": "eslint apps",
     "format": "prettier --write \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:format",

@@ -4,11 +4,19 @@
 
 **IMPLEMENTED — EXTERNAL PROVIDER SMOKE DEFERRED; PHASE NOT ACCEPTED as of 2026-08-27.** The
 migration, API, UI, automated security/concurrency/provider-contract tests, documentation, and
-repository quality gates pass. Real provider smoke cannot currently run because the ignored API
-environment has no enabled Test Mode key pair or webhook secret, and no approved public HTTPS
-webhook/capture configuration is recorded. ADR 0006 records the user's direction to retain this
+repository quality gates pass. Real provider smoke is now underway with authenticated Test Mode
+credentials and successful provider-order creation, while hosted payment completion and dashboard
+webhook/capture confirmation remain pending. ADR 0006 records the user's direction to retain this
 issue as a backlog gate and begin Phase 5 decision-definition work without accepting Phase 4.
 ADR 0005 remains authoritative for commerce behavior.
+
+On 2026-09-02, the repository integration was hardened and re-verified: enabled configuration now
+accepts only `rzp_test_` key IDs, a redacted read-only provider preflight is available, provider
+`408`/idempotent-write `409` responses preserve safe retry semantics, and failed, missing-SDK, or
+stalled hosted Checkout loads recover cleanly. The API now loads an enabled local configuration,
+the rotated Test Mode pair passes the preflight and creates a provider order, and a temporary public
+HTTPS tunnel passes health and rejected-signature route probes. Hosted payment completion and the
+dashboard configuration are still required to satisfy the external delivery gate and accept the phase.
 
 ## Objective
 
@@ -44,6 +52,8 @@ Implement a transactionally safe customer cart, order placement/tracking, and pr
 - [x] Implement authenticated customer and permission-gated operator API/UI workflows.
 - [x] Test failures, concurrency, ownership, idempotency, signed fixtures, and browser recovery states.
 - [x] Synchronize architecture, database, API, setup, recovery, and review documentation.
+- [x] Harden Test Mode configuration/preflight, provider conflict retry handling, and hosted-script
+      recovery; rerun the Phase 1–6 repository gate on 2026-09-02.
 - [ ] Resolve the deferred Razorpay configuration issue and execute the external provider smoke
       matrix.
 - [ ] Obtain explicit Phase 4 acceptance after that evidence is recorded.
@@ -65,6 +75,10 @@ branches, 94.67% functions, and 84.54% lines for the API, and 82.56% statements,
 80.25% functions, and 85.10% lines for the web client. Local provider fakes and raw signed fixtures
 cover success/failure/timeout/idempotency/reconciliation behavior. Real Razorpay Test Mode smoke is
 still pending the external inputs listed above.
+
+The 2026-09-02 regression passes 26 API files / 123 tests and 5 web files / 38 tests. Coverage
+passes at 83.90% statements, 73.04% branches, 93.54% functions, and 87.77% lines for the API, and
+83.55% statements, 73.36% branches, 82.36% functions, and 85.93% lines for the web client.
 
 ## Edge cases
 

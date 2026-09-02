@@ -16,6 +16,22 @@ function responseError(status, method) {
       statusCode: 503,
     });
   }
+  if (status === 408) {
+    return new RazorpayProviderError({
+      code: "PAYMENT_PROVIDER_TIMEOUT",
+      statusCode: 503,
+      retriable: true,
+      ambiguous: method !== "GET",
+    });
+  }
+  if (status === 409 && method !== "GET") {
+    return new RazorpayProviderError({
+      code: "PAYMENT_PROVIDER_REQUEST_IN_PROGRESS",
+      statusCode: 503,
+      retriable: true,
+      ambiguous: true,
+    });
+  }
   if (status === 429) {
     return new RazorpayProviderError({
       code: "PAYMENT_PROVIDER_RATE_LIMITED",

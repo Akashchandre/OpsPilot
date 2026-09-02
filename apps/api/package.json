@@ -12,6 +12,7 @@
     "start": "tsx src/server.js",
     "start:worker": "tsx src/worker.js",
     "auth:bootstrap-owner": "tsx src/scripts/bootstrapOwner.js",
+    "payments:razorpay:check": "tsx src/scripts/checkRazorpay.js",
     "phase5:performance:data": "tsx src/scripts/phase5PerformanceData.js",
     "phase5:performance:profile": "tsx src/scripts/phase5PerformanceProfile.js",
     "phase5:audit:verify": "tsx src/scripts/verifyAuditChain.js",

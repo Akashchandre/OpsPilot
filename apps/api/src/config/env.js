@@ -26,6 +26,13 @@ const optionalEnvironmentString = (schema) =>
     return value;
   }, schema.optional());
 
+const razorpayTestKeyIdSchema = z
+  .string()
+  .trim()
+  .min(10)
+  .max(128)
+  .regex(/^rzp_test_[A-Za-z0-9]+$/);
+
 const environmentSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -71,7 +78,7 @@ const environmentSchema = z
     REALTIME_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
     REALTIME_CONNECTION_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(20),
     RAZORPAY_ENABLED: environmentBoolean.default(false),
-    RAZORPAY_KEY_ID: optionalEnvironmentString(z.string().trim().min(8).max(128)),
+    RAZORPAY_KEY_ID: optionalEnvironmentString(razorpayTestKeyIdSchema),
     RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     RAZORPAY_WEBHOOK_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     CHECKOUT_RESERVATION_TTL_MINUTES: z.coerce.number().int().min(3).max(15).default(15),
