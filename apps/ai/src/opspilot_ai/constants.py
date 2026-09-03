@@ -1,0 +1,36 @@
+from enum import StrEnum
+
+SERVICE_NAME = "opspilot-ai"
+INTERNAL_CONTRACT_VERSION = 1
+SIGNATURE_VERSION = "v1"
+
+XAI_API_ORIGIN = "https://api.x.ai"
+XAI_RESPONSES_URL = f"{XAI_API_ORIGIN}/v1/responses"
+XAI_MODEL_URL = f"{XAI_API_ORIGIN}/v1/models/grok-4.6"
+XAI_MODEL = "grok-4.6"
+XAI_REASONING_EFFORT = "low"
+
+CUSTOMER_PROMPT_VERSION = "customer-help-v1"
+OWNER_PROMPT_VERSION = "owner-overview-v1"
+
+
+class AssistantKind(StrEnum):
+    CUSTOMER = "CUSTOMER"
+    OWNER = "OWNER"
+
+
+class AssistantIntent(StrEnum):
+    CUSTOMER_HELP = "CUSTOMER_HELP"
+    OWNER_OVERVIEW_EXPLAIN = "OWNER_OVERVIEW_EXPLAIN"
+
+
+class Outcome(StrEnum):
+    ANSWER = "ANSWER"
+    REFUSAL = "REFUSAL"
+    ESCALATE = "ESCALATE"
+
+
+class SafeNotice(StrEnum):
+    VERIFY_AUTHORITATIVE_DATA = "VERIFY_AUTHORITATIVE_DATA"
+    USE_STANDARD_SUPPORT = "USE_STANDARD_SUPPORT"
+    SNAPSHOT_MAY_BE_STALE = "SNAPSHOT_MAY_BE_STALE"

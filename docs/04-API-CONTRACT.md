@@ -275,9 +275,46 @@ multi-instance topology remain undecided and unimplemented.
 
 ### `/api/v1/ai`
 
-Planned authorized operations: create/list/retrieve permitted chat sessions and send a message to the appropriate customer or owner assistant. Streaming protocol, limits, retention, deletion, model provider, usage visibility, and owner/customer assistant separation are **Decision Required**.
+The ADR 0009 implementation is stateless. The repository contract is verified; real provider use
+and phase acceptance remain disabled pending the external gates.
 
-The browser calls Node.js only. Node.js authorizes scope before making an authenticated internal request to the Python AI service.
+| Method | Path | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/v1/ai/consents/:assistant` | Active session + registered assistant scope | Read only the caller's matching versioned xAI processing consent |
+| PUT | `/api/v1/ai/consents/:assistant` | Matching assistant-use permission + CSRF/exact origin | Accept the server-owned current notice for that caller/scope |
+| DELETE | `/api/v1/ai/consents/:assistant` | Active session + CSRF/exact origin | Revoke the caller's matching consent even after permission removal |
+| POST | `/api/v1/ai/customer/responses` | `ai:customer:use` + matching consent + CSRF + UUID at-most-once submission/quota | Send one bounded `CUSTOMER_HELP` question with public-feature context only |
+| POST | `/api/v1/ai/owner/overview-responses` | `ai:owner:use` + `reports:read` + matching consent + CSRF + UUID at-most-once submission/quota | Explain one existing authoritative aggregate overview for a validated UTC range |
+| GET | `/api/v1/ai/usage` | `ai:usage:read` | Return bounded non-user-attributed request/token/confirmed-cost/reserved-exposure/latency/safe-failure aggregates |
+
+The browser calls Node.js only. Node authorizes and minimizes context before an HMAC-authenticated
+internal FastAPI request. Questions are normalized plain text from 1 to 2,000 characters. A UUID
+`Idempotency-Key` is an at-most-once submission key: a consumed key cannot call xAI again or replay
+an answer because no answer is stored. Responses are non-streaming structured results rendered as
+plain text. The implementation stores assistant-scoped provider consent and metadata-only usage evidence,
+but no question, answer, reasoning, chat session, or chat message. No client may select model,
+prompt, system role, context, provider parameter, URL, file, or tool.
+
+Customer success returns `{ response: { answer, outcome, notices } }`. Owner success returns the
+same `response` alongside the exact authoritative `overview` sent for explanation. Consent returns
+only the server-owned notice and acceptance/revocation state. Usage returns UTC range and `asOf`,
+request counts by status/assistant, successful token totals, completed latency count/average/
+maximum, safe-error counts, and separate decimal-string confirmed cost/reserved exposure. It never
+projects individual users, questions, answers, prompts, provider request IDs, or raw events.
+
+AI-specific safe public errors include `AI_DISABLED`, `AI_CONSENT_REQUIRED`,
+`AI_SUBMISSION_KEY_CONSUMED`, `AI_REQUEST_IN_FLIGHT`, `AI_DAILY_QUOTA_REACHED`,
+`AI_CONCURRENCY_LIMIT_REACHED`, `AI_COST_CEILING_REACHED`, `AI_COST_POLICY_EXCEEDED`,
+`AI_AUTHORIZATION_CHANGED`,
+`AI_PROVIDER_BUSY`, `AI_PROVIDER_TIMEOUT`, `AI_PROVIDER_UNAVAILABLE`,
+`AI_RESULT_RECORDING_FAILED`, and `AI_CONTEXT_UNAVAILABLE`. Provider bodies/messages are never
+forwarded. Existing common validation/authentication/authorization/rate errors remain unchanged.
+
+Internal operations are `GET /internal/v1/health` and `POST /internal/v1/responses`; both require
+the versioned HMAC/key-ID/timestamp/UUID-nonce/request-ID/body-digest contract. They are not public
+`/api/v1` routes. FastAPI returns only typed health or answer/outcome/notices plus prompt/model,
+safe provider ID, integer usage/exact cost, duration, and required ZDR evidence. Exact limits and
+state rules are in `docs/phase-7/PHASE-07-IMPLEMENTATION-GUIDE.md`.
 
 ## Phase 8 — RAG and Document Intelligence
 

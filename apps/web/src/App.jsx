@@ -7,6 +7,7 @@ import { AdminSupportPage } from "./pages/AdminSupportPage.jsx";
 import { CartPage } from "./pages/CartPage.jsx";
 import { CatalogAdminPage } from "./pages/CatalogAdminPage.jsx";
 import { CheckoutPage } from "./pages/CheckoutPage.jsx";
+import { CustomerAssistantPage } from "./pages/CustomerAssistantPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { InventoryPage } from "./pages/InventoryPage.jsx";
@@ -16,6 +17,7 @@ import { NewSupportTicketPage } from "./pages/NewSupportTicketPage.jsx";
 import { NotFoundPage } from "./pages/NotFoundPage.jsx";
 import { OrderDetailPage } from "./pages/OrderDetailPage.jsx";
 import { OrdersPage } from "./pages/OrdersPage.jsx";
+import { OwnerAssistantPage } from "./pages/OwnerAssistantPage.jsx";
 import { ProductDetailPage } from "./pages/ProductDetailPage.jsx";
 import { ProductsPage } from "./pages/ProductsPage.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
@@ -99,6 +101,16 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="assistant"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="ai:customer:use">
+                <CustomerAssistantPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="admin/catalog"
           element={
             <ProtectedRoute>
@@ -164,6 +176,18 @@ export function AppRoutes() {
             <ProtectedRoute>
               <PermissionRoute permission="jobs:read">
                 <JobsPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/assistant"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="ai:owner:use">
+                <PermissionRoute permission="reports:read">
+                  <OwnerAssistantPage />
+                </PermissionRoute>
               </PermissionRoute>
             </ProtectedRoute>
           }

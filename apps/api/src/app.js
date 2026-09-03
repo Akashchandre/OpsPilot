@@ -13,15 +13,18 @@ import { requireTrustedOrigin } from "./middleware/trustedOrigin.js";
 import { createRazorpayWebhookController } from "./modules/payments/payments.controller.js";
 import { createRazorpayAdapter } from "./modules/payments/razorpay.adapter.js";
 import { createRazorpayWebhookService } from "./modules/payments/payments.webhook.js";
+import { createAiInternalClient } from "./modules/ai/ai.internalClient.js";
 import { createApiRouter } from "./routes/index.js";
 
 export function createApp({
   config,
   database,
   paymentProvider = createRazorpayAdapter(config),
+  aiClient,
   logger = createJsonLogger(config),
 }) {
   const app = express();
+  const selectedAiClient = aiClient ?? createAiInternalClient(config);
 
   app.disable("x-powered-by");
   app.set("trust proxy", config.proxy.trustProxyHops);
@@ -48,7 +51,7 @@ export function createApp({
   app.use("/api/v1", createApiRateLimiter(config));
   app.use(requireTrustedOrigin(config.corsOrigin));
 
-  app.use("/api/v1", createApiRouter(database, config, paymentProvider));
+  app.use("/api/v1", createApiRouter(database, config, paymentProvider, selectedAiClient));
 
   app.use(notFound);
   app.use(errorHandler);

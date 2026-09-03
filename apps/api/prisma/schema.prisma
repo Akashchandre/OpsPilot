@@ -204,6 +204,33 @@ enum NotificationType {
   INVENTORY_LOW
 }
 
+enum AiProvider {
+  XAI
+}
+
+enum AiAssistant {
+  CUSTOMER
+  OWNER
+}
+
+enum AiIntent {
+  CUSTOMER_HELP
+  OWNER_OVERVIEW_EXPLAIN
+}
+
+enum AiUsageStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  UNKNOWN
+}
+
+enum AiOutcome {
+  ANSWER
+  REFUSAL
+  ESCALATE
+}
+
 model User {
   id                   String                 @id @default(uuid()) @db.Char(36)
   email                String                 @unique @db.VarChar(254)
@@ -232,6 +259,8 @@ model User {
   auditEvents          AuditEvent[]           @relation("AuditEventActor")
   sourceJobs           BackgroundJob[]        @relation("BackgroundJobSourceActor")
   notifications        Notification[]         @relation("NotificationRecipient")
+  aiProviderConsents   AiProviderConsent[]    @relation("AiProviderConsentUser")
+  aiUsageEvents        AiUsageEvent[]         @relation("AiUsageEventUser")
 
   @@index([status])
   @@index([createdAt])
@@ -854,4 +883,54 @@ model Notification {
   @@index([supportTicketId])
   @@index([productId])
   @@map("notifications")
+}
+
+model AiProviderConsent {
+  id            String      @id @default(uuid()) @db.Char(36)
+  userId        String      @map("user_id") @db.Char(36)
+  provider      AiProvider
+  assistant     AiAssistant
+  noticeVersion String      @map("notice_version") @db.VarChar(64)
+  consentedAt   DateTime    @default(now()) @map("consented_at") @db.DateTime(3)
+  revokedAt     DateTime?   @map("revoked_at") @db.DateTime(3)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+  user          User        @relation("AiProviderConsentUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, provider, assistant, noticeVersion], map: "ai_consents_user_provider_assistant_notice")
+  @@index([userId, provider, assistant, revokedAt], map: "ai_consents_active_lookup_idx")
+  @@map("ai_provider_consents")
+}
+
+model AiUsageEvent {
+  id                String        @id @default(uuid()) @db.Char(36)
+  userId            String        @map("user_id") @db.Char(36)
+  submissionKey     String        @map("submission_key") @db.Char(36)
+  provider          AiProvider
+  assistant         AiAssistant
+  intent            AiIntent
+  status            AiUsageStatus @default(PENDING)
+  promptVersion     String        @map("prompt_version") @db.VarChar(64)
+  model             String        @db.VarChar(64)
+  providerRequestId String?       @map("provider_request_id") @db.VarChar(128)
+  safeErrorCode     String?       @map("safe_error_code") @db.VarChar(64)
+  outcome           AiOutcome?
+  reservedCostTicks BigInt        @map("reserved_cost_ticks") @db.UnsignedBigInt
+  exactCostTicks    BigInt?       @map("exact_cost_ticks") @db.UnsignedBigInt
+  inputTokens       Int?          @map("input_tokens") @db.UnsignedInt
+  outputTokens      Int?          @map("output_tokens") @db.UnsignedInt
+  totalTokens       Int?          @map("total_tokens") @db.UnsignedInt
+  durationMs        Int?          @map("duration_ms") @db.UnsignedInt
+  startedAt         DateTime      @default(now()) @map("started_at") @db.DateTime(3)
+  completedAt       DateTime?     @map("completed_at") @db.DateTime(3)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  user              User          @relation("AiUsageEventUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, submissionKey], map: "ai_usage_user_submission_key")
+  @@index([userId, assistant, createdAt], map: "ai_usage_user_assistant_created_idx")
+  @@index([status, createdAt], map: "ai_usage_status_created_idx")
+  @@index([assistant, createdAt], map: "ai_usage_assistant_created_idx")
+  @@index([provider, createdAt], map: "ai_usage_provider_created_idx")
+  @@map("ai_usage_events")
 }

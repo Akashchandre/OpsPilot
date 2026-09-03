@@ -6,7 +6,8 @@
 **Product type:** Full-stack business operations SaaS platform  
 **Current lifecycle state:** Phases 1–3 accepted; Phase 4 repository-complete with external Razorpay
 smoke deferred and acceptance pending; Phase 5 repository-complete and committed; Phase 6
-repository-complete and verified under ADR 0008; Phase 7 not authorized
+repository-complete and verified under ADR 0008; Phase 7 repository implementation complete and
+verified under ADR 0009, with live xAI/provider/privacy evaluation and acceptance still pending
 
 ## Purpose
 
@@ -54,6 +55,8 @@ ownership-scoped. Phase 5 adds support read/manage and report read for owners/ad
 audit read, and ownership-scoped customer support access.
 Phase 6 gives only `OWNER` the cross-domain `jobs:read`/`jobs:replay` operations while every active
 authenticated user receives only recipient-owned notification history and hints.
+Phase 7 gives `CUSTOMER` only `ai:customer:use`, gives `OWNER` only `ai:owner:use` and
+`ai:usage:read`, and gives `ADMIN` no AI permission. Owner inference also requires `reports:read`.
 
 ### Future employees and managers
 
@@ -89,7 +92,8 @@ The eventual platform is expected to include:
 7. A separate Python/FastAPI AI service.
 8. AI-powered support workflows with controlled tools and human oversight where required.
 
-AI is not part of Phase 1 and is not authorized for implementation during documentation.
+The bounded stateless AI foundation is implemented only in Phase 7. Document retrieval, personal or
+row-level context, tools, actions, LangChain, and LangGraph remain future work.
 
 ## Technology direction
 
@@ -100,7 +104,7 @@ AI is not part of Phase 1 and is not authorized for implementation during docume
 | UI system | Material UI or Tailwind CSS | **Decision Required** |
 | Main API | Node.js, Express, JavaScript | Agreed |
 | Relational data | MySQL with Prisma | Agreed |
-| AI service | Python, FastAPI, LangChain, LangGraph | Future, agreed direction |
+| AI service | Python/FastAPI boundary; xAI/Grok selected for the Phase 7 provider adapter; LangChain/LangGraph only when later justified | Phase 7 repository implementation verified under ADR 0009; live acceptance pending |
 | Retrieval | RAG plus a vector database | Vector technology **Decision Required** |
 | Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints implemented; Redis/shared adapters and object storage future | Conditional |
 | Delivery | Docker, GitHub Actions, AWS | Future; detailed choices **Decision Required** |
@@ -140,8 +144,16 @@ Phase 6's complete baseline was approved on 2026-08-28 in ADR 0008. It uses a My
 job/outbox, a separate JavaScript worker, persistent recipient-owned notifications, and Socket.IO
 only as an authenticated change-hint layer. The repository implementation and verification gate
 passed on 2026-08-29 with exact `socket.io@4.8.3`/`socket.io-client@4.8.3` pins. Redis, BullMQ,
-distributed scaling, and external channels remain out of scope. Phase 7 requires new explicit
-authorization and AI/provider/data-governance decisions.
+distributed scaling, and external channels remain out of scope. That transition did not
+pre-authorize Phase 7 or decide its AI/provider/data-governance boundary.
+
+On 2026-09-02 the user explicitly started Phase 7, selected xAI/Grok, and confirmed that an API key
+exists outside the repository. On 2026-09-03 the user instructed implementation to start; ADR 0009
+accepts the complete stateless assistant, signed internal service, permission, consent/ZDR,
+metadata-only usage/cost, dependency, and evaluation baseline. The repository implementation and
+deterministic gate completed on 2026-09-03. Real provider traffic and explicit phase acceptance
+remain disabled until ignored secret configuration, the redacted ZDR/model/price preflight, metered
+live evaluation, and manual account/privacy review pass.
 
 ## Overall system flow
 
@@ -162,13 +174,19 @@ authorization and AI/provider/data-governance decisions.
    cursor hint, but it never establishes business truth or authorization.
 10. The API returns a consistent success or error response to the client.
 
-### Future AI flow
+### Phase 7 AI flow
 
 1. The React client sends an authorized AI request to the Node.js API.
-2. Node.js establishes trusted user, tenant/business, role, and resource scope.
-3. Node.js invokes the Python/FastAPI AI service over an authenticated internal boundary.
-4. LangChain or LangGraph coordinates only approved retrieval or business tools.
-5. Results are filtered, audited as appropriate, and returned through Node.js.
+2. Node.js establishes the active user, exact permissions, assistant-scoped consent, quota/cost
+   reservation, and minimum approved context.
+3. Node.js invokes the loopback Python/FastAPI AI service over a signed, replay-resistant boundary.
+4. FastAPI selects a fixed prompt and calls the fixed Grok Responses endpoint with required ZDR,
+   structured output, and no tools or automatic retry.
+5. Node.js records metadata-only outcome/cost evidence, rechecks authorization/consent, and returns
+   plain text. Questions, answers, reasoning, and chat history are not stored.
+
+LangChain/LangGraph, RAG/documents, broader business tools, personal/row-level context, and actions
+remain later-phase direction only.
 
 The initial release is single-business per ADR 0003. Multi-tenancy and tenant isolation require a later explicit architectural decision and schema migration.
 

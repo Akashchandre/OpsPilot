@@ -104,7 +104,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(registration.body.data.user).toMatchObject({
       email: "customer@example.com",
       roles: ["CUSTOMER"],
-      permissions: [],
+      permissions: ["ai:customer:use"],
     });
     expect(
       registration.headers["set-cookie"].find((value) =>
@@ -216,7 +216,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(roles.status).toBe(200);
     expect(roles.body.data.roles.map((role) => role.code)).toEqual(["ADMIN", "CUSTOMER", "OWNER"]);
     expect(permissions.status).toBe(200);
-    expect(permissions.body.data.permissions).toHaveLength(20);
+    expect(permissions.body.data.permissions).toHaveLength(23);
     expect(permissions.body.data.permissions.map((permission) => permission.code)).toEqual(
       expect.arrayContaining([
         "inventory:adjust",
@@ -226,6 +226,9 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
         "audit:read",
         "jobs:read",
         "jobs:replay",
+        "ai:customer:use",
+        "ai:owner:use",
+        "ai:usage:read",
       ]),
     );
 
@@ -332,7 +335,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       password,
     });
     expect(owner.roles).toEqual(["OWNER"]);
-    expect(owner.permissions).toHaveLength(20);
+    expect(owner.permissions).toHaveLength(22);
     expect(owner.permissions).toEqual(
       expect.arrayContaining([
         "support:tickets:read",
@@ -341,6 +344,8 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
         "audit:read",
         "jobs:read",
         "jobs:replay",
+        "ai:owner:use",
+        "ai:usage:read",
       ]),
     );
 

@@ -25,6 +25,9 @@ export const PERMISSIONS = Object.freeze({
   AUDIT_READ: "audit:read",
   JOBS_READ: "jobs:read",
   JOBS_REPLAY: "jobs:replay",
+  AI_CUSTOMER_USE: "ai:customer:use",
+  AI_OWNER_USE: "ai:owner:use",
+  AI_USAGE_READ: "ai:usage:read",
 });
 
 export const USER_STATUSES = Object.freeze({

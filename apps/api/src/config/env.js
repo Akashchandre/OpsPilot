@@ -3,7 +3,7 @@ import { z } from "zod";
 const routineTestAuditKey = Buffer.alloc(32, 0x5a).toString("base64");
 const routineTestAuditKeyId = "routine-test-v1";
 
-function isValidAuditKey(value) {
+function isValidBase64Key(value) {
   if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
     return false;
   }
@@ -32,6 +32,30 @@ const razorpayTestKeyIdSchema = z
   .min(10)
   .max(128)
   .regex(/^rzp_test_[A-Za-z0-9]+$/);
+
+const internalSigningKeyIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/);
+
+const aiServiceUrlSchema = z
+  .url()
+  .refine((value) => {
+    const url = new URL(value);
+    const loopbackHosts = new Set(["127.0.0.1", "[::1]"]);
+    return (
+      url.protocol === "http:" &&
+      loopbackHosts.has(url.hostname) &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  })
+  .transform((value) => new URL(value).origin);
 
 const environmentSchema = z
   .object({
@@ -77,13 +101,26 @@ const environmentSchema = z
     REALTIME_SESSION_RECHECK_SECONDS: z.coerce.number().int().min(5).max(300).default(30),
     REALTIME_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
     REALTIME_CONNECTION_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(20),
+    AI_ENABLED: environmentBoolean.default(false),
+    AI_SERVICE_URL: aiServiceUrlSchema.default("http://127.0.0.1:8000"),
+    AI_SERVICE_SIGNING_KEY: optionalEnvironmentString(
+      z.string().trim().max(512).refine(isValidBase64Key),
+    ),
+    AI_SERVICE_SIGNING_KEY_ID: optionalEnvironmentString(internalSigningKeyIdSchema),
+    AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(22000).default(22000),
+    AI_CUSTOMER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(5),
+    AI_OWNER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
+    AI_CUSTOMER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(20),
+    AI_OWNER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(50),
+    AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS: z.coerce.number().int().min(1).max(100000).default(200),
+    AI_MAX_REQUEST_COST_USD_CENTS: z.coerce.number().int().min(1).max(10000).default(2),
     RAZORPAY_ENABLED: environmentBoolean.default(false),
     RAZORPAY_KEY_ID: optionalEnvironmentString(razorpayTestKeyIdSchema),
     RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     RAZORPAY_WEBHOOK_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
     CHECKOUT_RESERVATION_TTL_MINUTES: z.coerce.number().int().min(3).max(15).default(15),
     AUDIT_INTEGRITY_KEY: optionalEnvironmentString(
-      z.string().trim().max(512).refine(isValidAuditKey),
+      z.string().trim().max(512).refine(isValidBase64Key),
     ),
     AUDIT_INTEGRITY_KEY_ID: optionalEnvironmentString(
       z
@@ -128,6 +165,36 @@ const environmentSchema = z
         code: "custom",
         path: ["JOB_RETRY_MAX_MS"],
         message: "JOB_RETRY_MAX_MS must be at least JOB_RETRY_BASE_MS",
+      });
+    }
+
+    if (environment.NODE_ENV === "production" && environment.AI_ENABLED) {
+      context.addIssue({
+        code: "custom",
+        path: ["AI_ENABLED"],
+        message: "Phase 7 AI requires a later approved production network topology",
+      });
+    }
+
+    if (environment.AI_ENABLED) {
+      for (const field of ["AI_SERVICE_SIGNING_KEY", "AI_SERVICE_SIGNING_KEY_ID"]) {
+        if (!environment[field]) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `${field} is required when AI is enabled`,
+          });
+        }
+      }
+    }
+
+    if (
+      environment.AI_MAX_REQUEST_COST_USD_CENTS > environment.AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["AI_MAX_REQUEST_COST_USD_CENTS"],
+        message: "The per-request AI cost hold cannot exceed the daily AI cost ceiling",
       });
     }
 
@@ -212,6 +279,26 @@ export function loadEnvironment(source = process.env) {
       sessionRecheckSeconds: result.data.REALTIME_SESSION_RECHECK_SECONDS,
       maxConnectionsPerUser: result.data.REALTIME_MAX_CONNECTIONS_PER_USER,
       connectionRateLimitMax: result.data.REALTIME_CONNECTION_RATE_LIMIT_MAX,
+    }),
+    ai: Object.freeze({
+      enabled: result.data.AI_ENABLED,
+      serviceUrl: result.data.AI_SERVICE_URL,
+      signingKey: result.data.AI_SERVICE_SIGNING_KEY,
+      signingKeyId: result.data.AI_SERVICE_SIGNING_KEY_ID,
+      timeoutMs: result.data.AI_SERVICE_TIMEOUT_MS,
+      maximumConcurrency: 4,
+      customer: Object.freeze({
+        burstWindowMinutes: 15,
+        burstMaximum: result.data.AI_CUSTOMER_RATE_LIMIT_MAX,
+        dailyMaximum: result.data.AI_CUSTOMER_DAILY_REQUEST_LIMIT,
+      }),
+      owner: Object.freeze({
+        burstWindowMinutes: 15,
+        burstMaximum: result.data.AI_OWNER_RATE_LIMIT_MAX,
+        dailyMaximum: result.data.AI_OWNER_DAILY_REQUEST_LIMIT,
+      }),
+      globalDailyCostLimitUsdCents: result.data.AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS,
+      maximumRequestCostUsdCents: result.data.AI_MAX_REQUEST_COST_USD_CENTS,
     }),
     payments: Object.freeze({
       reservationTtlMinutes: result.data.CHECKOUT_RESERVATION_TTL_MINUTES,

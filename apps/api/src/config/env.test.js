@@ -49,6 +49,26 @@ describe("loadEnvironment", () => {
         maxConnectionsPerUser: 5,
         connectionRateLimitMax: 20,
       },
+      ai: {
+        enabled: false,
+        serviceUrl: "http://127.0.0.1:8000",
+        signingKey: undefined,
+        signingKeyId: undefined,
+        timeoutMs: 22000,
+        maximumConcurrency: 4,
+        customer: {
+          burstWindowMinutes: 15,
+          burstMaximum: 5,
+          dailyMaximum: 20,
+        },
+        owner: {
+          burstWindowMinutes: 15,
+          burstMaximum: 10,
+          dailyMaximum: 50,
+        },
+        globalDailyCostLimitUsdCents: 200,
+        maximumRequestCostUsdCents: 2,
+      },
       payments: {
         reservationTtlMinutes: 15,
         razorpay: {
@@ -143,6 +163,43 @@ describe("loadEnvironment", () => {
         RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
       }).payments.razorpay.enabled,
     ).toBe(true);
+  });
+
+  it("requires a safe loopback URL and signing secret when AI is enabled", () => {
+    expect(() =>
+      loadEnvironment({ ...validEnvironment, AI_SERVICE_URL: "https://api.x.ai" }),
+    ).toThrow(ConfigurationError);
+    expect(() => loadEnvironment({ ...validEnvironment, AI_ENABLED: "true" })).toThrow(
+      ConfigurationError,
+    );
+
+    const configured = loadEnvironment({
+      ...validEnvironment,
+      AI_ENABLED: "true",
+      AI_SERVICE_SIGNING_KEY: Buffer.alloc(32, 0x61).toString("base64"),
+      AI_SERVICE_SIGNING_KEY_ID: "phase7-test-v1",
+    });
+    expect(configured.ai.enabled).toBe(true);
+    expect(configured.ai.serviceUrl).toBe("http://127.0.0.1:8000");
+  });
+
+  it("keeps Phase 7 AI disabled for production and validates cost holds", () => {
+    const aiEnvironment = {
+      ...validEnvironment,
+      AI_ENABLED: "true",
+      AI_SERVICE_SIGNING_KEY: Buffer.alloc(32, 0x61).toString("base64"),
+      AI_SERVICE_SIGNING_KEY_ID: "phase7-test-v1",
+    };
+    expect(() =>
+      loadEnvironment({ ...aiEnvironment, NODE_ENV: "production", AUTH_COOKIE_SECURE: "true" }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadEnvironment({
+        ...aiEnvironment,
+        AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS: "1",
+        AI_MAX_REQUEST_COST_USD_CENTS: "2",
+      }),
+    ).toThrow(ConfigurationError);
   });
 
   it("rejects Live Mode and malformed Razorpay key IDs", () => {

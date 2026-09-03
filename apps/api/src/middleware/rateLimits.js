@@ -69,6 +69,24 @@ export function createReportRateLimiter(config) {
   });
 }
 
+export function createAiCustomerRateLimiter(config) {
+  return createLimiter({
+    windowMinutes: config.ai?.customer?.burstWindowMinutes ?? 15,
+    maximum: config.ai?.customer?.burstMaximum ?? 5,
+    authenticated: true,
+    identifier: "ai-customer",
+  });
+}
+
+export function createAiOwnerRateLimiter(config) {
+  return createLimiter({
+    windowMinutes: config.ai?.owner?.burstWindowMinutes ?? 15,
+    maximum: config.ai?.owner?.burstMaximum ?? 10,
+    authenticated: true,
+    identifier: "ai-owner",
+  });
+}
+
 export function createWebhookRateLimiter(config) {
   return createLimiter({
     ...config.rateLimit.webhook,

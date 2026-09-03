@@ -36,6 +36,9 @@ export function AppLayout() {
               <NavLink to="/orders">Orders</NavLink>
               <NavLink to="/support">Support</NavLink>
               <NavLink to="/dashboard">Dashboard</NavLink>
+              {auth.hasPermission("ai:customer:use") ? (
+                <NavLink to="/assistant">Assistant</NavLink>
+              ) : null}
             </>
           ) : null}
           {auth.hasPermission("products:manage") ? (
@@ -55,6 +58,9 @@ export function AppLayout() {
             <NavLink to="/admin/reports">Reports</NavLink>
           ) : null}
           {auth.hasPermission("jobs:read") ? <NavLink to="/admin/jobs">Jobs</NavLink> : null}
+          {auth.hasPermission("ai:owner:use") && auth.hasPermission("reports:read") ? (
+            <NavLink to="/admin/assistant">AI overview</NavLink>
+          ) : null}
         </nav>
         <div className="session-actions">
           {auth.user ? (

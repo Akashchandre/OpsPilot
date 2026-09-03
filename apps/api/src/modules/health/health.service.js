@@ -1,6 +1,6 @@
 import { AppError } from "../../errors/AppError.js";
 
-export function createHealthService(database) {
+export function createHealthService(database, config = {}, aiClient = null) {
   return {
     async check() {
       try {
@@ -13,10 +13,21 @@ export function createHealthService(database) {
         });
       }
 
+      let ai = "disabled";
+      if (config.ai?.enabled) {
+        try {
+          const health = await aiClient.health();
+          ai = health.status === "ready" && health.provider === "ready" ? "ready" : "unavailable";
+        } catch {
+          ai = "unavailable";
+        }
+      }
+
       return {
         status: "ok",
         service: "opspilot-api",
         database: "reachable",
+        ai,
         timestamp: new Date().toISOString(),
       };
     },

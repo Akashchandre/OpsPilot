@@ -217,6 +217,50 @@ const backgroundJobReplayMetadataSchema = z.strictObject({
     .regex(/^[A-Z][A-Z0-9_]{0,63}$/)
     .nullable(),
 });
+const aiProviderSchema = z.literal("XAI");
+const aiAssistantSchema = z.enum(["CUSTOMER", "OWNER"]);
+const aiIntentSchema = z.enum(["CUSTOMER_HELP", "OWNER_OVERVIEW_EXPLAIN"]);
+const aiPromptVersionSchema = z.enum(["customer-help-v1", "owner-overview-v1"]);
+const aiModelSchema = z.literal("grok-4.6");
+const aiConsentMetadataSchema = z.strictObject({
+  provider: aiProviderSchema,
+  assistant: aiAssistantSchema,
+  noticeVersion: z.literal("xai-zdr-v1"),
+});
+const aiRequestIdentityShape = {
+  provider: aiProviderSchema,
+  assistant: aiAssistantSchema,
+  intent: aiIntentSchema,
+  promptVersion: aiPromptVersionSchema,
+  model: aiModelSchema,
+};
+const aiRequestStartedMetadataSchema = z.strictObject({
+  ...aiRequestIdentityShape,
+  status: z.literal("PENDING"),
+  reservedCostTicks: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+});
+const aiRequestCompletedMetadataSchema = z.strictObject({
+  ...aiRequestIdentityShape,
+  status: z.literal("SUCCEEDED"),
+  outcome: z.enum(["ANSWER", "REFUSAL", "ESCALATE"]),
+  inputTokens: z.number().int().min(0).max(100000),
+  outputTokens: z.number().int().min(0).max(500),
+  totalTokens: z.number().int().min(0).max(100500),
+  costInUsdTicks: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  durationMs: z.number().int().min(0).max(60000),
+  zeroDataRetention: z.literal(true),
+});
+const aiRequestFailedMetadataSchema = z.strictObject({
+  ...aiRequestIdentityShape,
+  status: z.enum(["FAILED", "UNKNOWN"]),
+  safeErrorCode: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
+  durationMs: z.number().int().min(0).max(60000),
+});
+const aiUsageReadMetadataSchema = z.strictObject({
+  from: z.iso.datetime({ offset: false }),
+  to: z.iso.datetime({ offset: false }),
+  requestCount: z.number().int().min(0),
+});
 
 export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
   [AUDIT_ACTIONS.AUDIT_EVENTS_READ]: Object.freeze({
@@ -354,6 +398,36 @@ export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
     targetIdRequired: true,
     metadataSchema: backgroundJobReplayMetadataSchema,
   }),
+  [AUDIT_ACTIONS.AI_CONSENT_ACCEPTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_CONSENT,
+    targetIdRequired: true,
+    metadataSchema: aiConsentMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_CONSENT_REVOKED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_CONSENT,
+    targetIdRequired: true,
+    metadataSchema: aiConsentMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_REQUEST_STARTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_USAGE_EVENT,
+    targetIdRequired: true,
+    metadataSchema: aiRequestStartedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_REQUEST_COMPLETED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_USAGE_EVENT,
+    targetIdRequired: true,
+    metadataSchema: aiRequestCompletedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_REQUEST_FAILED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_USAGE_EVENT,
+    targetIdRequired: true,
+    metadataSchema: aiRequestFailedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_USAGE_READ]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_USAGE_STREAM,
+    targetIdRequired: false,
+    metadataSchema: aiUsageReadMetadataSchema,
+  }),
 });
 
 const auditDescriptorSchema = z
@@ -389,6 +463,7 @@ const auditDescriptorSchema = z
     }
   });
 
+const allowedUsageCounterKeys = new Set(["inputTokens", "outputTokens", "totalTokens"]);
 const forbiddenMetadataKey =
   /(password|passwd|secret|token|cookie|authorization|csrf|signature|headers?|raw.*body|request.*body|response.*body|card|cvv|cvc|paymentinstrument|address|email|phone|contact|ticket.*(?:body|content)|message.*(?:body|content))/i;
 
@@ -415,7 +490,9 @@ function assertSafeMetadataValue(value, depth = 0) {
     const entries = Object.entries(value);
     if (entries.length > 50) throw new AuditMetadataError();
     for (const [key, entry] of entries) {
-      if (forbiddenMetadataKey.test(key)) throw new AuditMetadataError();
+      if (!allowedUsageCounterKeys.has(key) && forbiddenMetadataKey.test(key)) {
+        throw new AuditMetadataError();
+      }
       assertSafeMetadataValue(entry, depth + 1);
     }
     return;

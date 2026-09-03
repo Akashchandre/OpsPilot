@@ -1,14 +1,14 @@
 # Work Progress
 
-**Last updated:** 2026-09-02
+**Last updated:** 2026-09-03
 
 ## Current Phase
 
-Phase 6 — Real-time and Background Jobs (repository complete)
+Phase 7 — AI Foundation (repository implementation verified; external acceptance gate pending)
 
 ## Status
 
-REPOSITORY COMPLETE — VERIFIED; PHASE 4 EXTERNAL PROVIDER GATE OPEN
+REPOSITORY PASS — LIVE XAI/POLICY EVALUATION AND EXPLICIT PHASE ACCEPTANCE PENDING
 
 ## Completed
 
@@ -165,6 +165,44 @@ REPOSITORY COMPLETE — VERIFIED; PHASE 4 EXTERNAL PROVIDER GATE OPEN
 - The expired ephemeral zrok webhook was replaced for local testing by a temporary Cloudflare Quick
   Tunnel without adding a repository dependency. Public health returned `200`, and an invalid-signature
   webhook probe reached the raw-body route and was correctly rejected with `401` without data changes.
+- The 2026-09-02 Razorpay Test Mode hardening, focused tests, redacted provider preflight, and
+  synchronized Phase 4/6 evidence were reviewed for pending secrets, passed 15 API tests, 5 web
+  tests, lint, and whitespace checks, and were committed as `cbaf163`.
+- The user explicitly authorized Phase 7 decision-definition on 2026-09-02, selected xAI/Grok as
+  the provider, and confirmed that an API key exists outside the repository. No key value was read,
+  requested, logged, or added to a tracked file.
+- The Phase 7 specification, existing session/RBAC/report/audit/log/rate/UI boundaries, installed
+  Python 3.13.7 runtime, and current official xAI Responses API, Grok 4.6, ZDR, cost, rate, and key-
+  scope behavior were reviewed.
+- A complete proposed stateless Grok/FastAPI, signed internal service, two-intent, three-permission,
+  explicit-consent/ZDR, metadata-only usage/cost, dependency, threat, evaluation, and test baseline
+  is documented for explicit approval. No AI dependency, service, provider call, schema,
+  permission, route, or UI was added.
+- The user's 2026-09-03 instruction to start implementation accepts the complete Phase 7 baseline
+  and authorizes installation of only its documented Python packages. ADR 0009 records the exact
+  boundary and reviewed direct dependency pins; no real xAI call or secret access is authorized.
+- The isolated Python 3.13/FastAPI service now implements strict redacted configuration, loopback-
+  only binding, signed/replay-resistant internal health and response routes, immutable two-intent
+  prompts, structured plain-text output, bounded concurrency, safe logging, and the raw REST
+  `grok-4.6` adapter with required ZDR, exact cost, timeout, and no-retry enforcement.
+- Migration `20260903060000_phase_7_ai_foundation` adds the three accepted permissions,
+  assistant-scoped versioned consent, and metadata-only usage/cost state. It is applied without
+  drift to both development and test databases; no chat/content table was added.
+- The Node API implements consent, customer help, owner aggregate-overview explanation, aggregate
+  usage, HMAC client, strict validation, CSRF/RBAC, burst/daily/concurrency/cost gates, at-most-once
+  submission, safe failed/unknown outcomes, audit evidence, and post-call authorization/consent and
+  cost-overrun suppression.
+- React implements permission-gated `/assistant` and `/admin/assistant` pages with explicit scoped
+  consent/revocation, new UUID per explicit request, plain-text response rendering, refusal/
+  escalation/error states, authoritative owner overview separation, and metadata-only usage.
+- The fixed 20-case synthetic live evaluation, redacted non-inference provider preflight, and
+  explicit real HTTP Node-to-FastAPI deterministic smoke are implemented. The repository gate passes
+  145 API tests, 43 web tests, 74 routine Python tests with one opt-in skip, all three coverage
+  thresholds, lint/format/schema/build/migration-diff/audit/dependency checks, and the explicit
+  cross-service smoke.
+- Phase 7 architecture, database, API, permission, threat, implementation, operations, evaluation,
+  review, ADR, and progress documents are synchronized. No real xAI request was made and
+  `apps/ai/.env` is absent.
 
 ## In Progress
 
@@ -172,18 +210,23 @@ REPOSITORY COMPLETE — VERIFIED; PHASE 4 EXTERNAL PROVIDER GATE OPEN
   completed hosted Test Mode payment plus copying the current temporary HTTPS webhook endpoint into
   the Test Mode dashboard, matching its separate secret, confirming automatic capture, and
   subscribing only to the seven allowlisted events. Live Mode remains prohibited.
-- No Phase 7 implementation is authorized.
+- Real user prompts remain fail-closed until the ignored xAI environment is configured, manual
+  key/model ACL, credits/rate tier, training opt-out, privacy/legal and ZDR posture are reviewed, the
+  redacted non-inference preflight passes, all 20 metered synthetic evaluation cases meet their
+  thresholds, and the user explicitly accepts Phase 7.
 
 ## Next Task
 
-Complete the resumed hosted Test Mode payment, update the Test Mode dashboard to the current
-temporary webhook endpoint and allowlisted events, confirm automatic capture, and execute the
-remaining Phase 4 external smoke matrix. Phase 7 still requires separate explicit authorization
-and an accepted decision boundary.
+Configure the xAI key only in ignored `apps/ai/.env` without sharing its value; confirm the provider
+account/privacy settings, run the redacted non-inference ZDR/model/price preflight, then explicitly
+authorize and run the metered 20-case synthetic evaluation. Record only redacted aggregate evidence
+and request Phase 7 acceptance if every threshold passes. Keep `AI_ENABLED=false` and keep the
+independent Phase 4 external Razorpay smoke gate visible meanwhile.
 
 ## Accepted Decisions
 
-- JavaScript for the React frontend and Node.js/Express backend; Python remains reserved for the later AI service.
+- JavaScript for the React frontend and Node.js/Express backend; Python 3.13 is isolated to the
+  Phase 7 AI service.
 - npm workspaces, ECMAScript modules, Node.js 24.19.x, React/Vite, Express, Prisma/MySQL, Vitest, ESLint, and Prettier.
 - Single-business initial release.
 - Public customer registration and interactive owner bootstrap.
@@ -210,6 +253,10 @@ and an accepted decision boundary.
 - ADR 0008 accepts a MySQL transactional job/outbox, separate JavaScript worker, persistent
   recipient-owned in-app notifications, Socket.IO as a non-durable hint layer, owner-only job
   inspection/replay, and no Redis/BullMQ/external broker or multi-instance topology.
+- ADR 0009 accepts the Phase 7 xAI/Grok `grok-4.6`, required-ZDR, stateless two-intent,
+  signed-Node/FastAPI, assistant-scoped-consent, metadata-only usage/cost, three-permission,
+  quota/evaluation, and exact Python dependency baseline. The API key remains external/secret and
+  real provider traffic requires a later redacted preflight.
 
 ## Phase 3 Acceptance Evidence
 
@@ -291,6 +338,16 @@ and an accepted decision boundary.
 - Job, attempt, heartbeat, and notification retention is temporarily indefinite in development and
   test. Production worker/API supervision, remote database TLS/credential handling, capacity/SLOs,
   deploy rollback, and Phase 6 retention/purge policy remain unresolved production blockers.
+- The xAI key's actual model/endpoint ACL, credits/rate tier, ZDR team setting, training/data-
+  improvement setting, provider connectivity/current price, and real model behavior have not been
+  inspected. `apps/ai/.env` is absent and no real call was made. Real user prompts remain fail-
+  closed until the manual account/privacy review, redacted preflight, metered evaluation, and
+  explicit acceptance pass.
+- Phase 7's HMAC nonce cache, concurrency, and burst controls are per process. Production also lacks
+  approved private TLS/mTLS/networking, supervision, monitoring/alerts, SLO/capacity, model rollback,
+  unknown-cost reconciliation, and consent/usage/audit retention/erasure/legal-hold policy.
+- The Python tests currently emit two upstream Starlette TestClient deprecation warnings for its
+  HTTPX and AnyIO compatibility aliases. Tests pass; recheck on a future approved dependency update.
 
 ## Phase 6 Acceptance Evidence
 
@@ -323,11 +380,47 @@ and an accepted decision boundary.
   Current Phase 6 p95 values are 15.781 ms list, 34.647 ms unread count, 22.369 ms committed-job
   visibility, 24.423 ms materialization, and 32.766 ms Socket.IO hint; all targets pass.
 
+## Phase 7 Repository Review Evidence
+
+- Phase specification: `docs/phases/PHASE-07-AI-FOUNDATION.md`.
+- Accepted baseline: `docs/decisions/0009-phase-7-ai-foundation-baseline.md` and
+  `docs/phase-7/PHASE-07-DECISION-PROPOSAL.md`.
+- Implemented authorization mapping: `docs/permissions/PHASE-07-PERMISSION-MATRIX.md`.
+- Verified security requirements: `docs/security/PHASE-07-THREAT-MODEL.md`.
+- Implementation guide: `docs/phase-7/PHASE-07-IMPLEMENTATION-GUIDE.md`.
+- Operations/recovery: `docs/phase-7/PHASE-07-OPERATIONS-RUNBOOK.md`.
+- Deterministic and pending live evidence: `docs/phase-7/PHASE-07-EVALUATION-EVIDENCE.md`.
+- Repository review report: `docs/phase-7/PHASE-07-REVIEW-REPORT.md`.
+- Implemented provider policy: xAI Responses API with `grok-4.6`, low reasoning, structured output,
+  `store: false`, required ZDR, no tools, and no automatic inference retry.
+- Implemented capabilities: stateless public-feature customer help and owner-only explanation of the
+  existing authorized aggregate overview; no personal/row-level context or action path.
+- Implemented persistence: versioned consent and metadata-only usage/cost evidence; no prompt, answer,
+  reasoning, chat session, or chat message storage.
+- Exact dependencies: FastAPI, Uvicorn, HTTPX, Pydantic, Pydantic Settings, python-dotenv, pytest,
+  pytest-cov, and Ruff in an isolated Python 3.13 environment and committed lock; no new npm
+  dependency and no xAI/OpenAI SDK, LangChain, LangGraph, Redis, or vector dependency.
+- Migration `20260903060000_phase_7_ai_foundation` is current and drift-free in development/test.
+- Full regression: 30 API files / 145 tests, 6 web files / 43 tests, and 74 routine Python tests
+  pass; the Python routine suite has one intentional opt-in cross-service skip.
+- Coverage: API 84.58/73.76/93.31/88.15, web 83.60/73.61/82.73/86.10, and Python 86.18% total
+  (statements/branches/functions/lines where applicable); all configured thresholds pass.
+- Production web build: 104 modules; 395.58 kB JavaScript (112.30 kB gzip); 28.23 kB CSS
+  (6.26 kB gzip).
+- Explicit signed Node-to-FastAPI loopback smoke passes against a deterministic provider in 0.57 s.
+  Both audit chains verify; lint, formatting, schema, database diff, dependency, whitespace, and
+  credential gates pass.
+- No provider/account write or external call was made. The ignored AI environment is absent; live
+  ZDR/model/price and quality/latency/cost evidence remains pending.
+
 ## Phase Gate
 
 Phases 1, 2, and 3 are accepted. Phase 4 repository implementation and internal review gates pass,
 but the phase remains unaccepted while real Test Mode delivery/recovery is deferred under ADR 0006.
 Phase 5 is repository-complete and verified under ADR 0007 and its acceptance report. Phase 6 is
-repository-complete and verified under ADR 0008 and its acceptance report. Phase 7 is not
-authorized. Redis, BullMQ, external channels, live payments, multi-instance deployment, and AI
-remain out of scope.
+repository-complete and verified under ADR 0008 and its acceptance report. Phase 7 repository
+implementation is complete and deterministically verified under ADR 0009, but the phase is not
+accepted and real user provider traffic remains disabled pending the provider/account/privacy
+review, redacted preflight, metered live evaluation, and explicit acceptance. Redis, BullMQ,
+external channels, live payments,
+multi-instance deployment, and every unapproved later AI capability remain out of scope.

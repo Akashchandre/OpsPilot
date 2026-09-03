@@ -2,10 +2,10 @@
 
 ## Status and design principles
 
-This document records the accepted Phase 2 identity schema, implemented Phase 3 business-core
-schema, implemented Phase 4 commerce schema, implemented Phase 5 support/report/audit persistence,
-and conceptual planning for later phases. Later feature behavior, tenancy, deletion
-rules, and production retention remain decisions for their owning phases.
+This document records the accepted Phase 2 identity schema and implemented Phase 3–7 business,
+commerce, support/audit, asynchronous, and AI-foundation persistence, plus conceptual planning for
+later phases. Later feature behavior, tenancy, deletion rules, and production retention remain
+decisions for their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
 - Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
@@ -22,7 +22,7 @@ rules, and production retention remain decisions for their owning phases.
 |---|---|---|
 | `users` | Login identity and account state | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
 | `roles` | Migration-controlled system roles | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER` |
-| `permissions` | Stable operation permission definitions | Unique stable code; five Phase 2, four Phase 3, and five Phase 4 permissions |
+| `permissions` | Stable operation permission definitions | Unique stable code; additive migration-controlled permissions through Phase 7 |
 | `user_roles` | User-role assignment and assigning actor | Composite primary key, foreign keys, deliberate actor `SET NULL` |
 | `role_permissions` | System role-permission mapping | Composite primary key and constrained foreign keys |
 | `auth_sessions` | Revocable opaque browser sessions | Unique token digest, CSRF digest, expiry/revocation, user-agent digest |
@@ -126,11 +126,29 @@ There is no purge or direct mutation API. At-least-once safety comes from descri
 unique source/dedupe keys, lease-token compare-and-set, immutable attempts, and recipient/type/
 source-event notification uniqueness.
 
+## Implemented Phase 7 persistence
+
+Migration `20260903060000_phase_7_ai_foundation` seeds `ai:customer:use` only for `CUSTOMER`, seeds
+`ai:owner:use` and `ai:usage:read` only for `OWNER`, gives `ADMIN` no AI permission, and creates:
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `ai_provider_consents` | Assistant-scoped provider-processing acceptance/revocation | Unique user/provider/assistant/notice version; valid notice/timestamps; restrictive user deletion; no content/policy blob |
+| `ai_usage_events` | At-most-once reservation and metadata-only outcome/cost evidence | Unique user/submission UUID; registered assistant/intent/model/prompt/status; exact state/timestamp/token arithmetic; integer reserved/exact cost; safe identifiers; restrictive user deletion; no conversation/context content |
+
+Node locks the user while checking current authorization/consent, daily quota, active request, and
+the unique submission key. The existing serialized audit-chain append also serializes the global
+confirmed-cost plus pending/unknown-hold check. `PENDING` may become `SUCCEEDED`, `FAILED`, or
+`UNKNOWN`; ambiguous work retains its pessimistic cost hold and is never automatically replayed.
+
+Development and test have all 10 migrations applied with no schema difference. Conversation
+tables were deliberately not created.
+
 ## Expected entities
 
 | Entity | Purpose | Key relationships | Planned phase |
 |---|---|---|---:|
-| `users` | Customer, owner, admin, and future employee identities | Roles, orders, tickets, chats, audit events | 2 |
+| `users` | Customer, owner, admin, and future employee identities | Roles, orders, tickets, AI consent/usage, audit events | 2 |
 | `roles` | Named authorization roles | Many permissions and users | 2 |
 | `permissions` | Granular allowed operations | Many roles | 2 |
 | `user_roles` | User-to-role assignment | User + role | 2 |
@@ -160,13 +178,15 @@ source-event notification uniqueness.
 | `background_jobs` | Durable registered asynchronous work | Optional source actor, lease worker, replay parent, attempts | 6 |
 | `background_job_attempts` | Immutable safe execution evidence | Job and worker heartbeat | 6 |
 | `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
+| `ai_provider_consents` | Assistant-scoped, versioned provider-processing consent/revocation without conversation content | User | 7 |
+| `ai_usage_events` | Metadata-only AI request/submission/token/confirmed-cost/reserved-exposure/outcome evidence | User; audit request context | 7 |
 | `documents` | Company document metadata and processing state | Uploader; chunks/index records later | 8 |
-| `chat_sessions` | Customer/owner AI conversation scope | User; messages | 7 |
-| `chat_messages` | Individual conversation messages | Session | 7 |
 
 Employee records, reusable addresses, product images/variants, ticket comments, document chunks,
 password reset/verification tokens, notification deliveries, and AI tool executions may need
-separate entities. Their need and shape are a **Decision Required** in their owning phases.
+separate entities. Persistent `chat_sessions`/`chat_messages` are deliberately absent from the
+implemented stateless Phase 7 baseline and require a later retention/privacy decision. Their need and
+shape are a **Decision Required** in their owning phases.
 
 ## Conceptual relationships
 
@@ -184,15 +204,21 @@ separate entities. Their need and shape are a **Decision Required** in their own
   public/internal messages, and records typed append-only state/priority/assignment events. SLA and
   escalation automation are deferred.
 - A notification belongs to a recipient and may reference a domain resource without unsafe polymorphic integrity.
+- An AI provider consent belongs to one user/provider/assistant scope/notice version and
+  records only consent/revocation timestamps. A role change never broadens it, and consent never
+  grants an assistant permission.
+- An AI usage event belongs to one actor and records assistant/intent, UUID at-most-once
+  submission key, safe lifecycle/outcome, prompt version/model, integer tokens, reserved and
+  nullable exact cost ticks, latency, and safe provider/error identifiers. It stores no question,
+  answer, reasoning, prompt, or report JSON.
 - A document belongs to the relevant business scope and tracks upload/processing lifecycle; chunks and vector records must preserve document/version/access metadata.
-- A chat session belongs to a user and assistant context; messages belong to the session. Data retention and provider transmission require policy.
 - Audit events form one globally sequenced previous-hash chain rooted in the singleton chain head;
   each event records actor kind, action, outcome, target, request context, safe metadata, key ID,
   and HMAC hash. Registered sensitive mutations append inside their local transaction.
 
 ## Candidate columns and constraints
 
-Implemented Phase 2–4 rows are recorded alongside planning hints for future entities.
+Implemented Phase 2–7 rows are recorded alongside planning hints for future entities.
 
 | Entity | Candidate constraints and important data |
 |---|---|
@@ -219,8 +245,9 @@ Implemented Phase 2–4 rows are recorded alongside planning hints for future en
 | `background_jobs` | Registered type/version; bounded safe JSON; unique dedupe; attempts/lease/error/completion; replay ancestry/idempotency; no arbitrary update/delete API |
 | `background_job_attempts` | Positive attempt; worker; token hash; safe outcome/error; consistent timing; no payload/stack |
 | `notifications` | Recipient; monotonic sequence; registered type; safe metadata; exactly one valid linked resource shape; read timestamp; unique dedupe |
+| `ai_provider_consents` | User/provider/assistant/notice-version uniqueness; consent/revocation timestamps; no prompt, answer, or arbitrary policy payload |
+| `ai_usage_events` | User/UUID-submission uniqueness; registered assistant/intent/status/prompt/model; safe provider/error ID; nonnegative integer tokens/reserved and nullable exact cost ticks/latency; consistent pending/completed timestamps; no content |
 | `documents` | Owner/uploader; storage key, display name, MIME/size, checksum/version, processing status; never public raw storage path |
-| `chat_messages` | Session; role; safe content/reference; ordering/timestamp; model metadata only if policy permits |
 | `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata |
 
 ## Important indexes
@@ -240,8 +267,9 @@ Indexes must align with chosen tenancy and query patterns. Implemented and futur
   lease owner/status, source actor/time, and replay ancestry.
 - Attempt worker/start and outcome/finish.
 - Notification recipient/sequence and recipient/read/sequence plus linked-resource lookup.
+- AI consent user/provider/version and active/revoked state; AI usage user/UTC creation,
+  user/idempotency, status/creation, assistant/intent/creation, and bounded owner usage range.
 - Document business scope/status/creation time/checksum.
-- Chat session user/updated time and message session/sequence.
 - Audit unique sequence/hash, target/time, actor/time, action/time, and correlation ID.
 - Report covering indexes over captured attempt status/currency/creation/amount and processed refund
   status/currency/update/amount.
@@ -262,6 +290,8 @@ Do not add broad indexes blindly: write amplification, cardinality, prefix limit
   provider-state mutations with the local change in one transaction.
 - Inserting a registered job with its owning domain mutation; claiming/renewing/completing/failing
   by token and owner; appending attempt outcomes; materializing deduped notifications.
+- Reserving an AI usage event after permission/consent/quota checks; serializing confirmed cost plus
+  pending/unknown holds; and recording completion/failure with audit evidence.
 - Publishing a new document version and replacing its searchable index safely.
 
 Payment providers and external queues cannot join database transactions. Phase 4 therefore commits
@@ -273,12 +303,13 @@ external Razorpay call part of a MySQL transaction.
 
 ## Retention and deletion
 
-Phases 4–6 expose no deletion for orders, financial evidence, support history, audit evidence,
-jobs/attempts, or notifications and use restrictive foreign keys for historical integrity. No
-automatic purge is implemented.
+Phases 4–7 expose no deletion for orders, financial evidence, support history, audit evidence,
+jobs/attempts, notifications, or AI usage evidence and use restrictive foreign keys for historical
+integrity. AI consent is revocable but its evidence row is not deleted. No automatic purge is
+implemented.
 Indefinite development/test retention is temporary behavior, not an approved production policy.
-The final duration remains unresolved: orders, payments, audit events, documents, tickets, chats,
-personal information, jobs/attempts, notifications, and AI traces may have different legal and
-operational requirements.
+The final duration remains unresolved: orders, payments, audit events, documents, tickets,
+personal information, jobs/attempts, notifications, AI consent/usage metadata, and future
+chat/AI traces may have different legal and operational requirements.
 **Decision Required:** jurisdiction, privacy obligations, account deletion/anonymization, backup
 propagation, soft deletion, legal holds, and retention schedules.

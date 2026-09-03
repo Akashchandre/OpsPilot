@@ -190,6 +190,26 @@ in-process connection/rate/packet/event bounds, and emits only notification UUID
 and MySQL remain the authorization, recovery, and durability path. Redis/BullMQ, external channels,
 shared adapters, multi-instance topology, attachments, exports, and AI remain outside this phase.
 
+## Phase 7 AI foundation boundary
+
+ADR 0009's Phase 7 repository baseline is implemented and deterministically verified. One
+separately run Python/FastAPI service sits behind Node.js. Node remains the only
+public API and owns session authentication, permissions, provider-processing consent, aggregate
+report access, quota/idempotency reservations, and metadata-only usage/audit evidence. It sends a
+minimal HMAC-signed internal request. FastAPI has no MySQL or business-API credential and can call
+only the fixed xAI Responses endpoint with a fixed model, no tools, structured output,
+`store: false`, and verified ZDR.
+
+Only stateless public-feature customer help and owner explanation of the existing aggregate
+overview are implemented. Questions, answers, reasoning, context, and chat history are not stored.
+Consent and metadata-only usage/cost evidence are stored in MySQL. Persistent
+chat, personal/row-level context, documents/RAG, LangChain/LangGraph, streaming, and AI actions
+remain deferred.
+
+The provider adapter and public AI routes stay disabled until ignored local secrets, the redacted
+xAI model/ZDR/price preflight, the metered synthetic live evaluation, manual privacy/account review,
+and explicit acceptance pass. Repository completion is not production deployment approval.
+
 ## Main application layering
 
 ### React web client
@@ -259,7 +279,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 |---|---|---:|---|
 | Redis/shared adapters | Future cache or multi-instance queue/socket/rate coordination if justified | After 6 | Need, topology, ownership, failure behavior |
 | Object storage | Durable private document/file storage | 8 unless earlier justified | Provider, access model, scanning, retention |
-| Python/FastAPI | Isolated AI orchestration boundary | 7 | Service authentication and deployment topology |
+| Python/FastAPI | Isolated AI provider/prompt boundary | 7 | HMAC/loopback single-instance baseline implemented; provider/live evaluation and production mTLS/network topology remain unresolved |
 | Vector database | Permission-aware document retrieval | 8 | Technology, metadata/filter model, tenancy |
 | Docker | Reproducible packaging and local/production topology | 10 | Images, registry, orchestration |
 | GitHub Actions | Automated quality and delivery gates | 10 | Workflows and environments |
@@ -274,7 +294,8 @@ This is a target direction, not an instruction to deploy every component. Each s
    currency-checked evidence may affect local payment state; provider responses are never trusted
    as arbitrary application input.
 5. Workers revalidate permissions or operate from immutable authorized job context; they do not trust arbitrary queued payloads.
-6. The AI service is internal and receives the minimum data and tools needed for an authorized request.
+6. The AI service is internal and receives only the minimum data for an authorized request; Phase 7
+   gives it no tool or callback capability.
 7. LLM output cannot authorize actions, bypass business services, or serve as an authoritative source for financial/operational state.
 
 ## Cross-cutting concerns
@@ -296,5 +317,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 - A future change to the accepted catalog model: variants, media, hierarchy, multi-currency,
   tax/discount rules, multiple warehouses, or employee onboarding.
 - Notification channels and delivery guarantees.
-- File storage, vector database, LLM/embedding providers, and AI data governance.
+- Phase 7 provider/account/privacy/live-evaluation acceptance and production service topology;
+  file storage, vector database, embedding provider, and later AI governance remain unresolved in
+  their owning phases.
 - Hosting, network boundaries, environments, observability, backup, and recovery targets.
