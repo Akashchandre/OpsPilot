@@ -27,8 +27,8 @@ describe("AI public schemas", () => {
       assistant: "CUSTOMER",
     });
     expect(aiAssistantParamsSchema.safeParse({ assistant: "admin" }).success).toBe(false);
-    expect(aiConsentBodySchema.parse({ noticeVersion: "xai-zdr-v1" })).toEqual({
-      noticeVersion: "xai-zdr-v1",
+    expect(aiConsentBodySchema.parse({ noticeVersion: "groq-zdr-v1" })).toEqual({
+      noticeVersion: "groq-zdr-v1",
     });
     expect(aiConsentBodySchema.safeParse({ noticeVersion: "old" }).success).toBe(false);
   });

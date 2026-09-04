@@ -11,17 +11,18 @@ from uuid import NAMESPACE_URL, uuid5
 from pydantic import ValidationError
 
 from .config import AiSettings, load_settings
-from .constants import XAI_MODEL, AssistantIntent, AssistantKind, Outcome
+from .constants import GROQ_MODEL, AssistantIntent, AssistantKind, Outcome
 from .contracts import InternalResponseRequest
 from .errors import AiServiceError
 from .prompts import render_prompt
-from .providers import GrokResponsesProvider, ResponseProvider
+from .providers import GroqChatCompletionsProvider, ResponseProvider
 
 LIVE_EVALUATION_FLAG = "OPSPILOT_LIVE_AI_EVAL"
 TICKS_PER_USD = 10_000_000_000
 MAX_MEAN_COST_TICKS = 100_000_000
 MAX_CASE_COST_TICKS = 200_000_000
 MAX_P95_LATENCY_MS = 30_000
+LIVE_EVALUATION_CASE_INTERVAL_SECONDS = 8.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,12 +277,15 @@ async def run_evaluation(
     *,
     provider: ResponseProvider | None = None,
     cases: tuple[EvaluationCase, ...] = EVALUATION_CASES,
+    case_interval_seconds: float = 0.0,
 ) -> dict[str, Any]:
-    selected_provider = provider or GrokResponsesProvider(settings)
+    selected_provider = provider or GroqChatCompletionsProvider(settings)
     case_results: list[dict[str, Any]] = []
     try:
         await selected_provider.preflight()
-        for case in cases:
+        for index, case in enumerate(cases):
+            if index > 0 and case_interval_seconds > 0:
+                await asyncio.sleep(case_interval_seconds)
             started = monotonic()
             try:
                 result = await selected_provider.generate(render_prompt(_request(case)))
@@ -354,8 +358,8 @@ async def run_evaluation(
     return {
         "success": all(thresholds.values()),
         "evaluatedAt": datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-        "provider": "xAI",
-        "model": XAI_MODEL,
+        "provider": "Groq",
+        "model": GROQ_MODEL,
         "promptVersions": ["customer-help-v1", "owner-overview-v1"],
         "caseCount": len(case_results),
         "allowedCaseCount": len(allowed),
@@ -382,8 +386,8 @@ async def run_evaluation(
 def _safe_failure(code: str) -> dict[str, Any]:
     return {
         "success": False,
-        "provider": "xAI",
-        "model": XAI_MODEL,
+        "provider": "Groq",
+        "model": GROQ_MODEL,
         "errorCode": code,
         "contentRecorded": False,
         "secretValuesEmitted": False,
@@ -403,7 +407,12 @@ def main() -> int:
         print(json.dumps(_safe_failure("PROVIDER_DISABLED"), sort_keys=True))
         return 2
     try:
-        result = asyncio.run(run_evaluation(settings))
+        result = asyncio.run(
+            run_evaluation(
+                settings,
+                case_interval_seconds=LIVE_EVALUATION_CASE_INTERVAL_SECONDS,
+            )
+        )
     except AiServiceError as error:
         print(json.dumps(_safe_failure(error.code), sort_keys=True))
         return 1

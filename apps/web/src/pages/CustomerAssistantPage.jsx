@@ -45,7 +45,7 @@ export function CustomerAssistantPage() {
     <section className="ai-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">GROK · CUSTOMER HELP</p>
+          <p className="eyebrow">AI · CUSTOMER HELP</p>
           <h1>OpsPilot assistant</h1>
           <p className="muted">
             Ask about public OpsPilot features and navigation. This assistant cannot access your

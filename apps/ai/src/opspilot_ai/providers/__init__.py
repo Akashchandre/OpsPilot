@@ -5,11 +5,11 @@ from .base import (
     ProviderUsage,
     ResponseProvider,
 )
-from .grok import GrokResponsesProvider
+from .groq import GroqChatCompletionsProvider
 
 __all__ = [
     "DisabledProvider",
-    "GrokResponsesProvider",
+    "GroqChatCompletionsProvider",
     "ProviderReadiness",
     "ProviderResult",
     "ProviderUsage",

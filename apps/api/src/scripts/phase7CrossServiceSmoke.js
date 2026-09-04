@@ -42,7 +42,7 @@ const result = await client.respond(
   requestId,
 );
 if (
-  result.model !== "grok-4.6" ||
+  result.model !== "openai/gpt-oss-120b" ||
   result.promptVersion !== "customer-help-v1" ||
   result.zeroDataRetention !== true ||
   result.outcome !== "ANSWER"

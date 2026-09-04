@@ -2,11 +2,13 @@
 
 ## Status
 
-**REPOSITORY IMPLEMENTATION COMPLETE AND VERIFIED on 2026-09-03 under ADR 0009; PHASE ACCEPTANCE
-PENDING.** The isolated service, provider adapter, database/API/UI behavior, deterministic tests,
-and operations/evaluation documentation are implemented. Real xAI traffic remains disabled because
-the ignored provider environment is absent. The redacted ZDR/model/price preflight, metered live
-synthetic evaluation, manual provider/privacy review, and explicit acceptance remain required.
+**ACCEPTED AND COMPLETE on 2026-09-04 for the repository/development scope under ADRs 0009 and
+0010.** The isolated service, Groq provider adapter, provider-scoped database/API/UI behavior,
+deterministic tests, and operations/evaluation documentation are implemented. The user confirmed
+Global ZDR and explicitly requested development enablement. The redacted preflight, paced metered
+20-case evaluation, and signed live path pass for `openai/gpt-oss-120b`; the user then requested
+that the completed phase be marked complete and committed. Manual production
+provider/privacy/operations review and explicit production approval remain required.
 
 ## Objective
 
@@ -27,8 +29,8 @@ Provider/model, SDKs and accounts; internal service authentication/networking; s
 ## Tasks
 
 - [x] Confirm the Phase 6 repository gate and the user's explicit authorization to start Phase 7.
-- [x] Record xAI/Grok as the user-selected provider and confirm only that a key exists outside the
-      repository; do not read or copy it into tracked files.
+- [x] Record xAI/Grok as the initial selection and, after the credential mismatch was identified,
+      record the user's explicit Groq migration authorization in ADR 0010 without copying the key.
 - [x] Inspect the current Node/session/RBAC/report/audit/log/rate/job/UI boundaries and current
       official xAI model, Responses API, retention/ZDR, cost, rate, and key-scope behavior.
 - [x] Draft the complete Phase 7 decision proposal, proposed permission matrix, and proposed threat
@@ -38,11 +40,16 @@ Provider/model, SDKs and accounts; internal service authentication/networking; s
 - [x] Obtain explicit instruction before installing the proposed Python packages.
 - [x] Record the accepted baseline in ADR 0009.
 - [x] Scaffold the reviewed Python/FastAPI service and implement health/internal authentication.
-- [x] Implement the typed Node/Python contracts, Grok adapter, minimal non-RAG assistants,
+- [x] Implement the typed Node/Python contracts, Groq adapter, minimal non-RAG assistants,
       consent/usage evidence, timeouts/rate/cost controls, and safe UI rendering.
-- [ ] Complete evaluations, security/failure tests, prior-phase regression, operational/privacy
-      documentation, and explicit acceptance review. Deterministic repository work is complete;
-      the provider preflight, metered live evaluation, privacy review, and acceptance are pending.
+- [x] Diagnose the original provider mismatch without exposing the credential; migrate to Groq Chat
+      Completions, version provider consent, preserve historical evidence, validate Groq keys,
+      calculate exact token cost, and add deterministic regression coverage.
+- [x] Complete evaluations, security/failure tests, prior-phase regression, operational/privacy
+      documentation, and explicit acceptance review. Global ZDR confirmation, the redacted
+      application preflight, paced metered live evaluation, signed live service path, documented
+      privacy/operations review, and explicit Phase 7 acceptance are complete. Retained production
+      privacy/account/operations decisions remain deployment blockers, not Phase 7 completion work.
 
 ## Acceptance criteria
 

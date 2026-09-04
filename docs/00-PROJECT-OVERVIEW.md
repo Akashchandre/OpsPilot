@@ -6,8 +6,8 @@
 **Product type:** Full-stack business operations SaaS platform  
 **Current lifecycle state:** Phases 1–3 accepted; Phase 4 repository-complete with external Razorpay
 smoke deferred and acceptance pending; Phase 5 repository-complete and committed; Phase 6
-repository-complete and verified under ADR 0008; Phase 7 repository implementation complete and
-verified under ADR 0009, with live xAI/provider/privacy evaluation and acceptance still pending
+repository-complete and verified under ADR 0008; Phase 7 accepted and complete for the
+repository/development scope under ADRs 0009 and 0010, with production review still pending
 
 ## Purpose
 
@@ -104,7 +104,7 @@ row-level context, tools, actions, LangChain, and LangGraph remain future work.
 | UI system | Material UI or Tailwind CSS | **Decision Required** |
 | Main API | Node.js, Express, JavaScript | Agreed |
 | Relational data | MySQL with Prisma | Agreed |
-| AI service | Python/FastAPI boundary; xAI/Grok selected for the Phase 7 provider adapter; LangChain/LangGraph only when later justified | Phase 7 repository implementation verified under ADR 0009; live acceptance pending |
+| AI service | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b` for Phase 7; LangChain/LangGraph only when later justified | Phase 7 accepted and complete for repository/development under ADRs 0009 and 0010; production review pending |
 | Retrieval | RAG plus a vector database | Vector technology **Decision Required** |
 | Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints implemented; Redis/shared adapters and object storage future | Conditional |
 | Delivery | Docker, GitHub Actions, AWS | Future; detailed choices **Decision Required** |
@@ -147,13 +147,16 @@ passed on 2026-08-29 with exact `socket.io@4.8.3`/`socket.io-client@4.8.3` pins.
 distributed scaling, and external channels remain out of scope. That transition did not
 pre-authorize Phase 7 or decide its AI/provider/data-governance boundary.
 
-On 2026-09-02 the user explicitly started Phase 7, selected xAI/Grok, and confirmed that an API key
-exists outside the repository. On 2026-09-03 the user instructed implementation to start; ADR 0009
-accepts the complete stateless assistant, signed internal service, permission, consent/ZDR,
-metadata-only usage/cost, dependency, and evaluation baseline. The repository implementation and
-deterministic gate completed on 2026-09-03. Real provider traffic and explicit phase acceptance
-remain disabled until ignored secret configuration, the redacted ZDR/model/price preflight, metered
-live evaluation, and manual account/privacy review pass.
+On 2026-09-02 the user explicitly started Phase 7 and initially selected xAI/Grok. On 2026-09-03,
+ADR 0009 accepted the complete stateless assistant, signed internal service, permission,
+consent/ZDR, metadata-only usage/cost, dependency, and evaluation baseline. On 2026-09-04,
+secret-safe inspection established that the existing ignored credential is a Groq key, and the user
+explicitly authorized using that key and implementing Groq. ADR 0010 switches only the provider
+adapter and provider-scoped contracts to Groq Chat Completions with fixed
+`openai/gpt-oss-120b`. Global ZDR, the redacted key/model access preflight, the paced metered live
+evaluation, and the signed live service path passed without exposing secrets or retaining content.
+The user explicitly enabled development inference and accepted Phase 7 on 2026-09-04. Production
+deployment remains unapproved pending the manual account/privacy/operations review.
 
 ## Overall system flow
 
@@ -180,8 +183,9 @@ live evaluation, and manual account/privacy review pass.
 2. Node.js establishes the active user, exact permissions, assistant-scoped consent, quota/cost
    reservation, and minimum approved context.
 3. Node.js invokes the loopback Python/FastAPI AI service over a signed, replay-resistant boundary.
-4. FastAPI selects a fixed prompt and calls the fixed Grok Responses endpoint with required ZDR,
-   structured output, and no tools or automatic retry.
+4. FastAPI selects a fixed prompt and calls Groq's fixed Chat Completions endpoint with strict
+   structured output, no tools/citations, low reasoning, and no automatic retry. Calls are blocked
+   unless Groq ZDR has been explicitly confirmed.
 5. Node.js records metadata-only outcome/cost evidence, rechecks authorization/consent, and returns
    plain text. Questions, answers, reasoning, and chat history are not stored.
 

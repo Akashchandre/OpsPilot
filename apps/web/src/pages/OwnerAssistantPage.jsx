@@ -241,7 +241,7 @@ export function OwnerAssistantPage() {
     <section className="ai-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">GROK · OWNER OVERVIEW</p>
+          <p className="eyebrow">AI · OWNER OVERVIEW</p>
           <h1>Operations assistant</h1>
           <p className="muted">
             Ask for an explanation of one authoritative aggregate overview. No row-level records or
@@ -266,7 +266,7 @@ export function OwnerAssistantPage() {
           status={responseState.status}
           error={responseState.error}
           placeholder="For example: What operational changes stand out in this overview?"
-          buttonLabel="Explain overview with Grok"
+          buttonLabel="Explain overview with AI"
         >
           <div className="ai-range">
             <label>

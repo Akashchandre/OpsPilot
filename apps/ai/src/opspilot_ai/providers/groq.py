@@ -7,10 +7,13 @@ from pydantic import ValidationError
 
 from ..config import AiSettings
 from ..constants import (
-    XAI_MODEL,
-    XAI_MODEL_URL,
-    XAI_REASONING_EFFORT,
-    XAI_RESPONSES_URL,
+    GROQ_CACHED_INPUT_COST_TICKS_PER_TOKEN,
+    GROQ_CHAT_COMPLETIONS_URL,
+    GROQ_INPUT_COST_TICKS_PER_TOKEN,
+    GROQ_MODEL,
+    GROQ_MODELS_URL,
+    GROQ_OUTPUT_COST_TICKS_PER_TOKEN,
+    GROQ_REASONING_EFFORT,
 )
 from ..contracts import PROVIDER_OUTPUT_JSON_SCHEMA, StructuredProviderOutput
 from ..errors import AiServiceError
@@ -21,11 +24,12 @@ MAX_PROVIDER_RESPONSE_BYTES = 262_144
 MAX_PROVIDER_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 MAX_INPUT_TOKENS = 100_000
-MAX_STANDARD_INPUT_PRICE = 20_000
-MAX_STANDARD_OUTPUT_PRICE = 60_000
+MAX_LISTED_MODELS = 512
+MAX_INPUT_COST_TICKS_PER_TOKEN = 20_000
+MAX_OUTPUT_COST_TICKS_PER_TOKEN = 60_000
 
 
-class GrokResponsesProvider:
+class GroqChatCompletionsProvider:
     def __init__(
         self,
         settings: AiSettings,
@@ -37,7 +41,7 @@ class GrokResponsesProvider:
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
             timeout=httpx.Timeout(
-                settings.xai_request_timeout_ms / 1_000,
+                settings.groq_request_timeout_ms / 1_000,
                 connect=3.0,
                 pool=3.0,
             ),
@@ -54,7 +58,7 @@ class GrokResponsesProvider:
         return self._state
 
     def _headers(self) -> dict[str, str]:
-        key = self._settings.xai_api_key
+        key = self._settings.groq_api_key
         if key is None:
             raise AiServiceError(
                 503,
@@ -67,59 +71,17 @@ class GrokResponsesProvider:
             "Accept": "application/json",
         }
 
-    @staticmethod
-    def _require_zero_data_retention(response: httpx.Response) -> None:
-        if response.headers.get("x-zero-data-retention", "").lower() != "true":
+    def _require_zero_data_retention_confirmation(self) -> None:
+        if (
+            not self._settings.require_zero_data_retention
+            or not self._settings.zero_data_retention_confirmed
+        ):
             raise AiServiceError(
                 503,
                 "PROVIDER_RETENTION_UNVERIFIED",
                 "The AI provider privacy requirement could not be verified",
                 "HOLD",
             )
-
-    @staticmethod
-    def _json_object(response: httpx.Response) -> dict[str, Any]:
-        content_length = response.headers.get("content-length")
-        if content_length is not None:
-            try:
-                if int(content_length) > MAX_PROVIDER_RESPONSE_BYTES:
-                    raise AiServiceError(
-                        502,
-                        "PROVIDER_RESPONSE_INVALID",
-                        "The AI provider returned an invalid response",
-                        "HOLD",
-                    )
-            except ValueError as error:
-                raise AiServiceError(
-                    502,
-                    "PROVIDER_RESPONSE_INVALID",
-                    "The AI provider returned an invalid response",
-                    "HOLD",
-                ) from error
-        if len(response.content) > MAX_PROVIDER_RESPONSE_BYTES:
-            raise AiServiceError(
-                502,
-                "PROVIDER_RESPONSE_INVALID",
-                "The AI provider returned an invalid response",
-                "HOLD",
-            )
-        try:
-            payload = GrokResponsesProvider._strict_json_loads(response.content)
-        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
-            raise AiServiceError(
-                502,
-                "PROVIDER_RESPONSE_INVALID",
-                "The AI provider returned an invalid response",
-                "HOLD",
-            ) from error
-        if not isinstance(payload, dict):
-            raise AiServiceError(
-                502,
-                "PROVIDER_RESPONSE_INVALID",
-                "The AI provider returned an invalid response",
-                "HOLD",
-            )
-        return payload
 
     @staticmethod
     def _strict_json_loads(value: str | bytes) -> Any:
@@ -139,6 +101,25 @@ class GrokResponsesProvider:
             object_pairs_hook=object_without_duplicates,
             parse_constant=reject_constant,
         )
+
+    @classmethod
+    def _json_object(cls, response: httpx.Response) -> dict[str, Any]:
+        content_length = response.headers.get("content-length")
+        if content_length is not None:
+            try:
+                if int(content_length) > MAX_PROVIDER_RESPONSE_BYTES:
+                    raise cls._invalid_response()
+            except ValueError as error:
+                raise cls._invalid_response() from error
+        if len(response.content) > MAX_PROVIDER_RESPONSE_BYTES:
+            raise cls._invalid_response()
+        try:
+            payload = cls._strict_json_loads(response.content)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+            raise cls._invalid_response() from error
+        if not isinstance(payload, dict):
+            raise cls._invalid_response()
+        return payload
 
     @staticmethod
     def _map_http_error(response: httpx.Response) -> None:
@@ -185,49 +166,56 @@ class GrokResponsesProvider:
                 "HOLD",
             ) from error
 
-    async def preflight(self) -> None:
-        try:
-            response = await self._request(
-                "GET",
-                XAI_MODEL_URL,
-                headers=self._headers(),
-            )
-            self._require_zero_data_retention(response)
-            self._map_http_error(response)
-            payload = self._json_object(response)
-            if payload.get("id") != XAI_MODEL or payload.get("object") != "model":
-                raise AiServiceError(
-                    503,
-                    "PROVIDER_MODEL_UNAVAILABLE",
-                    "The configured AI model is unavailable",
-                )
-            self._require_price_bound(
-                payload.get("prompt_text_token_price"),
-                MAX_STANDARD_INPUT_PRICE,
-            )
-            self._require_price_bound(
-                payload.get("completion_text_token_price"),
-                MAX_STANDARD_OUTPUT_PRICE,
-            )
-        except AiServiceError:
-            self._state = ProviderReadiness.UNAVAILABLE
-            raise
-        self._state = ProviderReadiness.READY
-
     @staticmethod
-    def _require_price_bound(value: Any, maximum: int) -> None:
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise AiServiceError(
-                503,
-                "PROVIDER_PRICE_UNVERIFIED",
-                "The AI provider price could not be verified",
-            )
-        if value < 0 or value > maximum:
+    def _require_reviewed_price_policy() -> None:
+        if (
+            GROQ_INPUT_COST_TICKS_PER_TOKEN > MAX_INPUT_COST_TICKS_PER_TOKEN
+            or GROQ_CACHED_INPUT_COST_TICKS_PER_TOKEN > GROQ_INPUT_COST_TICKS_PER_TOKEN
+            or GROQ_OUTPUT_COST_TICKS_PER_TOKEN > MAX_OUTPUT_COST_TICKS_PER_TOKEN
+        ):
             raise AiServiceError(
                 503,
                 "PROVIDER_PRICE_EXCEEDS_POLICY",
                 "The AI provider price exceeds the configured policy",
             )
+
+    async def preflight(self) -> None:
+        try:
+            self._require_zero_data_retention_confirmation()
+            self._require_reviewed_price_policy()
+            response = await self._request("GET", GROQ_MODELS_URL, headers=self._headers())
+            self._map_http_error(response)
+            payload = self._json_object(response)
+            models = payload.get("data")
+            if (
+                payload.get("object") != "list"
+                or not isinstance(models, list)
+                or not 1 <= len(models) <= MAX_LISTED_MODELS
+            ):
+                raise AiServiceError(
+                    503,
+                    "PROVIDER_MODEL_UNAVAILABLE",
+                    "The configured AI model is unavailable",
+                )
+            matches = [
+                model
+                for model in models
+                if isinstance(model, dict) and model.get("id") == GROQ_MODEL
+            ]
+            if (
+                len(matches) != 1
+                or matches[0].get("object") != "model"
+                or matches[0].get("active") is not True
+            ):
+                raise AiServiceError(
+                    503,
+                    "PROVIDER_MODEL_UNAVAILABLE",
+                    "The configured AI model is unavailable",
+                )
+        except AiServiceError:
+            self._state = ProviderReadiness.UNAVAILABLE
+            raise
+        self._state = ProviderReadiness.READY
 
     async def generate(self, prompt: RenderedPrompt) -> ProviderResult:
         if self._state != ProviderReadiness.READY:
@@ -236,47 +224,42 @@ class GrokResponsesProvider:
                 "PROVIDER_NOT_READY",
                 "The AI provider is unavailable",
             )
+        self._require_zero_data_retention_confirmation()
 
         request_payload = {
-            "model": XAI_MODEL,
-            "input": [
+            "model": GROQ_MODEL,
+            "messages": [
                 {"role": "system", "content": prompt.system},
                 {"role": "user", "content": prompt.user},
             ],
-            "reasoning": {"effort": XAI_REASONING_EFFORT},
-            "store": False,
-            "max_output_tokens": self._settings.xai_max_output_tokens,
-            "text": {
-                "format": {
-                    "type": "json_schema",
+            "reasoning_effort": GROQ_REASONING_EFFORT,
+            "include_reasoning": False,
+            "max_completion_tokens": self._settings.groq_max_output_tokens,
+            "n": 1,
+            "stream": False,
+            "tool_choice": "none",
+            "citation_options": "disabled",
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
                     "name": "opspilot_ai_response",
-                    "schema": PROVIDER_OUTPUT_JSON_SCHEMA,
                     "strict": True,
-                }
+                    "schema": PROVIDER_OUTPUT_JSON_SCHEMA,
+                },
             },
         }
         response = await self._request(
             "POST",
-            XAI_RESPONSES_URL,
+            GROQ_CHAT_COMPLETIONS_URL,
             headers=self._headers(),
             json=request_payload,
         )
-        self._require_zero_data_retention(response)
         self._map_http_error(response)
         payload = self._json_object(response)
         return self._parse_response(payload)
 
     def _parse_response(self, payload: dict[str, Any]) -> ProviderResult:
-        if (
-            payload.get("status") != "completed"
-            or payload.get("model") != XAI_MODEL
-            or payload.get("store") is not False
-            or payload.get("previous_response_id") is not None
-            or payload.get("error") is not None
-        ):
-            raise self._invalid_response()
-        tools = payload.get("tools", [])
-        if tools != []:
+        if payload.get("object") != "chat.completion" or payload.get("model") != GROQ_MODEL:
             raise self._invalid_response()
 
         provider_request_id = payload.get("id")
@@ -285,38 +268,22 @@ class GrokResponsesProvider:
         ):
             raise self._invalid_response()
 
-        output = payload.get("output")
-        if not isinstance(output, list) or not 1 <= len(output) <= 8:
+        choices = payload.get("choices")
+        if not isinstance(choices, list) or len(choices) != 1:
             raise self._invalid_response()
-        messages: list[dict[str, Any]] = []
-        for item in output:
-            if not isinstance(item, dict):
-                raise self._invalid_response()
-            item_type = item.get("type")
-            if item_type == "message":
-                messages.append(item)
-            elif item_type == "reasoning":
-                if (
-                    item.get("encrypted_content") not in (None, "")
-                    or item.get("content") not in (None, [])
-                    or item.get("summary") not in (None, [])
-                ):
-                    raise self._invalid_response()
-            else:
-                raise self._invalid_response()
-        if len(messages) != 1:
+        choice = choices[0]
+        if (
+            not isinstance(choice, dict)
+            or choice.get("index") != 0
+            or choice.get("finish_reason") != "stop"
+        ):
             raise self._invalid_response()
-
-        message = messages[0]
-        if message.get("role") != "assistant" or message.get("status") != "completed":
+        message = choice.get("message")
+        if not isinstance(message, dict) or message.get("role") != "assistant":
             raise self._invalid_response()
-        content = message.get("content")
-        if not isinstance(content, list) or len(content) != 1:
+        if message.get("tool_calls") not in (None, []) or message.get("function_call") is not None:
             raise self._invalid_response()
-        text_item = content[0]
-        if not isinstance(text_item, dict) or text_item.get("type") != "output_text":
-            raise self._invalid_response()
-        text = text_item.get("text")
+        text = message.get("content")
         if not isinstance(text, str):
             raise self._invalid_response()
         try:
@@ -328,7 +295,7 @@ class GrokResponsesProvider:
         usage = self._parse_usage(payload.get("usage"))
         return ProviderResult(
             output=structured_output,
-            model=XAI_MODEL,
+            model=GROQ_MODEL,
             request_id=provider_request_id,
             usage=usage,
             zero_data_retention=True,
@@ -337,23 +304,38 @@ class GrokResponsesProvider:
     def _parse_usage(self, value: Any) -> ProviderUsage:
         if not isinstance(value, dict):
             raise self._invalid_response()
-        input_tokens = self._bounded_integer(value.get("input_tokens"), maximum=MAX_INPUT_TOKENS)
+        input_tokens = self._bounded_integer(
+            value.get("prompt_tokens"),
+            maximum=MAX_INPUT_TOKENS,
+        )
         output_tokens = self._bounded_integer(
-            value.get("output_tokens"),
-            maximum=self._settings.xai_max_output_tokens,
+            value.get("completion_tokens"),
+            maximum=self._settings.groq_max_output_tokens,
         )
         total_tokens = self._bounded_integer(
             value.get("total_tokens"),
-            maximum=MAX_INPUT_TOKENS + self._settings.xai_max_output_tokens,
-        )
-        cost_ticks = self._bounded_integer(
-            value.get("cost_in_usd_ticks"),
-            maximum=MAX_SAFE_INTEGER,
+            maximum=MAX_INPUT_TOKENS + self._settings.groq_max_output_tokens,
         )
         if total_tokens != input_tokens + output_tokens:
             raise self._invalid_response()
-        tools_used = value.get("num_server_side_tools_used", 0)
-        if tools_used != 0:
+
+        details = value.get("prompt_tokens_details")
+        if details is None:
+            cached_tokens = 0
+        elif isinstance(details, dict):
+            cached_tokens = self._bounded_integer(
+                details.get("cached_tokens", 0),
+                maximum=input_tokens,
+            )
+        else:
+            raise self._invalid_response()
+
+        cost_ticks = (
+            (input_tokens - cached_tokens) * GROQ_INPUT_COST_TICKS_PER_TOKEN
+            + cached_tokens * GROQ_CACHED_INPUT_COST_TICKS_PER_TOKEN
+            + output_tokens * GROQ_OUTPUT_COST_TICKS_PER_TOKEN
+        )
+        if cost_ticks > MAX_SAFE_INTEGER:
             raise self._invalid_response()
         return ProviderUsage(
             input_tokens=input_tokens,
@@ -364,10 +346,8 @@ class GrokResponsesProvider:
 
     @staticmethod
     def _bounded_integer(value: Any, *, maximum: int) -> int:
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise GrokResponsesProvider._invalid_response()
-        if value < 0 or value > maximum:
-            raise GrokResponsesProvider._invalid_response()
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > maximum:
+            raise GroqChatCompletionsProvider._invalid_response()
         return value
 
     @staticmethod

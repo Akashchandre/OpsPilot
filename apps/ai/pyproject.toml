@@ -1,7 +1,7 @@
 [project]
 name = "opspilot-ai"
 version = "0.1.0"
-description = "OpsPilot internal AI policy and xAI/Grok provider service"
+description = "OpsPilot internal AI policy and Groq provider service"
 requires-python = ">=3.13,<3.14"
 
 [dependency-groups]

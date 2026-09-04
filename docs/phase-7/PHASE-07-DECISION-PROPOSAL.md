@@ -2,14 +2,14 @@
 
 ## Status
 
-**ACCEPTED FOR IMPLEMENTATION on 2026-09-03 under ADR 0009.** The user explicitly instructed the
-implementation to start after receiving the complete proposal and package-install approval gate.
-xAI/Grok remains the selected provider, and the user confirmed only that an API key exists outside
-the repository. The key has not been read, copied, or used.
+**ACCEPTED FOR IMPLEMENTATION on 2026-09-03 under ADR 0009; provider-specific sections superseded
+on 2026-09-04 by ADR 0010.** This document preserves the original reviewed xAI proposal as
+historical decision evidence. The user later explicitly authorized using the existing Groq key.
+Current provider/model/API/ZDR/configuration/cost/consent decisions are defined by ADR 0010 and the
+updated implementation guide; do not use the xAI-specific instructions below operationally.
 
-Only this baseline and the exact Python packages recorded in ADR 0009 are authorized. A real xAI
-request still requires ignored secret configuration and the redacted ZDR preflight. The deferred
-Phase 4 Razorpay provider gate remains open and is not changed by this decision.
+The provider-neutral boundary and exact Python packages recorded in ADR 0009 remain authorized.
+The deferred Phase 4 Razorpay provider gate remains open and is not changed by either decision.
 
 The repository implementation was completed and deterministically verified on 2026-09-03. The
 implementation guide, operations runbook, evaluation evidence, and review report record the exact

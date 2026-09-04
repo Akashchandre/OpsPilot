@@ -2,11 +2,14 @@
 
 ## Status and boundaries
 
-ADR 0009's Phase 7 repository boundary is implemented and deterministically verified. The user
-selected xAI/Grok and confirmed that an API key exists outside the repository, but the key has not
-been read or used and `apps/ai/.env` is absent. Real provider traffic and explicit phase acceptance
-remain disabled until the redacted provider preflight, metered live evaluation, manual account/
-privacy review, and explicit approval pass.
+ADR 0009's Phase 7 repository boundary is implemented and deterministically verified. ADR 0010
+records the user's 2026-09-04 authorization to use the existing Groq key and replaces only the
+provider-specific xAI baseline. The Groq Chat Completions adapter, consent version, persistence
+enum migration, exact cost calculation, contracts, and UI labels are implemented. On 2026-09-04,
+Global ZDR was operator-confirmed, the redacted application preflight passed, and the paced metered
+20-case live evaluation passed every quality, safety, schema, latency, and cost threshold. The user
+explicitly authorized development enablement and accepted Phase 7 on 2026-09-04. Production
+approval remains pending the broader account/privacy/operations review.
 
 Phase 8/9 capabilities in this document remain future direction only. Repository completion does
 not authorize production deployment, personal/row-level context, retrieval, tools, or actions.
@@ -28,7 +31,7 @@ Node.js API (authenticates, authorizes, consents, scopes, reserves cost)
 Python FastAPI AI service (signed internal boundary; fixed policy/prompt)
   |
   v
-xAI Responses API / grok-4.6
+Groq Chat Completions / openai/gpt-oss-120b
   |
   v
 Strict typed plain-text result
@@ -37,7 +40,7 @@ Strict typed plain-text result
 Node rechecks permission + consent, records metadata, returns to user
 ```
 
-This is the implemented Phase 7 flow. It uses one narrow raw REST xAI Responses adapter directly
+This is the implemented Phase 7 flow. It uses one narrow raw REST Groq Chat Completions adapter directly
 from FastAPI and deliberately adds no LangChain, LangGraph, retrieval, model tools, or action path.
 
 ## Implemented Phase 7 boundary
@@ -48,8 +51,11 @@ from FastAPI and deliberately adds no LangChain, LangGraph, retrieval, model too
   receives no row-level or personal data and requires both owner-AI and report-read permission.
 - Node authorizes, obtains versioned consent, reserves metadata-only usage/quota/cost evidence,
   and signs a minimal internal request. FastAPI has no database or business-service credential.
-- Grok calls use a fixed model/endpoint, `store: false`, required ZDR verification, low reasoning,
-  structured output, no tools, no retries, and bounded input/output/time/cost.
+- Groq calls use a fixed model/endpoint, explicit operator-confirmed ZDR, low reasoning effort with
+  reasoning excluded from responses, strict structured output, no tools/citations, no retries, and
+  bounded input/output/time/cost.
+  Exact integer cost is calculated from returned prompt, cached-prompt, and completion tokens using
+  the reviewed pinned price constants.
 - OpsPilot stores no question, answer, reasoning, context/report JSON, or chat history. It stores
   only scoped consent and metadata-only usage/cost/audit evidence.
 - A UUID submission key is at-most-once. Ambiguous results retain a pessimistic cost hold and are
@@ -58,7 +64,8 @@ from FastAPI and deliberately adds no LangChain, LangGraph, retrieval, model too
   displays authoritative aggregate values separately from generated interpretation.
 
 The internal service, routes, schema, permissions, and UI are complete. Live provider behavior,
-quality, latency, cost, and external privacy/account posture remain acceptance gates.
+quality, latency, and cost passed the Phase 7 gate; external privacy/account posture remains a
+production rollout gate.
 
 ## Capability 1: Customer AI assistant
 
@@ -125,7 +132,7 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 
 ### Python/FastAPI AI service
 
-- In Phase 7, owns the fixed Grok provider adapter, immutable prompt templates, typed output policy,
+- In Phase 7, owns the fixed Groq provider adapter, immutable prompt templates, typed output policy,
   provider preflight, and synthetic evaluation harness.
 - Retrieval orchestration, graph workflows, and any safe tool-invocation protocol remain future
   Phase 8/9 responsibilities and are not installed or implemented.
@@ -152,7 +159,7 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 
 Before production use, complete and approve:
 
-- xAI contractual ZDR, regions, data residency, training/data-use terms, DPA, and subprocessors;
+- Groq contractual ZDR, regions, data residency, training/data-use terms, DPA, and subprocessors;
   embedding providers remain a Phase 8 decision.
 - Final consent/notice/legal basis, voluntary personal/sensitive input handling, and deletion.
 - Consent/usage/audit/backup retention; prompts, responses, reasoning, and chat are not stored in the
@@ -168,8 +175,8 @@ provider-processing notice are implemented.
 ## Evaluation and acceptance direction
 
 Phase 7 includes a fixed 20-case synthetic set with allowed-intent, critical refusal, schema,
-unsupported-claim, latency, cost, and ZDR thresholds. Deterministic boundary/security tests pass;
-the explicitly metered live xAI run and human review remain pending. Later retrieval/tool phases
-must add source-grounding, citation, retrieval-permission, and tool-correctness evaluation without
-production secrets. Model output is probabilistic, so phase completion depends on recorded
+unsupported-claim, latency, cost, and ZDR thresholds. Deterministic boundary/security tests and the
+paced live Groq run pass; broader production human review remains pending. Later retrieval/tool
+phases must add source-grounding, citation, retrieval-permission, and tool-correctness evaluation
+without production secrets. Model output is probabilistic, so phase completion depends on recorded
 thresholds and monitored failure modes, not anecdotal demos.

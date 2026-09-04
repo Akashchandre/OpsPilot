@@ -206,6 +206,7 @@ enum NotificationType {
 
 enum AiProvider {
   XAI
+  GROQ
 }
 
 enum AiAssistant {

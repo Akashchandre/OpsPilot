@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AI_ROOT = Path(__file__).resolve().parents[2]
@@ -37,22 +37,32 @@ class AiSettings(BaseSettings):
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
         alias="AI_SERVICE_SIGNING_KEY_ID",
     )
-    xai_api_key: SecretStr | None = Field(default=None, alias="XAI_API_KEY")
-    require_zero_data_retention: Literal[True] = Field(
-        default=True,
-        alias="XAI_REQUIRE_ZERO_DATA_RETENTION",
+    groq_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GROQ_API_KEY", "XAI_API_KEY"),
     )
-    xai_request_timeout_ms: int = Field(
+    require_zero_data_retention: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "GROQ_REQUIRE_ZERO_DATA_RETENTION",
+            "XAI_REQUIRE_ZERO_DATA_RETENTION",
+        ),
+    )
+    zero_data_retention_confirmed: bool = Field(
+        default=False,
+        alias="GROQ_ZERO_DATA_RETENTION_CONFIRMED",
+    )
+    groq_request_timeout_ms: int = Field(
         default=20_000,
         ge=1_000,
         le=20_000,
-        alias="XAI_REQUEST_TIMEOUT_MS",
+        validation_alias=AliasChoices("GROQ_REQUEST_TIMEOUT_MS", "XAI_REQUEST_TIMEOUT_MS"),
     )
-    xai_max_output_tokens: int = Field(
+    groq_max_output_tokens: int = Field(
         default=500,
         ge=1,
         le=500,
-        alias="XAI_MAX_OUTPUT_TOKENS",
+        validation_alias=AliasChoices("GROQ_MAX_OUTPUT_TOKENS", "XAI_MAX_OUTPUT_TOKENS"),
     )
     max_concurrency: int = Field(
         default=4,
@@ -86,12 +96,25 @@ class AiSettings(BaseSettings):
             raise ValueError("AI_SERVICE_SIGNING_KEY must contain at least 32 random bytes")
         return value
 
+    @field_validator("require_zero_data_retention")
+    @classmethod
+    def require_zero_data_retention_enabled(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("GROQ_REQUIRE_ZERO_DATA_RETENTION must remain enabled")
+        return value
+
     @model_validator(mode="after")
     def require_provider_secret_when_enabled(self) -> "AiSettings":
         if self.provider_enabled:
-            key = self.xai_api_key
+            key = self.groq_api_key
             if key is None or not key.get_secret_value().strip():
-                raise ValueError("XAI_API_KEY is required when AI_PROVIDER_ENABLED=true")
+                raise ValueError("GROQ_API_KEY is required when AI_PROVIDER_ENABLED=true")
+            if not key.get_secret_value().startswith("gsk_"):
+                raise ValueError("GROQ_API_KEY must be a Groq API key")
+            if not self.zero_data_retention_confirmed:
+                raise ValueError(
+                    "GROQ_ZERO_DATA_RETENTION_CONFIRMED must be true when AI_PROVIDER_ENABLED=true"
+                )
         return self
 
     def signing_key_bytes(self) -> bytes:

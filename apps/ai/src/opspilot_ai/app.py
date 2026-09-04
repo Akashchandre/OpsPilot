@@ -18,7 +18,7 @@ from .errors import AiServiceError, invalid_internal_request
 from .logging_config import configure_logging, log_event
 from .providers import (
     DisabledProvider,
-    GrokResponsesProvider,
+    GroqChatCompletionsProvider,
     ProviderReadiness,
     ResponseProvider,
 )
@@ -66,7 +66,7 @@ def create_app(
     if provider is not None:
         selected_provider = provider
     elif settings.provider_enabled:
-        selected_provider = GrokResponsesProvider(settings)
+        selected_provider = GroqChatCompletionsProvider(settings)
     else:
         selected_provider = DisabledProvider()
 

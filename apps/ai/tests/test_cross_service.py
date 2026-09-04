@@ -90,7 +90,7 @@ def test_real_node_to_fastapi_signed_http_contract() -> None:
             "status": "ready",
             "provider": "ready",
         },
-        "model": "grok-4.6",
+        "model": "openai/gpt-oss-120b",
         "promptVersion": "customer-help-v1",
         "outcome": "ANSWER",
         "zeroDataRetention": True,

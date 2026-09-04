@@ -114,16 +114,34 @@ def test_provider_output_accepts_bounded_plain_text_and_unique_notices() -> None
             notices=["USE_STANDARD_SUPPORT", "USE_STANDARD_SUPPORT"],
         )
 
+    with pytest.raises(ValidationError):
+        StructuredProviderOutput(answer="", outcome="ANSWER", notices=[])
 
-def test_provider_json_schema_is_closed_and_bounded() -> None:
+    with pytest.raises(ValidationError):
+        StructuredProviderOutput(answer="a" * 2_001, outcome="ANSWER", notices=[])
+
+    with pytest.raises(ValidationError):
+        StructuredProviderOutput(
+            answer="Use the standard support flow.",
+            outcome="ESCALATE",
+            notices=[
+                "VERIFY_AUTHORITATIVE_DATA",
+                "USE_STANDARD_SUPPORT",
+                "SNAPSHOT_MAY_BE_STALE",
+                "VERIFY_AUTHORITATIVE_DATA",
+            ],
+        )
+
+
+def test_provider_json_schema_is_closed_and_uses_groq_supported_subset() -> None:
     assert PROVIDER_OUTPUT_JSON_SCHEMA["additionalProperties"] is False
     assert PROVIDER_OUTPUT_JSON_SCHEMA["required"] == [
         "answer",
         "outcome",
         "notices",
     ]
-    assert PROVIDER_OUTPUT_JSON_SCHEMA["properties"]["answer"]["maxLength"] == 2_000
-    assert PROVIDER_OUTPUT_JSON_SCHEMA["properties"]["notices"]["maxItems"] == 3
+    assert PROVIDER_OUTPUT_JSON_SCHEMA["properties"]["answer"] == {"type": "string"}
+    assert set(PROVIDER_OUTPUT_JSON_SCHEMA["properties"]["notices"]) == {"type", "items"}
 
 
 def test_customer_prompt_contains_only_registered_facts_and_not_subject_id() -> None:

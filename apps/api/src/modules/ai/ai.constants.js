@@ -1,9 +1,9 @@
 import { PERMISSIONS } from "../auth/auth.constants.js";
 
-export const AI_PROVIDER = "XAI";
-export const AI_MODEL = "grok-4.6";
+export const AI_PROVIDER = "GROQ";
+export const AI_MODEL = "openai/gpt-oss-120b";
 export const AI_INTERNAL_CONTRACT_VERSION = 1;
-export const AI_NOTICE_VERSION = "xai-zdr-v1";
+export const AI_NOTICE_VERSION = "groq-zdr-v1";
 
 export const AI_ASSISTANTS = Object.freeze({
   CUSTOMER: "CUSTOMER",
@@ -60,11 +60,11 @@ export const AI_ASSISTANT_POLICIES = Object.freeze({
 const commonNotice = Object.freeze({
   version: AI_NOTICE_VERSION,
   provider: AI_PROVIDER,
-  providerName: "xAI",
+  providerName: "Groq",
   title: "AI processing notice",
   generatedOutput: "The response is AI-generated and may be incorrect.",
   retention:
-    "OpsPilot requires xAI Zero Data Retention and also sends store=false. Requests are blocked if that setting cannot be verified.",
+    "OpsPilot requires Groq Zero Data Retention in Data Controls. Requests are blocked unless an operator confirms that setting.",
   warning: "Do not enter passwords, payment details, personal data, or other secrets.",
 });
 
@@ -73,13 +73,13 @@ export const AI_CONSENT_NOTICES = Object.freeze({
     ...commonNotice,
     assistant: AI_ASSISTANTS.CUSTOMER,
     dataSent:
-      "Your question and a reviewed list of public OpsPilot customer features and navigation facts are sent to xAI.",
+      "Your question and a reviewed list of public OpsPilot customer features and navigation facts are sent to Groq.",
   }),
   [AI_ASSISTANTS.OWNER]: Object.freeze({
     ...commonNotice,
     assistant: AI_ASSISTANTS.OWNER,
     dataSent:
-      "Your question and the selected authoritative aggregate OpsPilot overview are sent to xAI. No row-level records are included.",
+      "Your question and the selected authoritative aggregate OpsPilot overview are sent to Groq. No row-level records are included.",
   }),
 });
 

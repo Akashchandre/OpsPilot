@@ -1,4 +1,5 @@
 import base64
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -15,10 +16,48 @@ def test_loads_safe_defaults_and_decodes_signing_key() -> None:
     assert settings.host == "127.0.0.1"
     assert settings.provider_enabled is False
     assert settings.require_zero_data_retention is True
-    assert settings.xai_request_timeout_ms == 20_000
-    assert settings.xai_max_output_tokens == 500
+    assert settings.zero_data_retention_confirmed is False
+    assert settings.groq_request_timeout_ms == 20_000
+    assert settings.groq_max_output_tokens == 500
     assert settings.max_concurrency == 4
     assert settings.signing_key_bytes() == bytes(range(32))
+
+
+def test_parses_documented_zero_data_retention_value_from_dotenv(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"AI_SERVICE_SIGNING_KEY={SIGNING_KEY_BASE64}",
+                f"AI_SERVICE_SIGNING_KEY_ID={SIGNING_KEY_ID}",
+                "GROQ_REQUIRE_ZERO_DATA_RETENTION=true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    settings = AiSettings(_env_file=env_file)
+
+    assert settings.require_zero_data_retention is True
+
+
+def test_rejects_disabled_zero_data_retention_value_from_dotenv(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"AI_SERVICE_SIGNING_KEY={SIGNING_KEY_BASE64}",
+                f"AI_SERVICE_SIGNING_KEY_ID={SIGNING_KEY_ID}",
+                "GROQ_REQUIRE_ZERO_DATA_RETENTION=false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValidationError, match="GROQ_REQUIRE_ZERO_DATA_RETENTION must remain enabled"
+    ):
+        AiSettings(_env_file=env_file)
 
 
 @pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.8", "localhost"])
@@ -55,23 +94,63 @@ def test_requires_provider_key_only_when_provider_is_enabled() -> None:
     with pytest.raises(ValidationError) as raised:
         make_settings(AI_PROVIDER_ENABLED=True)
 
-    assert "XAI_API_KEY is required" in str(raised.value)
+    assert "GROQ_API_KEY is required" in str(raised.value)
 
-    enabled = make_settings(AI_PROVIDER_ENABLED=True, XAI_API_KEY="xai-test-only")
+    enabled = make_settings(
+        AI_PROVIDER_ENABLED=True,
+        GROQ_API_KEY="gsk_test_only",
+        GROQ_ZERO_DATA_RETENTION_CONFIRMED=True,
+    )
     assert enabled.provider_enabled is True
+
+
+def test_rejects_a_different_provider_key_without_echoing_it() -> None:
+    other_provider_key = "xai_test_only"
+
+    with pytest.raises(ValidationError) as raised:
+        make_settings(
+            AI_PROVIDER_ENABLED=True,
+            GROQ_API_KEY=other_provider_key,
+            GROQ_ZERO_DATA_RETENTION_CONFIRMED=True,
+        )
+
+    assert "must be a Groq API key" in str(raised.value)
+    assert other_provider_key not in str(raised.value)
+
+
+def test_requires_explicit_zero_data_retention_confirmation_before_enablement() -> None:
+    with pytest.raises(ValidationError) as raised:
+        make_settings(AI_PROVIDER_ENABLED=True, GROQ_API_KEY="gsk_test_only")
+
+    assert "GROQ_ZERO_DATA_RETENTION_CONFIRMED must be true" in str(raised.value)
+
+
+def test_accepts_existing_key_under_legacy_local_environment_name() -> None:
+    settings = make_settings(
+        AI_PROVIDER_ENABLED=True,
+        XAI_API_KEY="gsk_existing_test_only",
+        XAI_REQUEST_TIMEOUT_MS=15_000,
+        XAI_MAX_OUTPUT_TOKENS=400,
+        GROQ_ZERO_DATA_RETENTION_CONFIRMED=True,
+    )
+
+    assert settings.groq_api_key is not None
+    assert settings.groq_api_key.get_secret_value() == "gsk_existing_test_only"
+    assert settings.groq_request_timeout_ms == 15_000
+    assert settings.groq_max_output_tokens == 400
 
 
 def test_rejects_disabling_zero_data_retention_requirement() -> None:
     with pytest.raises(ValidationError):
-        make_settings(XAI_REQUIRE_ZERO_DATA_RETENTION=False)
+        make_settings(GROQ_REQUIRE_ZERO_DATA_RETENTION=False)
 
 
 @pytest.mark.parametrize(
     ("name", "value"),
     [
         ("AI_PORT", 80),
-        ("XAI_REQUEST_TIMEOUT_MS", 20_001),
-        ("XAI_MAX_OUTPUT_TOKENS", 501),
+        ("GROQ_REQUEST_TIMEOUT_MS", 20_001),
+        ("GROQ_MAX_OUTPUT_TOKENS", 501),
         ("AI_MAX_CONCURRENCY", 5),
     ],
 )

@@ -6,7 +6,7 @@ export function AiQuestionForm({
   error,
   label = "Question",
   placeholder,
-  buttonLabel = "Ask Grok",
+  buttonLabel = "Ask AI",
   children,
 }) {
   const submitting = status === "submitting";
@@ -33,7 +33,7 @@ export function AiQuestionForm({
           type="submit"
           disabled={submitting || question.trim().length === 0}
         >
-          {submitting ? "Waiting for Grok..." : buttonLabel}
+          {submitting ? "Waiting for AI..." : buttonLabel}
         </button>
         {submitting ? <span role="status">Generating one non-streaming response...</span> : null}
       </div>

@@ -1,6 +1,6 @@
 import { apiRequest } from "./client.js";
 
-export const AI_NOTICE_VERSION = "xai-zdr-v1";
+export const AI_NOTICE_VERSION = "groq-zdr-v1";
 
 function rangeQuery(range = {}) {
   const query = new URLSearchParams();

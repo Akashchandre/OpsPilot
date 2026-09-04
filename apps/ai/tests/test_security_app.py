@@ -240,7 +240,7 @@ def test_response_route_uses_reviewed_prompt_and_projects_narrow_result(settings
         "outcome": "ANSWER",
         "notices": ["USE_STANDARD_SUPPORT"],
         "promptVersion": "customer-help-v1",
-        "model": "grok-4.6",
+        "model": "openai/gpt-oss-120b",
         "providerRequestId": "resp_phase7_test",
         "usage": {
             "inputTokens": 120,

@@ -2,6 +2,10 @@
 
 ## Status
 
+The provider-specific xAI/Grok portions were superseded on 2026-09-04 by ADR 0010 after the user
+explicitly authorized using the existing Groq key. All provider-neutral Phase 7 controls in this
+record remain accepted.
+
 Accepted on 2026-09-03 by the user's explicit instruction to “start implementation” after the
 complete Phase 7 decision proposal, approval checklist, and separate package-install requirement
 were presented. This authorizes implementation of that exact baseline and installation of only the
@@ -130,10 +134,15 @@ Node-to-FastAPI smoke using a deterministic provider, and the explicit metered 2
 evaluation. This preserves the accepted assurance while avoiding a surprise billable request during
 the first account check.
 
-No real xAI request was made because `apps/ai/.env` is absent. The external provider/account/privacy
-checks, live quality/latency/cost evidence, and explicit phase acceptance remain pending. Repository
-completion does not authorize `AI_ENABLED=true`, real-user traffic, production deployment, or Phase
-8 work.
+At the 2026-09-03 repository gate, no real xAI request was made because `apps/ai/.env` was absent.
+On 2026-09-04, an ignored local environment was present and a redacted metadata preflight attempt
+was rejected before inference. Secret-safe inspection established that the supplied credential was
+for Groq, not xAI/Grok. Provider enablement was restored to false, and the implementation now
+rejects non-xAI credentials before network access while preserving safe HTTP error classification.
+Those xAI-specific provider gates were never completed and were superseded by ADR 0010. The Groq
+ZDR/preflight/evaluation/live-path gates later passed, development enablement was explicitly
+authorized, and Phase 7 was accepted on 2026-09-04. That acceptance does not authorize production
+deployment or Phase 8 work.
 
 ## Related documents
 

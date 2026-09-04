@@ -14,7 +14,9 @@ Keep these values in ignored files:
 - AI `apps/ai/.env`: `AI_PROVIDER_ENABLED=false`.
 - Both: the same dedicated canonical Base64 HMAC key containing at least 32 random bytes and the
   same non-secret key ID.
-- AI only: the dedicated xAI inference key; never place it in the API or web environment.
+- AI only: the dedicated Groq key (`gsk_...`); never place it in the API or web environment.
+  New configuration uses `GROQ_API_KEY`; `XAI_API_KEY` is accepted temporarily only as the
+  legacy local name for the already ignored Groq value.
 
 Confirm that both local files are ignored before adding any secret:
 
@@ -54,18 +56,19 @@ the Node origin. Never proxy or tunnel FastAPI port 8000.
 
 ## Provider readiness and enablement
 
-Before a real provider check, confirm in the xAI account without recording secret/account content:
+Before a real provider check, confirm in the Groq account without recording secret/account content:
 
-1. The key is dedicated to OpsPilot development and restricted to the Responses endpoint and
-   `grok-4.6` wherever the console supports ACLs.
+1. The credential is a dedicated Groq project key and model permissions allow only the required
+   `openai/gpt-oss-120b` capability wherever the console supports restrictions.
 2. Credits/billing and the actual team rate limits are understood.
-3. Zero Data Retention is enabled for the team.
+3. Zero Data Retention is enabled for inference in Data Controls.
 4. Training/data-improvement opt-in is disabled.
 5. The provider terms, DPA/subprocessors, jurisdiction, region/data-residency, and notice language
    are acceptable for the intended data.
 
-Set `AI_PROVIDER_ENABLED=true` only in ignored `apps/ai/.env`, leave Node `AI_ENABLED=false`, and
-run the explicit non-inference preflight:
+After step 3, set `GROQ_ZERO_DATA_RETENTION_CONFIRMED=true` and
+`AI_PROVIDER_ENABLED=true` only in ignored `apps/ai/.env`, leave Node `AI_ENABLED=false`, and run
+the explicit non-inference preflight:
 
 ```powershell
 $env:PYTHONPATH=(Resolve-Path -LiteralPath .\src).Path
@@ -73,9 +76,15 @@ $env:OPSPILOT_LIVE_AI_PREFLIGHT='true'
 & .\.venv\Scripts\python.exe -m opspilot_ai.preflight
 ```
 
-The redacted result must report successful credential/model access, ZDR header, price ceiling,
-`inferencePerformed: false`, and `secretValuesEmitted: false`. It does not prove the console's
-training opt-in, DPA, region, credit balance, or declared rate tier; those remain manual checks.
+The redacted result must report successful credential/model access, operator ZDR confirmation,
+reviewed pinned price policy, `inferencePerformed: false`, and `secretValuesEmitted: false`. It
+does not independently read the Console's ZDR, training, DPA, region, credit, or rate-tier settings;
+those remain manual checks.
+
+If startup reports that the Groq key or ZDR confirmation is invalid, set
+`AI_PROVIDER_ENABLED=false` again and leave Node `AI_ENABLED=false`. Correct only the ignored
+AI-service configuration. Authentication, request, rate-limit, and provider-availability statuses
+are safely classified without returning provider bodies or secrets.
 
 Then run the explicit metered synthetic evaluation:
 
@@ -84,13 +93,17 @@ $env:OPSPILOT_LIVE_AI_EVAL='true'
 & .\.venv\Scripts\python.exe -m opspilot_ai.evaluation
 ```
 
+The CLI spaces cases by eight seconds, so the 20-case run takes about three minutes and remains
+below the documented 8K-token/min free-plan baseline. This is pacing only; failed inference is not
+retried.
+
 Review and record only its redacted result under the evaluation evidence rules. Every threshold
 must pass. Only after the preflight, evaluation, privacy review, and an explicit rollout decision
 may Node's ignored `AI_ENABLED` be changed to `true` and the API restarted.
 
 ## Routine non-provider verification
 
-Routine tests do not need an xAI key and never contact xAI:
+Routine tests do not need a Groq key and never contact Groq:
 
 ```powershell
 & .\.venv\Scripts\python.exe -m ruff check .
@@ -100,7 +113,7 @@ Routine tests do not need an xAI key and never contact xAI:
 ```
 
 The routine Python suite skips the cross-service case. Run it deliberately with a local Node 24
-binary; it starts a loopback FastAPI server with a deterministic provider and sends no xAI traffic:
+binary; it starts a loopback FastAPI server with a deterministic provider and sends no Groq traffic:
 
 ```powershell
 $env:OPSPILOT_RUN_CROSS_SERVICE_SMOKE='true'
@@ -130,7 +143,7 @@ An owner with `ai:usage:read` can inspect `/admin/assistant` or
 - confirmed exact USD cost; and
 - reserved exposure for pending or ambiguous requests.
 
-Provider billing is the external authority. Reconcile aggregate confirmed cost against the xAI
+Provider billing is the external authority. Reconcile aggregate confirmed cost against the Groq
 console without exporting prompts, answers, user attribution, or provider raw payloads.
 
 ## Timeout, outage, and ambiguous result recovery
@@ -142,7 +155,7 @@ console without exporting prompts, answers, user attribution, or provider raw pa
 - Every submission key is consumed permanently. Never retry automatically or reuse a key. A user
   may explicitly submit a genuinely new request with a new UUID after seeing the safe failure.
 - Do not edit usage rows, mark an outcome successful, release an unknown hold, or replay the
-  provider request manually. Phase 7 has no reviewed reconciliation proof for ambiguous xAI work.
+  provider request manually. Phase 7 has no reviewed reconciliation proof for ambiguous Groq work.
 - If unknown exposure blocks the daily ceiling, leave AI disabled until an explicit reconciliation
   or forward migration/policy is reviewed. Core workflows remain available.
 
@@ -169,10 +182,10 @@ The baseline accepts one key ID at a time and has no dual-key overlap:
 5. Start FastAPI, run the deterministic signed cross-service smoke, then start the API.
 6. Re-enable Node only if health is ready; invalidate/delete the old secret in the secret manager.
 
-### xAI key
+### Groq key
 
 1. Disable Node AI and `AI_PROVIDER_ENABLED`; stop provider traffic.
-2. Revoke/rotate the key in xAI and update only the ignored AI environment.
+2. Revoke/rotate the key in Groq and update only the ignored AI environment.
 3. Reconfirm ACL, ZDR, training opt-out, credits, and rate limits.
 4. Rerun the redacted preflight and live synthetic evaluation before re-enabling.
 

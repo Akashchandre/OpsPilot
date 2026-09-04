@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from opspilot_ai.config import AiSettings
-from opspilot_ai.constants import XAI_MODEL, Outcome, SafeNotice
+from opspilot_ai.constants import GROQ_MODEL, Outcome, SafeNotice
 from opspilot_ai.contracts import StructuredProviderOutput
 from opspilot_ai.prompts import RenderedPrompt
 from opspilot_ai.providers import (
@@ -173,7 +173,7 @@ class FakeProvider:
                 outcome=Outcome.ANSWER,
                 notices=[SafeNotice.USE_STANDARD_SUPPORT],
             ),
-            model=XAI_MODEL,
+            model=GROQ_MODEL,
             request_id="resp_phase7_test",
             usage=ProviderUsage(
                 input_tokens=120,

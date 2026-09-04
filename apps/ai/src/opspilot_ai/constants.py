@@ -4,11 +4,18 @@ SERVICE_NAME = "opspilot-ai"
 INTERNAL_CONTRACT_VERSION = 1
 SIGNATURE_VERSION = "v1"
 
-XAI_API_ORIGIN = "https://api.x.ai"
-XAI_RESPONSES_URL = f"{XAI_API_ORIGIN}/v1/responses"
-XAI_MODEL_URL = f"{XAI_API_ORIGIN}/v1/models/grok-4.6"
-XAI_MODEL = "grok-4.6"
-XAI_REASONING_EFFORT = "low"
+GROQ_API_ORIGIN = "https://api.groq.com"
+GROQ_MODELS_URL = f"{GROQ_API_ORIGIN}/openai/v1/models"
+GROQ_CHAT_COMPLETIONS_URL = f"{GROQ_API_ORIGIN}/openai/v1/chat/completions"
+GROQ_MODEL = "openai/gpt-oss-120b"
+GROQ_REASONING_EFFORT = "low"
+
+# One US dollar is represented by 10,000,000,000 exact integer ticks. These
+# per-token values implement Groq's reviewed 2026-09-04 public prices of
+# $0.15/M uncached input, $0.075/M cached input, and $0.60/M output.
+GROQ_INPUT_COST_TICKS_PER_TOKEN = 1_500
+GROQ_CACHED_INPUT_COST_TICKS_PER_TOKEN = 750
+GROQ_OUTPUT_COST_TICKS_PER_TOKEN = 6_000
 
 CUSTOMER_PROMPT_VERSION = "customer-help-v1"
 OWNER_PROMPT_VERSION = "owner-overview-v1"

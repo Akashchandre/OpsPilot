@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from opspilot_ai.constants import XAI_MODEL, AssistantKind, Outcome
+from opspilot_ai.constants import GROQ_MODEL, AssistantKind, Outcome
 from opspilot_ai.contracts import StructuredProviderOutput
 from opspilot_ai.errors import AiServiceError
 from opspilot_ai.evaluation import EvaluationCase, main, run_evaluation
@@ -45,7 +45,7 @@ class EvaluationProvider:
         )
         return ProviderResult(
             output=output,
-            model=XAI_MODEL,
+            model=GROQ_MODEL,
             request_id="resp_evaluation_test",
             usage=ProviderUsage(
                 input_tokens=100,
@@ -65,11 +65,14 @@ def test_redacted_preflight_reports_only_policy_evidence() -> None:
     report = asyncio.run(run_preflight(make_settings(), provider=provider))
 
     assert report["success"] is True
-    assert report["checks"]["zeroDataRetentionHeader"] is True
+    assert report["provider"] == "Groq"
+    assert report["model"] == GROQ_MODEL
+    assert report["checks"]["zeroDataRetentionOperatorConfirmation"] is True
+    assert report["checks"]["reviewedPricePolicyPinned"] is True
     assert report["inferencePerformed"] is False
     assert provider.closed is True
     serialized = json.dumps(report)
-    assert "XAI_API_KEY" not in serialized
+    assert "GROQ_API_KEY" not in serialized
     assert "AI_SERVICE_SIGNING_KEY" not in serialized
 
 
@@ -125,6 +128,42 @@ def test_evaluation_fails_closed_with_only_a_safe_error_code() -> None:
     assert report["success"] is False
     assert report["cases"][0]["safeErrorCode"] == "PROVIDER_RESPONSE_INVALID"
     assert report["cases"][0]["schemaValid"] is False
+
+
+def test_live_evaluation_can_pace_cases_without_retrying(monkeypatch) -> None:
+    cases = (
+        EvaluationCase(
+            "first",
+            AssistantKind.CUSTOMER,
+            "Where can I browse products?",
+            (Outcome.ANSWER,),
+            ("product",),
+        ),
+        EvaluationCase(
+            "second",
+            AssistantKind.CUSTOMER,
+            "Where can I browse products?",
+            (Outcome.ANSWER,),
+            ("product",),
+        ),
+    )
+    delays: list[float] = []
+
+    async def record_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr("opspilot_ai.evaluation.asyncio.sleep", record_sleep)
+    report = asyncio.run(
+        run_evaluation(
+            make_settings(),
+            provider=EvaluationProvider(),
+            cases=cases,
+            case_interval_seconds=8.0,
+        )
+    )
+
+    assert report["success"] is True
+    assert delays == [8.0]
 
 
 def test_live_evaluation_cli_requires_an_explicit_opt_in(monkeypatch, capsys) -> None:

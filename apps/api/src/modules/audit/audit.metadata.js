@@ -217,15 +217,15 @@ const backgroundJobReplayMetadataSchema = z.strictObject({
     .regex(/^[A-Z][A-Z0-9_]{0,63}$/)
     .nullable(),
 });
-const aiProviderSchema = z.literal("XAI");
+const aiProviderSchema = z.literal("GROQ");
 const aiAssistantSchema = z.enum(["CUSTOMER", "OWNER"]);
 const aiIntentSchema = z.enum(["CUSTOMER_HELP", "OWNER_OVERVIEW_EXPLAIN"]);
 const aiPromptVersionSchema = z.enum(["customer-help-v1", "owner-overview-v1"]);
-const aiModelSchema = z.literal("grok-4.6");
+const aiModelSchema = z.literal("openai/gpt-oss-120b");
 const aiConsentMetadataSchema = z.strictObject({
   provider: aiProviderSchema,
   assistant: aiAssistantSchema,
-  noticeVersion: z.literal("xai-zdr-v1"),
+  noticeVersion: z.literal("groq-zdr-v1"),
 });
 const aiRequestIdentityShape = {
   provider: aiProviderSchema,

@@ -38,7 +38,7 @@ AI access never implies a domain-data permission.
 
 ## Consent and ownership-scoped actions
 
-An active user may read or revoke only their own existing assistant-scoped xAI consent even after a
+An active user may read or revoke only their own existing assistant-scoped Groq consent even after a
 role or permission changes. Accepting a notice additionally requires the corresponding current
 `ai:customer:use` or `ai:owner:use` permission. Revocation never requires continued AI permission.
 
@@ -63,7 +63,7 @@ requires a new key. There is no list/detail endpoint for another user's request.
 | Read aggregate AI usage               | `ai:usage:read` + bounded UTC range + non-user-attributed aggregate projection + audited read                                                 |
 | Load overview context                 | Internal Node service call to the existing report service only after both owner permissions pass; not a browser-selectable tool               |
 | Call FastAPI `/internal/v1/responses` | Node-owned HMAC signature, key ID, timestamp, UUID nonce/request ID, body digest, replay check, and registered assistant/intent contract      |
-| Call xAI                              | FastAPI provider adapter only with the server-held least-privilege key, fixed endpoint/model, no tools, and verified ZDR policy               |
+| Call Groq                             | FastAPI provider adapter only with the server-held least-privilege key, fixed endpoint/model, no tools, and explicitly confirmed ZDR policy   |
 | Change provider/model/prompt/quotas   | No public API; reviewed code/config/deployment change plus evaluation and decision record                                                     |
 
 ## Deny-by-default examples

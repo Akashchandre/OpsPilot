@@ -27,7 +27,7 @@ export function AiConsentCard({ consent, status, error, onAccept, onRevoke }) {
           <p className="eyebrow">{consent.active ? "CONSENT ACTIVE" : "CONSENT REQUIRED"}</p>
           <h2 id="ai-consent-title">{notice.title}</h2>
         </div>
-        {consent.active ? <span className="badge">xAI</span> : null}
+        {consent.active ? <span className="badge">{notice.providerName}</span> : null}
       </div>
       <dl className="ai-notice-details">
         <div>
@@ -72,7 +72,10 @@ export function AiConsentCard({ consent, status, error, onAccept, onRevoke }) {
               checked={acknowledged}
               onChange={(event) => setAcknowledged(event.target.checked)}
             />
-            <span>I understand what is sent to xAI and that its response may be incorrect.</span>
+            <span>
+              I understand what is sent to {notice.providerName} and that its response may be
+              incorrect.
+            </span>
           </label>
           <button className="button button--primary" type="submit" disabled={!acknowledged || busy}>
             {status === "saving" ? "Saving..." : "Accept and continue"}

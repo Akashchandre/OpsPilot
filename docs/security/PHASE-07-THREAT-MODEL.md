@@ -3,14 +3,14 @@
 ## Status
 
 **IMPLEMENTED AND DETERMINISTICALLY VERIFIED on 2026-09-03 under ADR 0009.** This model defines the
-mandatory security controls and verification gate for the xAI/Grok Phase 7 baseline. No real
+mandatory security controls and verification gate for the Groq Phase 7 baseline. No real
 provider call was made, and production/customer rollout is not authorized by repository completion.
 
 ## Scope
 
 This model covers the React-to-Node assistant flow, consent and metadata-only usage evidence,
 permission/quota/idempotency enforcement, signed Node-to-FastAPI requests, FastAPI prompt/output
-policy, xAI Responses API calls, plain-text rendering, and synthetic evaluation.
+policy, Groq Chat Completions calls, plain-text rendering, and synthetic evaluation.
 
 It inherits Phase 2 opaque-session/RBAC/origin/CSRF controls, Phase 5 structured logging and
 HMAC-chained audit evidence, Phase 6 single-instance/rate limitations, and the existing aggregate
@@ -21,7 +21,7 @@ out of scope.
 ## Assets and trust boundaries
 
 - Protected assets include active identity/permissions, consent, aggregate business context,
-  question text, generated answer, prompt templates, xAI and internal signing keys, service
+  question text, generated answer, prompt templates, Groq and internal signing keys, service
   signatures/nonces, provider response IDs, token/cost usage, audit evidence, and operational logs.
 - Browser input, model output, provider status/body/headers, internal HTTP traffic, clocks/nonces,
   environment configuration, and model behavior are untrusted until validated at their boundary.
@@ -29,7 +29,7 @@ out of scope.
   signed, bounded scope and still enforces its registered assistant/intent contract.
 - FastAPI has no database credential, user session, business API credential, callback URL, or tool.
   It cannot obtain more context after Node sends a request.
-- xAI receives only the selected prompt, normalized question, and optional approved aggregate
+- Groq receives only the selected prompt, normalized question, and optional approved aggregate
   overview. It receives no OpsPilot user ID, email, cookie, permission list, request signature,
   database data outside that snapshot, or action capability.
 - MySQL stores consent and metadata-only usage/audit evidence. It stores no question, answer,
@@ -50,10 +50,10 @@ out of scope.
 | Disabled/revoked user completes an expensive call       | Resolve active session/permissions before reservation; one short bounded request; recheck before returning where practical                                                  | State can change during an in-flight external call; cost may already be incurred                        |
 | Missing/forged or over-broad consent                    | Session-derived user plus provider/assistant/notice scope checked before reservation; permission required to accept; CSRF/origin writes; revoke survives permission removal | Provider/legal notice changes require version migration and renewed consent                             |
 | User prompt contains personal or secret data            | Clear notice; 2,000-character bound; no app-added PII; recommend ZDR; canary tests and UI warning not to paste secrets                                                      | Users can still voluntarily type sensitive data; production privacy policy remains required             |
-| xAI retains prompt/answer unexpectedly                  | Require ZDR preflight and per-response header; always send `store:false`; do not opt in to training/data improvement; fail closed on mismatch                               | A first external preflight and provider contractual compliance remain external dependencies             |
+| Groq retains prompt/answer unexpectedly                 | Require Console Data Controls ZDR and explicit operator confirmation before enablement; use only stateless inference; do not opt in to training/data improvement; fail closed without confirmation | Console ZDR cannot be independently read through the inference API; account administrators remain trusted |
 | Provider key leaks in browser/source/log/error          | Keep only in ignored FastAPI env/secret manager; never send to Node/browser; redact config/errors; staged/ignored scans; rotation runbook                                   | Local process/host compromise can access environment secrets                                            |
-| Provider key can access excessive capabilities          | Dedicated key restricted to chat/responses and `grok-4.6` ACLs where available; no management key                                                                           | Console/account administrators remain privileged                                                        |
-| Arbitrary provider URL causes SSRF/key exfiltration     | Hard-code HTTPS xAI base URL/path; no redirects; TLS verification; no request/env URL override; injected transport only in tests                                            | DNS/CA/platform compromise is outside application control                                               |
+| Provider key can access excessive capabilities          | Dedicated Groq project key and fixed `openai/gpt-oss-120b`; restrict project/model permissions where available; no management credential                                  | Console/account administrators remain privileged                                                        |
+| Arbitrary provider URL causes SSRF/key exfiltration     | Hard-code HTTPS Groq base URL/path; no redirects; TLS verification; no request/env URL override; injected transport only in tests                                           | DNS/CA/platform compromise is outside application control                                               |
 | Model invokes web/X/code/files/tools                    | Send no tool definitions, URLs, file IDs, previous response ID, MCP, or provider agent settings; reject tool outputs                                                        | Provider implementation defects remain external risk                                                    |
 | Prompt injection overrides policy                       | Separate trusted policy/context/untrusted question; fixed intents; no secrets/tools in prompt; injection/refusal evals                                                      | Text-only policy cannot guarantee perfect compliance, so authority/data are minimized outside the model |
 | User extracts hidden system prompt                      | Prompts contain no secrets; explicit refusal policy; structured output and evaluation; never return raw provider body/reasoning                                             | Some non-secret prompt wording may still be inferred or reproduced                                      |
@@ -74,7 +74,7 @@ out of scope.
 | Logs/audit leak content or credentials                  | Allowlisted fields only; canary secret/PII/prompt/answer tests; no headers/body/nonce/signature/provider response                                                           | Hosted log access/retention remains undecided                                                           |
 | Audit failure hides provider use                        | Append start evidence with reservation before provider; completion/failure transaction updates usage and audit; stale pending becomes unknown                               | External cost can occur after start even if completion evidence fails                                   |
 | Model alias changes behavior silently                   | Exact allowlisted model string, recorded prompt/model eval evidence, startup model check, change-control gate                                                               | Provider may update an alias behind the same string; live regression is still required                  |
-| AI service reads database or invokes OpsPilot actions   | No DB/business credential/library/tool/callback; outbound adapter accepts only hard-coded xAI endpoint                                                                      | Host-level compromise can escape application boundaries                                                 |
+| AI service reads database or invokes OpsPilot actions   | No DB/business credential/library/tool/callback; outbound adapter accepts only the hard-coded Groq endpoint                                                                 | Host-level compromise can escape application boundaries                                                 |
 | AI outage breaks main API readiness                     | Optional dependency; AI endpoints fail safe; public health reports separate AI state; core routes remain available                                                          | Users lose assistant availability during outage                                                         |
 | Local wildcard bind exposes service                     | Default/validate `127.0.0.1`; reject `0.0.0.0` unless a later production topology explicitly authorizes it                                                                  | Container networking will require a Phase 10 decision                                                   |
 | Internal cleartext leaks on remote deployment           | Loopback only locally; production private TLS/mTLS and network ACL required before non-loopback use                                                                         | Phase 7 repository baseline is not production deployment approval                                       |
@@ -83,9 +83,10 @@ out of scope.
 ## Required verification
 
 The unit, integration, web, migration, cross-service, coverage, build, schema-diff, audit-chain,
-dependency, whitespace, and credential gates below pass for the repository implementation. The
-versioned live xAI evaluation and provider/account/privacy checks remain pending and keep Phase 7
-unaccepted.
+dependency, whitespace, and credential gates below pass for the repository implementation. Global
+ZDR, the versioned live Groq evaluation, and the signed development service path also pass. Broader
+production provider/account/privacy/operations review and production approval remain pending;
+Phase 7 repository/development acceptance was recorded on 2026-09-04.
 
 - Unit/contract tests cover canonical signing, constant-time rejection, key ID, timestamp bounds,
   duplicate nonce, method/path/body/request tampering, malformed/oversized input, and replay-cache
@@ -113,7 +114,7 @@ unaccepted.
 ## Production blockers retained
 
 Before any production/customer rollout, approve jurisdiction and privacy notice language,
-controller/processor responsibilities, xAI terms/DPA/subprocessors/regions, ZDR contractual and
+controller/processor responsibilities, Groq terms/DPA/subprocessors/regions, ZDR contractual and
 technical verification, consent withdrawal/deletion handling, usage/audit/backup retention and
 legal holds, incident/complaint/correction ownership, key rotation, service TLS/mTLS/private network,
 multi-instance replay/quota/rate state, process supervision, monitoring/alerts, SLO/capacity, model

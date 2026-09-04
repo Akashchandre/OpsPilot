@@ -2,14 +2,15 @@
 
 ## Result
 
-Phase 7 implements ADR 0009's stateless, permission-aware AI foundation. React calls only the
+Phase 7 implements ADRs 0009 and 0010's stateless, permission-aware AI foundation. React calls only the
 versioned Node.js API; Node owns identity, authorization, consent, context, quotas, cost holds, and
-audit evidence; an internal FastAPI service owns fixed prompts and the narrow xAI/Grok adapter.
+audit evidence; an internal FastAPI service owns fixed prompts and the narrow Groq adapter.
 No RAG, tools, actions, streaming, persistent chat, or conversation-content storage was added.
 
-The repository implementation and deterministic gates pass. Real xAI acceptance remains pending
-because the ignored provider environment is not configured and the redacted provider preflight and
-metered live synthetic evaluation have not been run.
+The repository implementation and deterministic gates pass. On 2026-09-04 the user authorized
+using the existing Groq key, confirmed Global ZDR, and requested development enablement. The
+redacted application preflight, paced metered 20-case evaluation, and signed live path pass for
+`openai/gpt-oss-120b`; both ignored development feature flags are enabled.
 
 ## Runtime topology
 
@@ -31,7 +32,7 @@ FastAPI /internal/v1
   |
   |  fixed HTTPS endpoint, model, schema, ZDR, no tools/retry
   v
-xAI Responses API / grok-4.6
+Groq Chat Completions / openai/gpt-oss-120b
 ```
 
 An AI outage changes only the optional AI state in public health. It does not make the main API,
@@ -59,7 +60,7 @@ The implemented Node routes are:
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/ai/consents/:assistant` | Read the caller's current `customer` or `owner` consent |
-| `PUT` | `/api/v1/ai/consents/:assistant` | Accept server-owned notice `xai-zdr-v1` with the matching assistant permission |
+| `PUT` | `/api/v1/ai/consents/:assistant` | Accept server-owned notice `groq-zdr-v1` with the matching assistant permission |
 | `DELETE` | `/api/v1/ai/consents/:assistant` | Revoke the caller's scoped consent, including after permission removal |
 | `POST` | `/api/v1/ai/customer/responses` | Submit one customer-help request |
 | `POST` | `/api/v1/ai/owner/overview-responses` | Submit one owner overview explanation request |
@@ -110,16 +111,23 @@ requires a reviewed shared replay/authentication design and private TLS/mTLS top
 
 ## Provider policy
 
-`GrokResponsesProvider` uses `httpx` against the code-owned
-`https://api.x.ai/v1/responses` endpoint. Requests use exact model `grok-4.6`, low reasoning,
-`store: false`, strict JSON-schema output, no tools/search/files/previous response, at most 500
-output tokens, TLS verification, no redirects, and a 20-second ceiling. Inference is never retried
-automatically.
+`GroqChatCompletionsProvider` uses `httpx` against the code-owned
+`https://api.groq.com/openai/v1/chat/completions` endpoint. Requests use exact production model
+`openai/gpt-oss-120b`, low reasoning effort with reasoning excluded from responses, strict
+JSON-schema output using Groq's supported constrained subset, no tools/citations, one non-streaming
+choice, at most 500 completion tokens, TLS verification, no redirects, and a 20-second ceiling.
+The full local contract is revalidated after decoding. Inference is never retried automatically.
 
-The adapter verifies the required `x-zero-data-retention` response header, model, final typed
-output, token arithmetic, exact integer `cost_in_usd_ticks`, provider request ID, and absence of
-tool/reasoning output. Raw provider bodies, errors, prompts, answers, headers, and reasoning are
-never returned to Node logs or stored.
+The adapter verifies the fixed model, final typed output, finish state, token arithmetic, cached
+tokens, calculated integer cost, provider request ID, and absence of tool output. Cost uses the
+reviewed rates pinned in ADR 0010. Raw provider bodies, errors, prompts, answers, headers, and
+reasoning are never returned to Node logs or stored.
+
+When provider access is enabled, configuration requires a Groq `gsk_...` key, the immutable ZDR
+requirement, and explicit `GROQ_ZERO_DATA_RETENTION_CONFIRMED=true`. Because Groq documents ZDR as
+a Console Data Controls setting rather than a response header, the service fails closed until the
+operator records that confirmation. The legacy `XAI_API_KEY` environment name is accepted only as
+a migration alias for the already ignored Groq value.
 
 ## Persistence and at-most-once state
 
@@ -131,6 +139,10 @@ Migration `20260903060000_phase_7_ai_foundation` adds only:
 
 Neither table has a question, answer, prompt, reasoning, context/report JSON, raw provider payload,
 signature, or credential column. Both user relationships are `RESTRICT` to protect evidence.
+
+Migration `20260904090000_phase_7_groq_provider` retains historical `XAI` values, adds `GROQ`,
+revokes active legacy xAI consent, and permits the fixed slash-containing Groq model ID. Users must
+accept the new Groq notice; historical usage is not rewritten.
 
 ```text
 reserve -> PENDING
@@ -164,15 +176,16 @@ exposure. It never returns a user ID, provider request ID, prompt, answer, or in
 
 The accepted preflight intent is implemented as three explicit gates:
 
-1. the redacted, non-inference provider preflight checks credential/model access, ZDR header, and
-   price ceiling;
+1. the redacted, non-inference provider preflight checks credential/model access, explicit operator
+   ZDR confirmation, and the pinned reviewed price policy;
 2. the opt-in local cross-service smoke proves signed health and response contracts against a
    deterministic provider; and
 3. the opt-in metered 20-case live evaluation proves real structured inference, safety, latency,
    and cost.
 
 This split makes the first provider check non-billable while preserving every accepted boundary
-and live-evaluation requirement. Node remains disabled until all applicable gates pass.
+and live-evaluation requirement. The applicable development gates passed on 2026-09-04 and Node is
+enabled locally; production enablement remains a separate approval.
 
 ## Explicit exclusions
 

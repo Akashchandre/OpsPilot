@@ -34,7 +34,7 @@ function responseData() {
     outcome: "ANSWER",
     notices: ["USE_STANDARD_SUPPORT"],
     promptVersion: "customer-help-v1",
-    model: "grok-4.6",
+    model: "openai/gpt-oss-120b",
     providerRequestId: "resp_phase7_unit",
     usage: {
       inputTokens: 100,

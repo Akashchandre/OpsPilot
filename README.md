@@ -11,11 +11,13 @@ sanitized backup/restore exercise. **Phase 6 — Real-time and Background Jobs**
 complete and verified under ADR 0008 with a MySQL job/outbox, JavaScript worker, persistent
 notifications, owner failure tooling, and authenticated Socket.IO hints. Redis, BullMQ, external
 brokers/channels, and multi-instance topology remain out of scope. **Phase 7 — AI Foundation** has
-a complete, deterministically verified repository implementation under ADR 0009: an isolated
-Python/FastAPI Grok adapter, signed Node boundary, stateless customer/owner assistants, scoped
-consent, metadata-only usage/cost evidence, permissions, and safe UI are implemented. Explicit
-phase acceptance and real provider traffic remain disabled pending the ignored provider setup,
-verified ZDR/model/price preflight, metered live evaluation, and privacy/account review.
+a complete, deterministically verified repository implementation under ADRs 0009 and 0010: an isolated
+Python/FastAPI Groq adapter, signed Node boundary, stateless customer/owner assistants, scoped
+consent, metadata-only usage/cost evidence, permissions, and safe UI are implemented. On 2026-09-04,
+Global ZDR, the redacted preflight, the paced 20-case live evaluation, and the signed live service
+path passed; the user explicitly enabled development inference and accepted Phase 7 after its
+completion gate passed. Phase 7 is complete for the repository/development scope. Production
+rollout and the broader privacy/account/operations review remain pending.
 
 ## Source of truth
 
@@ -57,9 +59,10 @@ Start with:
 - [Phase 7 implementation guide](docs/phase-7/PHASE-07-IMPLEMENTATION-GUIDE.md)
 - [Phase 7 operations runbook](docs/phase-7/PHASE-07-OPERATIONS-RUNBOOK.md)
 - [Phase 7 evaluation evidence](docs/phase-7/PHASE-07-EVALUATION-EVIDENCE.md)
-- [Phase 7 review report](docs/phase-7/PHASE-07-REVIEW-REPORT.md)
+- [Phase 7 review and acceptance report](docs/phase-7/PHASE-07-REVIEW-REPORT.md)
 - [Phase 7 permission matrix](docs/permissions/PHASE-07-PERMISSION-MATRIX.md)
 - [Phase 7 threat model](docs/security/PHASE-07-THREAT-MODEL.md)
+- [Phase 7 Groq provider decision](docs/decisions/0010-phase-7-groq-provider.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -67,7 +70,7 @@ Start with:
 - Frontend: React, JavaScript, React Router, Redux Toolkit where justified, and a UI system still requiring a decision.
 - Main API: Node.js, Express, JavaScript.
 - Data: MySQL and Prisma.
-- AI service: the Phase 7 Python/FastAPI boundary and raw REST xAI/Grok adapter are implemented.
+- AI service: the Phase 7 Python/FastAPI boundary and raw REST Groq adapter are implemented.
   LangChain, LangGraph, RAG, and vector storage remain deferred until a later approved need.
 - Phase 6 runtime: MySQL-backed jobs, a separate JavaScript worker, and Socket.IO notification hints.
 - Future infrastructure only when explicitly justified: Redis/shared adapters, object storage, Docker, GitHub Actions, and AWS.
@@ -128,9 +131,11 @@ See the [Phase 6 operations runbook](docs/phase-6/PHASE-06-OPERATIONS-RUNBOOK.md
 
 Phase 7 variables are listed with disabled/empty defaults in the API and AI examples. Use the same
 dedicated Base64 HMAC key and key ID in both ignored service environments. Keep `AI_ENABLED=false`
-and `AI_PROVIDER_ENABLED=false` until the redacted provider preflight, metered synthetic evaluation,
-and privacy/account review pass. The xAI key belongs only in ignored `apps/ai/.env`; never put it in
-Node, React, tracked files, logs, or chat. Follow the
+and `AI_PROVIDER_ENABLED=false` during setup. Development enablement requires confirmed ZDR, the
+redacted provider preflight, the metered synthetic evaluation, and explicit authorization;
+production additionally requires the retained privacy/account/operations review and approval. The
+Groq key belongs only in ignored `apps/ai/.env`; never put it in Node, React, tracked files, logs, or
+chat. Follow the
 [Phase 7 operations runbook](docs/phase-7/PHASE-07-OPERATIONS-RUNBOOK.md).
 
 If the local database password contains reserved URL characters, URL-encode the password portion in `DATABASE_URL` and `SHADOW_DATABASE_URL`.
@@ -181,27 +186,28 @@ npm run phase6:performance:profile --workspace @opspilot/api
 
 Phase 7 Python lint, format, coverage, cross-service, preflight, and evaluation commands are in
 `apps/ai/README.md`. Routine tests and the cross-service smoke use deterministic providers and do
-not contact xAI.
+not contact Groq.
 
 The owner bootstrap prompts for the password and confirmation without accepting the password in command-line arguments or environment variables. Run it only after migrations and only once.
 
 ## Current phase
 
-Phase 7 — AI Foundation is **repository-complete and deterministically verified** under ADR 0009 as
-of 2026-09-03. xAI/Grok is selected and a key exists only outside the repository, but no key was
-read or used and no real provider call was made. The live preflight/evaluation, provider/privacy
-review, and explicit phase acceptance remain pending; `AI_ENABLED` stays false. Phase 6 remains
-repository-complete under ADR 0008. Phase 4 remains repository-complete but unaccepted because
-external Razorpay Test Mode smoke is deferred.
+Phase 7 — AI Foundation is **accepted and complete for the repository/development scope** under
+ADRs 0009 and 0010. On 2026-09-04 Global ZDR, the redacted preflight, paced 20-case live evaluation,
+and signed Node-to-FastAPI-to-Groq path passed; the user enabled development inference and
+explicitly accepted the phase. Production deployment remains unapproved pending the broader
+provider/privacy/account/operations review. Phase 6 remains repository-complete under ADR 0008.
+Phase 4 remains repository-complete but unaccepted because external Razorpay Test Mode smoke is
+deferred.
 See the [Phase 7 specification](docs/phases/PHASE-07-AI-FOUNDATION.md),
-[Phase 7 review report](docs/phase-7/PHASE-07-REVIEW-REPORT.md), and
+[Phase 7 review and acceptance report](docs/phase-7/PHASE-07-REVIEW-REPORT.md), and
 [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 
 Phase 5 stayed within ADR 0007 and is committed as `10e73ac`. Phase 6 stayed within ADR 0008's
 approved job/outbox, worker, notification, real-time hint, owner tooling, and verification baseline.
-Phase 7 implementation is limited to ADR 0009. Live payments, unresolved Phase 4 provider/go-live
+Phase 7 implementation is limited to ADRs 0009 and 0010. Live payments, unresolved Phase 4 provider/go-live
 gates, attachments, exports, Redis, BullMQ, external brokers/channels, hosted observability,
 multi-instance/production deployment, and every unapproved later AI capability remain outside
 scope.

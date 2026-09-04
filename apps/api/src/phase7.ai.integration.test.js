@@ -33,7 +33,7 @@ function providerResult(payload, overrides = {}) {
       payload.assistant === AI_ASSISTANTS.CUSTOMER
         ? AI_PROMPT_VERSIONS.CUSTOMER
         : AI_PROMPT_VERSIONS.OWNER,
-    model: "grok-4.6",
+    model: "openai/gpt-oss-120b",
     providerRequestId: `resp_${randomUUID()}`,
     usage: {
       inputTokens: 100,
@@ -138,7 +138,7 @@ async function grantConsent(userId, assistant) {
   return database.aiProviderConsent.create({
     data: {
       userId,
-      provider: "XAI",
+      provider: "GROQ",
       assistant,
       noticeVersion: AI_NOTICE_VERSION,
     },
@@ -236,12 +236,12 @@ describe.sequential("Phase 7 AI foundation", () => {
         data: {
           userId: auth.user.id,
           submissionKey: randomUUID(),
-          provider: "XAI",
+          provider: "GROQ",
           assistant: "CUSTOMER",
           intent: "OWNER_OVERVIEW_EXPLAIN",
           status: "PENDING",
           promptVersion: "customer-help-v1",
-          model: "grok-4.6",
+          model: "openai/gpt-oss-120b",
           reservedCostTicks: 200_000_000n,
         },
       }),
@@ -259,7 +259,7 @@ describe.sequential("Phase 7 AI foundation", () => {
       .set("Cookie", auth.cookie);
     expect(initial.status).toBe(200);
     expect(initial.body.data.consent).toMatchObject({
-      provider: "XAI",
+      provider: "GROQ",
       assistant: "CUSTOMER",
       active: false,
       consentedAt: null,
@@ -400,11 +400,11 @@ describe.sequential("Phase 7 AI foundation", () => {
     });
     expect(event).toMatchObject({
       status: "SUCCEEDED",
-      provider: "XAI",
+      provider: "GROQ",
       assistant: "CUSTOMER",
       intent: "CUSTOMER_HELP",
       promptVersion: "customer-help-v1",
-      model: "grok-4.6",
+      model: "openai/gpt-oss-120b",
       outcome: "ANSWER",
       inputTokens: 100,
       outputTokens: 20,
@@ -566,12 +566,12 @@ describe.sequential("Phase 7 AI foundation", () => {
         id: staleId,
         userId: auth.user.id,
         submissionKey: randomUUID(),
-        provider: "XAI",
+        provider: "GROQ",
         assistant: "CUSTOMER",
         intent: "CUSTOMER_HELP",
         status: "PENDING",
         promptVersion: "customer-help-v1",
-        model: "grok-4.6",
+        model: "openai/gpt-oss-120b",
         reservedCostTicks: 200_000_000n,
         startedAt: new Date(Date.now() - baseConfig.ai.timeoutMs - 10_000),
         createdAt: new Date(Date.now() - baseConfig.ai.timeoutMs - 10_000),

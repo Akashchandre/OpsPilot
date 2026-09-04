@@ -7,9 +7,9 @@ from typing import Any
 from pydantic import ValidationError
 
 from .config import AiSettings, load_settings
-from .constants import XAI_MODEL
+from .constants import GROQ_MODEL
 from .errors import AiServiceError
-from .providers import GrokResponsesProvider, ResponseProvider
+from .providers import GroqChatCompletionsProvider, ResponseProvider
 
 LIVE_PREFLIGHT_FLAG = "OPSPILOT_LIVE_AI_PREFLIGHT"
 
@@ -23,19 +23,19 @@ async def run_preflight(
     *,
     provider: ResponseProvider | None = None,
 ) -> dict[str, Any]:
-    selected_provider = provider or GrokResponsesProvider(settings)
+    selected_provider = provider or GroqChatCompletionsProvider(settings)
     try:
         await selected_provider.preflight()
         return {
             "success": True,
             "checkedAt": _timestamp(),
-            "provider": "xAI",
-            "model": XAI_MODEL,
+            "provider": "Groq",
+            "model": GROQ_MODEL,
             "providerState": selected_provider.state.value,
             "checks": {
                 "credentialAndModelAccess": True,
-                "zeroDataRetentionHeader": True,
-                "priceCeiling": True,
+                "zeroDataRetentionOperatorConfirmation": True,
+                "reviewedPricePolicyPinned": True,
             },
             "inferencePerformed": False,
             "secretValuesEmitted": False,
@@ -48,8 +48,8 @@ def _safe_failure(code: str) -> dict[str, Any]:
     return {
         "success": False,
         "checkedAt": _timestamp(),
-        "provider": "xAI",
-        "model": XAI_MODEL,
+        "provider": "Groq",
+        "model": GROQ_MODEL,
         "errorCode": code,
         "secretValuesEmitted": False,
     }

@@ -2,7 +2,7 @@ import base64
 
 from opspilot_ai.app import create_app
 from opspilot_ai.config import AiSettings
-from opspilot_ai.constants import XAI_MODEL, Outcome, SafeNotice
+from opspilot_ai.constants import GROQ_MODEL, Outcome, SafeNotice
 from opspilot_ai.contracts import StructuredProviderOutput
 from opspilot_ai.prompts import RenderedPrompt
 from opspilot_ai.providers import ProviderReadiness, ProviderResult, ProviderUsage
@@ -22,7 +22,7 @@ class CrossServiceMockProvider:
                 outcome=Outcome.ANSWER,
                 notices=[SafeNotice.USE_STANDARD_SUPPORT],
             ),
-            model=XAI_MODEL,
+            model=GROQ_MODEL,
             request_id="resp_cross_service_mock",
             usage=ProviderUsage(
                 input_tokens=100,

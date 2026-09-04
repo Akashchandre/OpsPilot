@@ -192,13 +192,13 @@ shared adapters, multi-instance topology, attachments, exports, and AI remain ou
 
 ## Phase 7 AI foundation boundary
 
-ADR 0009's Phase 7 repository baseline is implemented and deterministically verified. One
+ADRs 0009 and 0010's Phase 7 repository baseline is implemented and deterministically verified. One
 separately run Python/FastAPI service sits behind Node.js. Node remains the only
 public API and owns session authentication, permissions, provider-processing consent, aggregate
 report access, quota/idempotency reservations, and metadata-only usage/audit evidence. It sends a
 minimal HMAC-signed internal request. FastAPI has no MySQL or business-API credential and can call
-only the fixed xAI Responses endpoint with a fixed model, no tools, structured output,
-`store: false`, and verified ZDR.
+only the fixed Groq Chat Completions endpoint with `openai/gpt-oss-120b`, no tools/citations,
+strict structured output, and explicitly operator-confirmed ZDR.
 
 Only stateless public-feature customer help and owner explanation of the existing aggregate
 overview are implemented. Questions, answers, reasoning, context, and chat history are not stored.
@@ -206,9 +206,11 @@ Consent and metadata-only usage/cost evidence are stored in MySQL. Persistent
 chat, personal/row-level context, documents/RAG, LangChain/LangGraph, streaming, and AI actions
 remain deferred.
 
-The provider adapter and public AI routes stay disabled until ignored local secrets, the redacted
-xAI model/ZDR/price preflight, the metered synthetic live evaluation, manual privacy/account review,
-and explicit acceptance pass. Repository completion is not production deployment approval.
+Global ZDR, the redacted application preflight, the paced metered synthetic evaluation, and the
+signed live path passed on 2026-09-04; the user explicitly enabled the development routes. The
+user subsequently accepted Phase 7 after its repository/development completion gate passed. The
+remaining manual privacy/account/operations review and explicit production approval are still
+required before production deployment.
 
 ## Main application layering
 
@@ -279,7 +281,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 |---|---|---:|---|
 | Redis/shared adapters | Future cache or multi-instance queue/socket/rate coordination if justified | After 6 | Need, topology, ownership, failure behavior |
 | Object storage | Durable private document/file storage | 8 unless earlier justified | Provider, access model, scanning, retention |
-| Python/FastAPI | Isolated AI provider/prompt boundary | 7 | HMAC/loopback single-instance baseline implemented; provider/live evaluation and production mTLS/network topology remain unresolved |
+| Python/FastAPI | Isolated AI provider/prompt boundary | 7 | HMAC/loopback and provider/live development gates pass; production mTLS/network topology remains unresolved |
 | Vector database | Permission-aware document retrieval | 8 | Technology, metadata/filter model, tenancy |
 | Docker | Reproducible packaging and local/production topology | 10 | Images, registry, orchestration |
 | GitHub Actions | Automated quality and delivery gates | 10 | Workflows and environments |
@@ -317,7 +319,7 @@ This is a target direction, not an instruction to deploy every component. Each s
 - A future change to the accepted catalog model: variants, media, hierarchy, multi-currency,
   tax/discount rules, multiple warehouses, or employee onboarding.
 - Notification channels and delivery guarantees.
-- Phase 7 provider/account/privacy/live-evaluation acceptance and production service topology;
+- Phase 7 production provider/account/privacy review and production service topology;
   file storage, vector database, embedding provider, and later AI governance remain unresolved in
   their owning phases.
 - Hosting, network boundaries, environments, observability, backup, and recovery targets.

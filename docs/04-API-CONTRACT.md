@@ -280,7 +280,7 @@ and phase acceptance remain disabled pending the external gates.
 
 | Method | Path | Access | Behavior |
 |---|---|---|---|
-| GET | `/api/v1/ai/consents/:assistant` | Active session + registered assistant scope | Read only the caller's matching versioned xAI processing consent |
+| GET | `/api/v1/ai/consents/:assistant` | Active session + registered assistant scope | Read only the caller's matching versioned Groq processing consent |
 | PUT | `/api/v1/ai/consents/:assistant` | Matching assistant-use permission + CSRF/exact origin | Accept the server-owned current notice for that caller/scope |
 | DELETE | `/api/v1/ai/consents/:assistant` | Active session + CSRF/exact origin | Revoke the caller's matching consent even after permission removal |
 | POST | `/api/v1/ai/customer/responses` | `ai:customer:use` + matching consent + CSRF + UUID at-most-once submission/quota | Send one bounded `CUSTOMER_HELP` question with public-feature context only |
@@ -289,7 +289,7 @@ and phase acceptance remain disabled pending the external gates.
 
 The browser calls Node.js only. Node authorizes and minimizes context before an HMAC-authenticated
 internal FastAPI request. Questions are normalized plain text from 1 to 2,000 characters. A UUID
-`Idempotency-Key` is an at-most-once submission key: a consumed key cannot call xAI again or replay
+`Idempotency-Key` is an at-most-once submission key: a consumed key cannot call Groq again or replay
 an answer because no answer is stored. Responses are non-streaming structured results rendered as
 plain text. The implementation stores assistant-scoped provider consent and metadata-only usage evidence,
 but no question, answer, reasoning, chat session, or chat message. No client may select model,

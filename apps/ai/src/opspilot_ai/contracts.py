@@ -229,8 +229,6 @@ PROVIDER_OUTPUT_JSON_SCHEMA = {
     "properties": {
         "answer": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": MAX_ANSWER_CHARACTERS,
         },
         "outcome": {
             "type": "string",
@@ -242,8 +240,6 @@ PROVIDER_OUTPUT_JSON_SCHEMA = {
                 "type": "string",
                 "enum": [notice.value for notice in SafeNotice],
             },
-            "maxItems": 3,
-            "uniqueItems": True,
         },
     },
     "required": ["answer", "outcome", "notices"],
