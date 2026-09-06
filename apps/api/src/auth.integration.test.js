@@ -216,7 +216,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
     expect(roles.status).toBe(200);
     expect(roles.body.data.roles.map((role) => role.code)).toEqual(["ADMIN", "CUSTOMER", "OWNER"]);
     expect(permissions.status).toBe(200);
-    expect(permissions.body.data.permissions).toHaveLength(26);
+    expect(permissions.body.data.permissions).toHaveLength(29);
     expect(permissions.body.data.permissions.map((permission) => permission.code)).toEqual(
       expect.arrayContaining([
         "inventory:adjust",
@@ -232,6 +232,9 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
         "documents:read",
         "documents:manage",
         "documents:delete",
+        "ai:workflows:business:use",
+        "ai:workflows:support:use",
+        "ai:workflows:support:approve",
       ]),
     );
 
@@ -338,7 +341,7 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
       password,
     });
     expect(owner.roles).toEqual(["OWNER"]);
-    expect(owner.permissions).toHaveLength(25);
+    expect(owner.permissions).toHaveLength(28);
     expect(owner.permissions).toEqual(
       expect.arrayContaining([
         "support:tickets:read",
@@ -352,6 +355,9 @@ describe.sequential("Phase 2 authentication and RBAC API", () => {
         "documents:read",
         "documents:manage",
         "documents:delete",
+        "ai:workflows:business:use",
+        "ai:workflows:support:use",
+        "ai:workflows:support:approve",
       ]),
     );
 

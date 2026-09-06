@@ -16,9 +16,11 @@ Qdrant/FastEmbed dependencies. The verified repository/development implementatio
 text/Markdown ingestion, encrypted private local objects, version/audience lifecycle, signed
 retrieval, bounded grounded context, separate document consent, and citation handling. The user
 explicitly accepted the completed repository/development scope on 2026-09-06. Local
-filesystem/Qdrant/FastEmbed operation is not production approval. Phase 9 capabilities remain
-future direction only; no personal/row-level business data, tools, or actions are authorized by
-Phase 8.
+filesystem/Qdrant/FastEmbed operation is not production approval. On 2026-09-06 the user authorized
+Phase 9 decision-definition. Its two-workflow, signed-tool, metadata-only-checkpoint,
+encrypted-artifact, and human-approval baseline was accepted under ADR 0012. The complete
+repository/development implementation and automated gate passed and were explicitly accepted on
+2026-09-06.
 
 AI does not replace authentication, authorization, deterministic business rules, database constraints, payment logic, or human approval for consequential actions.
 
@@ -126,7 +128,11 @@ holds, backup erasure, and production rollout remain pending.
 
 AI may classify or summarize tickets, retrieve approved answers, suggest responses, gather permitted order context, and support routing. Autonomous customer-visible responses or state-changing actions require explicit policy and appropriate human confirmation.
 
-SLA, confidence thresholds, escalation rules, agent review, supported actions, and audit requirements are **Decision Required**.
+The accepted Phase 9 v1 boundary narrows this to one owner/admin support-reply graph: bounded public
+ticket context, minimal related-order state, customer-audience policy excerpts, one generated draft,
+and an interrupt before exactly one idempotent public reply. Internal notes and automatic ticket,
+payment, refund, order, inventory, user, role, or external-channel changes remain excluded. The
+implemented boundary is described in `docs/phase-9/PHASE-09-IMPLEMENTATION-GUIDE.md`.
 
 ## Capability 5: Business-data querying
 
@@ -141,11 +147,25 @@ Do not let a model execute unrestricted SQL. Use narrow, allowlisted tools imple
 
 Generated narrative must clearly identify inferred insights and must not fabricate absent data.
 
+The accepted Phase 9 owner business brief uses only the existing overview, a bounded low-stock
+projection, and an aggregate support-queue projection. It has no free-form prompt, SQL, forecast,
+row-level customer data, or action. Exact facts and freshness remain separate from generated
+interpretation. Its repository/development implementation and verification gates pass.
+
 ## Capability 6: LangGraph workflows
 
-LangGraph is planned for stateful multi-step workflows in Phase 9, such as business analysis or AI-assisted support. Graphs should use explicit state, bounded loops, timeouts, approved tools, checkpoints only where needed, deterministic error paths, and human approval nodes for consequential actions.
+The accepted Phase 9 baseline uses Python `StateGraph` definitions with static tool paths, a hard
+step limit, server-stamped graph versions, existing MySQL jobs for asynchronous start/resume, and
+Node as the only business/tool/action authority. FastAPI calls a separately keyed signed Node
+gateway; the model receives no tool-calling interface.
 
-Workflow inventory, persistence/checkpoint store, interruption/recovery, approval UI, and replay policy are **Decision Required**.
+The interrupting support graph uses a private local SQLite checkpointer only for repository/
+development. Checkpoint state contains opaque IDs/digests/status only, while Node stores the
+minimum required short-lived tool/draft/result artifacts under application AES-256-GCM encryption.
+Time travel, fork, arbitrary replay, in-place version migration, and production SQLite are rejected.
+The proposal, exact dependencies, retention, approval UI, and recovery policy were accepted for
+repository/development under ADR 0012 and are implemented behind default-off gates. Production is
+rejected by configuration and remains a separate decision.
 
 ## Service responsibilities
 
@@ -165,8 +185,8 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 - In Phase 8, owns signed index/publication/candidate/deletion contracts, deterministic chunking,
   pinned local FastEmbed embedding, local Qdrant operations, document prompt construction, and
   strict answer/citation contract validation. It returns candidates as opaque IDs/scores only.
-- Graph workflows and any safe tool-invocation protocol remain future Phase 9 responsibilities and
-  are not installed or implemented.
+- Phase 9 owns implemented versioned metadata-only graphs and the signed reverse tool protocol
+  within the accepted, default-disabled repository/development boundary.
 - Accepts only authenticated internal calls.
 - Does not become a backdoor around Node.js authorization or database rules.
 
@@ -220,6 +240,9 @@ paced live Groq run pass; broader production human review remains pending. Phase
 deterministic golden retrieval corpus and opt-in grounded-answer evaluator covering retrieval rank,
 no-evidence behavior, audience isolation, stale/deleted exclusion, injection, citation validity,
 latency, and provider cost without emitting document or answer content. Its final measured gate
-passes; explicit Phase 8 acceptance remains the completion condition. Model output is
+passes and Phase 8 was explicitly accepted for repository/development on 2026-09-06. Proposed Phase
+9 gates add graph state/version/interrupt/resume, tool/approval/idempotency, checkpoint/artifact
+privacy, adversarial business/support quality, kill-switch, failure, latency, and cost evidence.
+Model output is
 probabilistic, so phase completion depends on recorded thresholds and monitored failure modes, not
 anecdotal demos.

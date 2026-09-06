@@ -4,6 +4,7 @@ import { PermissionRoute, ProtectedRoute } from "./auth/ProtectedRoute.jsx";
 import { AppLayout } from "./components/AppLayout.jsx";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage.jsx";
 import { AdminSupportPage } from "./pages/AdminSupportPage.jsx";
+import { BusinessWorkflowsPage } from "./pages/BusinessWorkflowsPage.jsx";
 import { CartPage } from "./pages/CartPage.jsx";
 import { CatalogAdminPage } from "./pages/CatalogAdminPage.jsx";
 import { CheckoutPage } from "./pages/CheckoutPage.jsx";
@@ -211,6 +212,16 @@ export function AppRoutes() {
             <ProtectedRoute>
               <PermissionRoute permission="ai:owner:use">
                 <OwnerDocumentAssistantPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/workflows"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="ai:workflows:business:use">
+                <BusinessWorkflowsPage />
               </PermissionRoute>
             </ProtectedRoute>
           }

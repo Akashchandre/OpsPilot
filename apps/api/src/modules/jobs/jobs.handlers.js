@@ -1,4 +1,5 @@
 import { createAuditService } from "../audit/audit.service.js";
+import { createAiWorkflowJobHandler } from "../ai/ai.workflow.jobs.js";
 import { createDocumentJobHandler } from "../documents/document.jobs.js";
 import { createNotificationMaterializer } from "../notifications/notifications.materializer.js";
 import { expireDueOrders } from "../orders/reservation.service.js";
@@ -21,11 +22,13 @@ export function createJobHandlers(database, config, dependencies = {}) {
   const notifications = createNotificationMaterializer(database);
   const audit = createAuditService(database, config);
   const documents = createDocumentJobHandler(database, config, dependencies);
+  const workflows = createAiWorkflowJobHandler(database, config, dependencies);
 
   return Object.freeze({
     async execute(job) {
       if (notificationJobTypes.has(job.type)) return notifications.materialize(job);
       if (documents.handles(job.type)) return documents.execute(job);
+      if (workflows.handles(job.type)) return workflows.execute(job);
 
       if (job.type === JOB_TYPES.ORDER_RESERVATION_EXPIRY_SWEEP) {
         let total = 0;

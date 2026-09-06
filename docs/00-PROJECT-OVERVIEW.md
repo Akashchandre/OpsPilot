@@ -10,6 +10,9 @@ repository-complete and verified under ADR 0008; Phase 7 accepted and complete f
 repository/development scope under ADRs 0009 and 0010, with production review still pending;
 Phase 8 is accepted and complete for the repository/development scope under ADR 0011 as of
 2026-09-06. Its local encrypted-storage and local-vector topology is not approved for production.
+Phase 9's workflow/dependency baseline was accepted under ADR 0012 on 2026-09-06. Its complete
+repository/development implementation and automated gate passed and were explicitly accepted that
+day; production and separately gated data/live-evaluation uses remain unapproved.
 
 ## Purpose
 
@@ -100,22 +103,23 @@ The eventual platform is expected to include:
 
 The bounded stateless AI foundation is implemented in Phase 7. Phase 8 implements accepted and
 verified document-grounded Q&A over approved company documents with separate consent, lifecycle,
-and source authorization controls. Personal or row-level context, tools, actions, LangChain, and
-LangGraph remain future work.
+and source authorization controls. The implemented Phase 9 baseline adds two fixed LangGraph
+workflows, tightly scoped tools, and one human-approved idempotent support action.
+Broader personal/row-level context, general agents, and deferred tools/actions remain prohibited.
 
 ## Technology direction
 
-| Layer                     | Direction                                                                                                                                  | Status                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Web client                | React with JavaScript and React Router                                                                                                     | Agreed                                                                                                       |
-| Client state              | Redux Toolkit only where shared complexity justifies it                                                                                    | Conditional                                                                                                  |
-| UI system                 | Material UI or Tailwind CSS                                                                                                                | **Decision Required**                                                                                        |
-| Main API                  | Node.js, Express, JavaScript                                                                                                               | Agreed                                                                                                       |
-| Relational data           | MySQL with Prisma                                                                                                                          | Agreed                                                                                                       |
-| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b` for Phase 7; LangChain/LangGraph only when later justified | Phase 7 accepted and complete for repository/development under ADRs 0009 and 0010; production review pending |
-| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                    | Verified under ADR 0011; production vector topology remains **Decision Required**                            |
-| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development             | Local document storage is not approved for production; Redis/shared adapters remain conditional              |
-| Delivery                  | Docker, GitHub Actions, AWS                                                                                                                | Future; detailed choices **Decision Required**                                                               |
+| Layer                     | Direction                                                                                                                              | Status                                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Web client                | React with JavaScript and React Router                                                                                                 | Agreed                                                                                                           |
+| Client state              | Redux Toolkit only where shared complexity justifies it                                                                                | Conditional                                                                                                      |
+| UI system                 | Material UI or Tailwind CSS                                                                                                            | **Decision Required**                                                                                            |
+| Main API                  | Node.js, Express, JavaScript                                                                                                           | Agreed                                                                                                           |
+| Relational data           | MySQL with Prisma                                                                                                                      | Agreed                                                                                                           |
+| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b`; LangGraph only for approved bounded Phase 9 workflows | Phases 7–9 accepted for repository/development; production unapproved                                               |
+| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                | Verified under ADR 0011; production vector topology remains **Decision Required**                                |
+| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development         | Local document storage is not approved for production; Redis/shared adapters remain conditional                  |
+| Delivery                  | Docker, GitHub Actions, AWS                                                                                                            | Future; detailed choices **Decision Required**                                                                   |
 
 The main frontend and backend must remain JavaScript. TypeScript migration is out of scope unless the project direction is explicitly changed.
 
@@ -174,6 +178,14 @@ instructed that the completed phase be committed on 2026-09-06, recording explic
 the repository/development scope. Local filesystem/Qdrant operation is deliberately rejected in
 production.
 
+On 2026-09-06, the user explicitly instructed OpsPilot to start Phase 9 and then approved the
+complete repository/development baseline under ADR 0012. It defines an owner-only read-only
+business brief and an owner/admin support reply-draft workflow with
+fixed graph-selected Node tools, metadata-only local checkpoints, short-lived encrypted artifacts,
+and mandatory human approval before one idempotent public reply. The permission/approval matrix,
+threat model, exact LangGraph dependency pins, and evaluation gates are accepted. The complete
+implementation and repository/development gate passed and were explicitly accepted on 2026-09-06.
+
 ## Overall system flow
 
 ### Core application flow
@@ -224,8 +236,9 @@ production.
    citation identifiers and metadata-only usage evidence, and returns a plain-text answer with
    current authorized citations or an insufficient-evidence result.
 
-LangChain/LangGraph, broader business tools, personal/row-level context, and actions remain later
-phase direction only.
+Broader LangChain/LangGraph agents, personal/row-level context, and actions remain deferred. The
+implemented narrow Phase 9 boundary is documented in `docs/phase-9/`; it remains default-disabled
+and is not approved for production or separately gated support-data/live-evaluation use.
 
 The initial release is single-business per ADR 0003. Multi-tenancy and tenant isolation require a later explicit architectural decision and schema migration.
 

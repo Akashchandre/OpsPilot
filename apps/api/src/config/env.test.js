@@ -10,6 +10,17 @@ const validEnvironment = {
   DATABASE_URL: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
 };
 const documentStorageRoot = path.resolve("tmp", "opspilot-documents-test");
+const workflowEnvironment = {
+  ...validEnvironment,
+  AI_ENABLED: "true",
+  AI_SERVICE_SIGNING_KEY: Buffer.alloc(32, 0x61).toString("base64"),
+  AI_SERVICE_SIGNING_KEY_ID: "phase9-node-to-ai-v1",
+  AI_WORKFLOWS_ENABLED: "true",
+  AI_WORKFLOW_NODE_SIGNING_KEY: Buffer.alloc(32, 0x62).toString("base64"),
+  AI_WORKFLOW_NODE_SIGNING_KEY_ID: "phase9-ai-to-node-v1",
+  AI_WORKFLOW_ARTIFACT_KEY: Buffer.alloc(32, 0x63).toString("base64"),
+  AI_WORKFLOW_ARTIFACT_KEY_ID: "phase9-artifacts-v1",
+};
 
 describe("loadEnvironment", () => {
   it("normalizes valid configuration", () => {
@@ -71,6 +82,23 @@ describe("loadEnvironment", () => {
         },
         globalDailyCostLimitUsdCents: 200,
         maximumRequestCostUsdCents: 2,
+        workflows: {
+          enabled: false,
+          businessBriefEnabled: false,
+          supportEnabled: false,
+          supportDataProcessingConfirmed: false,
+          nodeSigningKey: undefined,
+          nodeSigningKeyId: undefined,
+          artifactKey: undefined,
+          artifactKeyId: undefined,
+          burstWindowMinutes: 15,
+          burstMaximum: 5,
+          dailyMaximum: 30,
+          maximumActivePerUser: 3,
+          runTtlHours: 24,
+          approvalTtlMinutes: 30,
+          artifactTtlHours: 24,
+        },
       },
       documents: {
         enabled: false,
@@ -209,6 +237,59 @@ describe("loadEnvironment", () => {
         AI_MAX_REQUEST_COST_USD_CENTS: "2",
       }),
     ).toThrow(ConfigurationError);
+  });
+
+  it("requires complete, explicitly enabled workflow boundaries", () => {
+    const configured = loadEnvironment({
+      ...workflowEnvironment,
+      AI_BUSINESS_BRIEF_ENABLED: "true",
+    });
+    expect(configured.ai.workflows).toMatchObject({
+      enabled: true,
+      businessBriefEnabled: true,
+      supportEnabled: false,
+      nodeSigningKeyId: "phase9-ai-to-node-v1",
+      artifactKeyId: "phase9-artifacts-v1",
+    });
+
+    for (const field of [
+      "AI_WORKFLOW_NODE_SIGNING_KEY",
+      "AI_WORKFLOW_NODE_SIGNING_KEY_ID",
+      "AI_WORKFLOW_ARTIFACT_KEY",
+      "AI_WORKFLOW_ARTIFACT_KEY_ID",
+    ]) {
+      const incomplete = { ...workflowEnvironment };
+      delete incomplete[field];
+      expect(() => loadEnvironment(incomplete)).toThrow(ConfigurationError);
+    }
+    expect(() =>
+      loadEnvironment({ ...validEnvironment, AI_BUSINESS_BRIEF_ENABLED: "true" }),
+    ).toThrow(ConfigurationError);
+  });
+
+  it("requires separate support-data approval and the document boundary", () => {
+    expect(() =>
+      loadEnvironment({ ...workflowEnvironment, AI_SUPPORT_WORKFLOW_ENABLED: "true" }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadEnvironment({
+        ...workflowEnvironment,
+        AI_SUPPORT_WORKFLOW_ENABLED: "true",
+        AI_SUPPORT_DATA_PROCESSING_CONFIRMED: "true",
+      }),
+    ).toThrow(ConfigurationError);
+
+    const configured = loadEnvironment({
+      ...workflowEnvironment,
+      AI_SUPPORT_WORKFLOW_ENABLED: "true",
+      AI_SUPPORT_DATA_PROCESSING_CONFIRMED: "true",
+      DOCUMENTS_ENABLED: "true",
+      DOCUMENT_STORAGE_ROOT: documentStorageRoot,
+      DOCUMENT_ENCRYPTION_KEY: Buffer.alloc(32, 0x44).toString("base64"),
+      DOCUMENT_ENCRYPTION_KEY_ID: "documents-test-v1",
+    });
+    expect(configured.ai.workflows.supportEnabled).toBe(true);
+    expect(configured.ai.workflows.supportDataProcessingConfirmed).toBe(true);
   });
 
   it("rejects Live Mode and malformed Razorpay key IDs", () => {

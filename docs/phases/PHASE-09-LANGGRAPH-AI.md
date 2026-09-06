@@ -1,5 +1,12 @@
 # Phase 9 — LangGraph Business AI and AI Support
 
+## Status
+
+**ACCEPTED AND COMPLETE FOR REPOSITORY/DEVELOPMENT.** On 2026-09-06 the user explicitly approved
+the complete Phase 9 baseline and dependency pins, then explicitly accepted the verified
+implementation. Production, non-synthetic support-data model processing, metered live evaluation,
+and deferred workflows/actions remain unapproved.
+
 ## Objective
 
 Introduce controlled, permission-aware LangGraph workflows for business analysis and AI-assisted support using narrow tools, explicit state, and human approval for consequential actions.
@@ -18,7 +25,28 @@ Initial workflows/tools; read-only versus action capabilities; approval matrix; 
 
 ## Tasks
 
-Select bounded use cases and threat-model each; approve dependencies/services/config; define tool schemas/permissions/limits/idempotency; implement versioned graphs and explicit failure paths; add approval/cancel/resume UI and service contracts; enforce audit and policy gates; build scenario/adversarial/tool evaluations; add monitoring/kill switches/runbooks; document and update progress.
+- [x] Confirm the Phase 8 repository/development acceptance and explicit authorization to begin
+      Phase 9 decision-definition.
+- [x] Inspect the existing AI, RAG, support, reporting, RBAC, audit, job, configuration,
+      persistence, UI, and pending-change boundaries.
+- [x] Review current official LangGraph package, checkpoint, interrupt, versioning, timeout,
+      idempotency, and deserialization guidance.
+- [x] Draft the bounded workflow/tool baseline, permission and approval matrix, threat model,
+      dependency/account/configuration catalog, persistence/retention policy, and evaluation gates.
+- [x] Explicitly approve the complete Phase 9 baseline and separately authorize the exact Python
+      dependency installation.
+- [x] Implement migration-controlled persistence, permissions, signed reverse tool gateway,
+      encrypted artifacts, and registered jobs.
+- [x] Implement versioned graphs, metadata-only checkpoints, provider-step controls, recovery, and
+      kill switches.
+- [x] Implement workflow API/UI, support draft review/edit/approve/reject/cancel, and the one
+      approved idempotent support-reply action.
+- [x] Run deterministic, adversarial, privacy, tool, approval, failure, performance, cost, and full
+      prior-phase regression gates; synchronize implementation/runbook/review documentation.
+- [x] Keep metered synthetic live evaluation and non-synthetic local support-data processing
+      disabled; require separate authorization if either is later requested.
+- [x] Record explicit Phase 9 repository/development acceptance only after every completion
+      criterion passes. Production rollout remains a separate authorization.
 
 ## Acceptance criteria
 
@@ -53,3 +81,7 @@ Update AI/system architecture, API/tool contracts, graph diagrams/state and appr
 
 Any unapproved autonomous action, unrestricted data/infrastructure access, or workflow without evaluation and a kill switch is out of scope.
 
+The current proposal also excludes customer-facing Phase 9 workflows, general chat/memory,
+model-selected tools, internal support notes, automatic ticket changes, financial/destructive/
+permission actions, external messages, LangSmith, new provider/model accounts, production
+checkpoint topology, multi-instance deployment, and production rollout.

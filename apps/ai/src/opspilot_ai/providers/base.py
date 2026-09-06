@@ -5,6 +5,7 @@ from typing import Protocol
 from ..contracts import DocumentStructuredProviderOutput, StructuredProviderOutput
 from ..errors import AiServiceError
 from ..prompts import RenderedPrompt
+from ..workflows.contracts import BusinessBriefOutput, SupportReplyOutput
 
 
 class ProviderReadiness(StrEnum):
@@ -24,7 +25,12 @@ class ProviderUsage:
 
 @dataclass(frozen=True, slots=True)
 class ProviderResult:
-    output: StructuredProviderOutput | DocumentStructuredProviderOutput
+    output: (
+        StructuredProviderOutput
+        | DocumentStructuredProviderOutput
+        | BusinessBriefOutput
+        | SupportReplyOutput
+    )
     model: str
     request_id: str
     usage: ProviderUsage

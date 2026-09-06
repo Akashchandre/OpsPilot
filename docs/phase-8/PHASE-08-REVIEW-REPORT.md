@@ -45,18 +45,18 @@ workflows remain outside the delivered scope.
 
 ## Acceptance criteria review
 
-| Criterion | Evidence | Result |
-|---|---|---|
-| Only allowed managers manage documents | Deny-by-default permissions, session/CSRF/origin/idempotency checks, transaction-time role/status reauthorization and locks, integration tests, and role matrix | Pass |
-| Originals remain confidential and tamper-evident | Private external root, opaque keys, AES-256-GCM AAD, atomic writes, encrypted-read/checksum tests | Pass |
-| Invalid/stale/deleted data cannot reach an answer | Strict validation, lifecycle state machine, staged index publication, active-version and final source reauthorization | Pass |
-| Reprocessing/replacement is unambiguous | Immutable versions, row locks, idempotent jobs, generation metadata, concurrency/retry tests | Pass |
-| Customer/owner sources remain isolated | Fixed server-derived audiences, opaque candidates, MySQL reauthorization, golden isolation/deletion/supersession cases | Pass |
-| Answers are grounded and cited or safely decline | Source-only prompt, typed outcomes/citations, 97.5% grounded answer rate, 100% no-evidence/citation-schema pass | Pass |
-| Prompt injection cannot grant authority or leak sources | Delimited untrusted context, no tools, strict schema, 100% critical safety result, safe UI rendering | Pass |
-| Outage/recovery/deletion behavior is bounded | Safe failures, queue retry/replay constraints, vector deletion, object recovery inventory, runbook | Pass |
-| Quality, latency, and cost meet approved targets | 100% retrieval recall@5, 50.862 ms retrieval p95, 1,046 ms live p95, bounded live cost | Pass |
-| Prior phases remain stable | 193 API, 48 web, and 144 Python tests pass with all configured coverage gates | Pass |
+| Criterion                                               | Evidence                                                                                                                                                        | Result |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Only allowed managers manage documents                  | Deny-by-default permissions, session/CSRF/origin/idempotency checks, transaction-time role/status reauthorization and locks, integration tests, and role matrix | Pass   |
+| Originals remain confidential and tamper-evident        | Private external root, opaque keys, AES-256-GCM AAD, atomic writes, encrypted-read/checksum tests                                                               | Pass   |
+| Invalid/stale/deleted data cannot reach an answer       | Strict validation, lifecycle state machine, staged index publication, active-version and final source reauthorization                                           | Pass   |
+| Reprocessing/replacement is unambiguous                 | Immutable versions, row locks, idempotent jobs, generation metadata, concurrency/retry tests                                                                    | Pass   |
+| Customer/owner sources remain isolated                  | Fixed server-derived audiences, opaque candidates, MySQL reauthorization, golden isolation/deletion/supersession cases                                          | Pass   |
+| Answers are grounded and cited or safely decline        | Source-only prompt, typed outcomes/citations, 97.5% grounded answer rate, 100% no-evidence/citation-schema pass                                                 | Pass   |
+| Prompt injection cannot grant authority or leak sources | Delimited untrusted context, no tools, strict schema, 100% critical safety result, safe UI rendering                                                            | Pass   |
+| Outage/recovery/deletion behavior is bounded            | Safe failures, queue retry/replay constraints, vector deletion, object recovery inventory, runbook                                                              | Pass   |
+| Quality, latency, and cost meet approved targets        | 100% retrieval recall@5, 50.862 ms retrieval p95, 1,046 ms live p95, bounded live cost                                                                          | Pass   |
+| Prior phases remain stable                              | 193 API, 48 web, and 144 Python tests pass with all configured coverage gates                                                                                   | Pass   |
 
 Detailed metrics and safe evidence are in
 [`PHASE-08-EVALUATION-EVIDENCE.md`](PHASE-08-EVALUATION-EVIDENCE.md).
@@ -137,5 +137,7 @@ Groq gates were not repeated because routine acceptance verification does not ma
 
 Phase 8 is accepted and complete for the repository/development scope. Keep document and AI feature
 gates subject to the runbook, keep FastAPI loopback-only, and retain all private roots outside the
-repository and web roots. Phase 9 remains unauthorized. Production requires a separate approved
-architecture, privacy/retention plan, operations readiness review, and rollout authorization.
+repository and web roots. Phase 9 decision-definition was subsequently authorized on 2026-09-06;
+its proposed runtime/dependency baseline remains unapproved and unimplemented. Production requires
+a separate approved architecture, privacy/retention plan, operations readiness review, and rollout
+authorization.

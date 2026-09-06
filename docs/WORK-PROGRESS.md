@@ -4,12 +4,12 @@
 
 ## Current Phase
 
-Phase 8 — RAG and Document Intelligence (accepted and complete for repository/development;
-production approval pending; Phase 9 not authorized)
+Phase 9 — LangGraph Business AI and AI Support (accepted and complete for repository/development
+on 2026-09-06; production remains unapproved)
 
 ## Status
 
-PHASE 8 ACCEPTED AND COMPLETE FOR REPOSITORY/DEVELOPMENT — PRODUCTION APPROVAL PENDING
+PHASE 9 ACCEPTED AND COMPLETE — REPOSITORY/DEVELOPMENT SCOPE
 
 ## Completed
 
@@ -273,9 +273,60 @@ PHASE 8 ACCEPTED AND COMPLETE FOR REPOSITORY/DEVELOPMENT — PRODUCTION APPROVAL
   offline retrieval gate pass. The user instructed that Phase 8 be committed if complete; this
   records explicit Phase 8 acceptance for the repository/development scope. No production rollout
   or Phase 9 work is authorized by that instruction.
+- The complete accepted Phase 8 repository/development implementation was committed as `41801e6`
+  (`feat: complete phase 8 document intelligence`).
+- On 2026-09-06 the user explicitly instructed OpsPilot to start Phase 9. This authorizes
+  decision-definition work, not dependency installation or implementation of unresolved workflow,
+  tool, approval, retention, or action policies.
+- The Phase 9 specification and existing AI/RAG/support/report/RBAC/audit/job/configuration/
+  persistence/UI boundaries were reviewed together with current official LangGraph persistence,
+  interrupt, graph-version compatibility, recursion/timeout, SQLite checkpointer, and strict
+  deserialization guidance.
+- A complete proposed two-graph baseline is documented for review: owner-only read-only business
+  briefs and owner/admin support reply drafting with customer-policy grounding, metadata-only
+  LangGraph checkpoints, Node-owned encrypted artifacts, fixed graph-selected tools, mandatory
+  human approval, and exactly one idempotent customer-visible reply action. At that proposal gate,
+  no Phase 9 runtime change had been made.
+- Current official package review proposes exact `langgraph==1.2.11` and
+  `langgraph-checkpoint-sqlite==3.1.1` pins after separate approval. At that review gate no package
+  was installed, no lock changed, no LangSmith/provider account was added, and no provider workflow
+  call was made.
+- The user explicitly approved the complete Phase 9 repository/development baseline and the
+  separate installation of `langgraph==1.2.11` and `langgraph-checkpoint-sqlite==3.1.1` on
+  2026-09-06. ADR 0012 records the authorization and its production, real-support-data, metered
+  live-evaluation, provider/model/account, and deferred-action exclusions.
+- The exact LangGraph dependencies are installed in the isolated Python environment and committed
+  lock. Fixed `v1` owner-business-brief and support-reply graphs, strict metadata-only SQLite
+  checkpoints, bounded provider steps, signed reverse Node tools, and checkpoint cleanup are
+  implemented without LangSmith or a new account/service.
+- Migration `20260906090000_phase_9_langgraph_workflows` implements three permissions, workflow
+  runs/tool evidence/approvals, short-lived AES-256-GCM artifacts, AI usage/model-step links,
+  AI-assisted support-message origin, constraints, indexes, and registered advance/retention jobs.
+  All 15 migrations are applied to development/test with zero schema diff.
+- Node implements default-off/production-rejected gates, separate signed internal boundaries,
+  repeated RBAC/consent/scope/cost/freshness reauthorization, fixed business/support tools,
+  artifact encryption, safe failure/unknown handling, approval/version/digest concurrency, and one
+  idempotent customer-visible support reply after mandatory human approval.
+- React implements permission-gated business workflow and support review experiences with explicit
+  workflow consent, safe plain-text output, provenance/freshness/uncertainty, exact draft review,
+  edit/approve/reject/cancel, and AI-assisted origin. Non-synthetic support processing remains
+  disabled and unapproved.
+- The final gate passes lint, formatting/schema validation, production build, 39 API files / 209
+  tests, 8 web files / 53 tests, 165 routine Python tests with 3 opt-in skips, all coverage gates,
+  both database drift/audit checks, Python dependency consistency, secret scan, the 100-case
+  content-free offline evaluation, and the five-case bidirectional signed local workflow smoke.
+  Workflow p95 is 270.757 ms and signed tool p95 is 71.660 ms.
+- Architecture, database, API, AI, permissions, threat, implementation, operations, evaluation,
+  review, phase, decision, and progress documentation are synchronized.
+- On 2026-09-06, after the complete gate passed, the user explicitly accepted Phase 9 and instructed
+  that the repository/development implementation be committed. This acceptance does not authorize
+  production, metered workflow evaluation, non-synthetic support-data model processing, Phase 10,
+  or any deferred workflow/tool/action.
 
 ## In Progress
 
+- Phase 9 has no remaining repository/development work. Production, metered workflow evaluation,
+  non-synthetic support-data model processing, and Phase 10 remain separately gated.
 - Phase 8 production storage/vector topology, privacy/retention, networking, monitoring, backup,
   multi-instance operation, and rollout approval remain unresolved and separate from the accepted
   repository/development scope.
@@ -290,10 +341,9 @@ PHASE 8 ACCEPTED AND COMPLETE FOR REPOSITORY/DEVELOPMENT — PRODUCTION APPROVAL
 
 ## Next Task
 
-Run the optional Phase 8 manual UI walkthrough against the local development topology and continue
-monitoring the enabled assistants under the runbook. Decide separately whether to authorize Phase 9
-decision-definition work. Production AI/document approval and the independent Phase 4 Razorpay Test
-Mode delivery/recovery gate remain unresolved and separate.
+Await explicit authorization before beginning Phase 10, metered workflow evaluation,
+non-synthetic local support-data processing, or production AI/document/workflow rollout. The
+independent Phase 4 Razorpay Test Mode delivery/recovery gate also remains unresolved.
 
 ## Accepted Decisions
 
@@ -392,12 +442,12 @@ Mode delivery/recovery gate remain unresolved and separate.
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- The 2026-09-02 `npm audit --omit=dev` reports six dependency findings (one moderate and five
+- The 2026-09-06 `npm audit --omit=dev` reports seven transitive findings (two moderate and five
   high): `deepmerge-ts` through Prisma configuration, MariaDB connector credential/TLS/escaping
-  advisories through `@prisma/adapter-mariadb`, and a `mysql2` authentication-downgrade advisory
-  through the Prisma CLI tree. Stable Prisma 7.10.0 still pins `deepmerge-ts@7.1.5`,
-  `mariadb@3.4.5`, and `mysql2@3.15.3`; npm offers only a breaking Prisma downgrade for part of the
-  tree and no adapter fix. No unapproved dependency change was made.
+  advisories through `@prisma/adapter-mariadb`, `mysql2` authentication-downgrade/decompression
+  advisories through the Prisma CLI tree, and `qs` parsing/DoS advisories. npm proposes a breaking
+  Prisma downgrade for part of the tree, the adapter path has no complete fix, and the `qs` update
+  still requires a reviewed dependency/lock change. No unapproved dependency change was made.
 - Phase 5 rate stores and Phase 6 connection/rate accounting are per process and need reviewed
   shared or edge policy before horizontal scaling.
 - The Razorpay Test Mode provider-delivery gate is not yet complete end to end: the rotated API
@@ -491,6 +541,30 @@ Mode delivery/recovery gate remain unresolved and separate.
 - Explicit Phase 7 acceptance was recorded on 2026-09-04 after every repository/development
   completion criterion passed. Production deployment and Phase 8 remain unauthorized.
 
+## Phase 9 Repository Review Evidence
+
+- Accepted baseline: `docs/decisions/0012-phase-9-langgraph-workflow-baseline.md` and
+  `docs/phase-9/PHASE-09-DECISION-PROPOSAL.md`.
+- Implemented authorization and security controls: `docs/permissions/PHASE-09-PERMISSION-MATRIX.md`
+  and `docs/security/PHASE-09-THREAT-MODEL.md`.
+- Implementation and operations: `docs/phase-9/PHASE-09-IMPLEMENTATION-GUIDE.md` and
+  `docs/phase-9/PHASE-09-OPERATIONS-RUNBOOK.md`.
+- Evaluation and final review: `docs/phase-9/PHASE-09-EVALUATION-EVIDENCE.md` and
+  `docs/phase-9/PHASE-09-REVIEW-REPORT.md`.
+- Exact dependencies: `langgraph==1.2.11` and `langgraph-checkpoint-sqlite==3.1.1`, with MIT
+  license expressions and a consistent locked Python environment.
+- Full regression and coverage: 209 API tests at 82.41/73.59/91.67/86.06, 53 web tests at
+  80.62/71.79/80.60/82.81, and 165 passing routine Python tests at 82.87% total coverage.
+- The fixed 100-case offline workflow evaluation passes all thresholds without a provider call.
+  The five-case signed bidirectional local smoke passes at 270.757 ms workflow p95 and 71.660 ms
+  tool p95 with exact usage/cost, encrypted artifacts, durable checkpoint cleanup, and no emitted
+  content or secrets.
+- All 15 migrations are current without development/test drift, both audit chains validate, and
+  lint, formatting/schema, build, dependency consistency, and credential-hygiene checks pass.
+- Explicit Phase 9 repository/development acceptance was recorded on 2026-09-06. Production,
+  non-synthetic support-data processing, metered workflow evaluation, and Phase 10 remain
+  unauthorized.
+
 ## Phase Gate
 
 Phases 1, 2, and 3 are accepted. Phase 4 repository implementation and internal review gates pass,
@@ -502,6 +576,9 @@ development under ADRs 0009 and 0010. Production remains blocked on the broader
 account/privacy/operations review and explicit rollout approval. Phase 8's complete baseline was
 accepted under ADR 0011, its approved repository/development implementation and evaluation gates
 pass, and explicit phase acceptance was recorded on 2026-09-06. Production is separately blocked
-on approved storage/vector topology, privacy/retention, networking, operations, and rollout. Redis,
-BullMQ, external channels, live payments, multi-instance deployment, Phase 9 workflows, and every
-other unapproved later capability remain out of scope.
+on approved storage/vector topology, privacy/retention, networking, operations, and rollout. Phase 9
+baseline approval is recorded under ADR 0012, its complete repository/development implementation
+and automated gate pass, and explicit phase acceptance was recorded on 2026-09-06. Production,
+metered workflow evaluation, non-synthetic support-data model processing, Redis, BullMQ, external
+channels, live payments, multi-instance deployment, unapproved workflows/actions, Phase 10, and
+every later capability remain out of scope.

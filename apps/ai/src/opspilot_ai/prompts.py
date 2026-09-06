@@ -113,6 +113,7 @@ class RenderedPrompt:
     system: str
     user: str
     document_response: bool = False
+    workflow_response: str | None = None
 
 
 def render_prompt(request: InternalResponseRequest) -> RenderedPrompt:

@@ -19,15 +19,15 @@ topology remain separate decisions for their owning phases.
 
 ## Implemented Phase 2 identity tables
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `users` | Login identity and account state | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
-| `roles` | Migration-controlled system roles | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER` |
-| `permissions` | Stable operation permission definitions | Unique stable code; additive migration-controlled permissions through Phase 7 |
-| `user_roles` | User-role assignment and assigning actor | Composite primary key, foreign keys, deliberate actor `SET NULL` |
-| `role_permissions` | System role-permission mapping | Composite primary key and constrained foreign keys |
-| `auth_sessions` | Revocable opaque browser sessions | Unique token digest, CSRF digest, expiry/revocation, user-agent digest |
-| `security_events` | Narrow Phase 2 authentication/authorization evidence | Event/outcome enums, optional actor/target/request ID, controlled JSON metadata |
+| Table              | Purpose                                              | Important constraints                                                                                                |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `users`            | Login identity and account state                     | UUID primary key, normalized unique email, Argon2id hash, active/disabled status, failed-attempt and lock timestamps |
+| `roles`            | Migration-controlled system roles                    | Unique code; seeded `OWNER`, `ADMIN`, `CUSTOMER`                                                                     |
+| `permissions`      | Stable operation permission definitions              | Unique stable code; additive migration-controlled permissions through Phase 7                                        |
+| `user_roles`       | User-role assignment and assigning actor             | Composite primary key, foreign keys, deliberate actor `SET NULL`                                                     |
+| `role_permissions` | System role-permission mapping                       | Composite primary key and constrained foreign keys                                                                   |
+| `auth_sessions`    | Revocable opaque browser sessions                    | Unique token digest, CSRF digest, expiry/revocation, user-agent digest                                               |
+| `security_events`  | Narrow Phase 2 authentication/authorization evidence | Event/outcome enums, optional actor/target/request ID, controlled JSON metadata                                      |
 
 The `20260825030732_phase_2_auth_rbac` migration creates these tables and seeds reviewed system authorization data. Phase 2 exposes no hard-delete endpoint.
 
@@ -37,13 +37,13 @@ Phase 2 and its two-migration development/test database state were accepted on 2
 
 Migration `20260825122320_phase_3_business_core` creates the following tables and seeds `products:manage`, `categories:manage`, `inventory:read`, and `inventory:adjust` for the `OWNER` and `ADMIN` roles:
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `categories` | Flat product classification | UUID primary key, unique normalized slug, `ACTIVE`/`INACTIVE` status, optimistic version |
-| `products` | Single-SKU catalog item | UUID primary key, unique normalized SKU, `DECIMAL(12,2)` nonnegative price, three-letter currency, `DRAFT`/`ACTIVE`/`ARCHIVED` status, optimistic version |
-| `product_categories` | Many-to-many product classification | Composite primary key and cascading foreign keys |
-| `inventory_balances` | One aggregate stock balance per product | Product primary/foreign key, nonnegative whole-number on-hand and threshold values, optimistic version |
-| `inventory_adjustments` | Immutable operational stock ledger | UUID primary key, product and actor foreign keys, nonzero delta, nonnegative before/after values, database-enforced balance arithmetic, reason, optional note/request ID |
+| Table                   | Purpose                                 | Important constraints                                                                                                                                                    |
+| ----------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `categories`            | Flat product classification             | UUID primary key, unique normalized slug, `ACTIVE`/`INACTIVE` status, optimistic version                                                                                 |
+| `products`              | Single-SKU catalog item                 | UUID primary key, unique normalized SKU, `DECIMAL(12,2)` nonnegative price, three-letter currency, `DRAFT`/`ACTIVE`/`ARCHIVED` status, optimistic version                |
+| `product_categories`    | Many-to-many product classification     | Composite primary key and cascading foreign keys                                                                                                                         |
+| `inventory_balances`    | One aggregate stock balance per product | Product primary/foreign key, nonnegative whole-number on-hand and threshold values, optimistic version                                                                   |
+| `inventory_adjustments` | Immutable operational stock ledger      | UUID primary key, product and actor foreign keys, nonzero delta, nonnegative before/after values, database-enforced balance arithmetic, reason, optional note/request ID |
 
 Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, images, hierarchy, warehouses, fractional quantities, tax, discounts, conversion, and new employee records remain outside this schema; Phase 4 adds the approved reservation model separately.
 
@@ -53,18 +53,18 @@ Migration `20260826043501_phase_4_orders_payments` creates the commerce tables a
 `orders:read`, `orders:manage`, `payments:read`, `payments:refund`, and `payments:reconcile` for
 `OWNER` and `ADMIN`:
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `carts` | One persistent current cart per authenticated user | UUID primary key, unique user, optimistic version, cascading user cleanup |
-| `cart_items` | Desired product quantity and observed price | Composite cart/product key, quantity 1–99, fixed-precision observed price, restricted product deletion |
-| `orders` | Immutable purchase/address/totals and lifecycle | Unique order number; user-scoped UUID idempotency key plus request digest; `INR` totals; 15-minute reservation expiry; optimistic version |
-| `order_items` | Purchase-time product and price snapshots | Positive quantity, exact line arithmetic, restricted order/product deletion |
-| `inventory_reservations` | One stock reservation per order line | Unique order item, `ACTIVE`/`CONSUMED`/`RELEASED`, expiry and transition timestamps, optimistic version |
-| `order_status_events` | Append-oriented order transition evidence | Previous/next state, trusted source, stable reason, optional actor/request context |
-| `payments` | Provider-neutral intent and Razorpay order mapping | One payment per order, unique provider order/receipt, exact amount/currency, monotonic status, optimistic version |
-| `payment_attempts` | Razorpay payment observations | Unique provider payment ID, amount/currency, safe failure code, monotonic attempt status |
-| `refunds` | Normal full-refund state | Payment-scoped UUID idempotency key plus request digest, unique provider refund ID, actor and safe failure evidence |
-| `provider_webhook_events` | Webhook deduplication and minimal evidence | Unique provider/event ID, body digest, event type/outcome, optional payment link; no raw payload or signature |
+| Table                     | Purpose                                            | Important constraints                                                                                                                     |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `carts`                   | One persistent current cart per authenticated user | UUID primary key, unique user, optimistic version, cascading user cleanup                                                                 |
+| `cart_items`              | Desired product quantity and observed price        | Composite cart/product key, quantity 1–99, fixed-precision observed price, restricted product deletion                                    |
+| `orders`                  | Immutable purchase/address/totals and lifecycle    | Unique order number; user-scoped UUID idempotency key plus request digest; `INR` totals; 15-minute reservation expiry; optimistic version |
+| `order_items`             | Purchase-time product and price snapshots          | Positive quantity, exact line arithmetic, restricted order/product deletion                                                               |
+| `inventory_reservations`  | One stock reservation per order line               | Unique order item, `ACTIVE`/`CONSUMED`/`RELEASED`, expiry and transition timestamps, optimistic version                                   |
+| `order_status_events`     | Append-oriented order transition evidence          | Previous/next state, trusted source, stable reason, optional actor/request context                                                        |
+| `payments`                | Provider-neutral intent and Razorpay order mapping | One payment per order, unique provider order/receipt, exact amount/currency, monotonic status, optimistic version                         |
+| `payment_attempts`        | Razorpay payment observations                      | Unique provider payment ID, amount/currency, safe failure code, monotonic attempt status                                                  |
+| `refunds`                 | Normal full-refund state                           | Payment-scoped UUID idempotency key plus request digest, unique provider refund ID, actor and safe failure evidence                       |
+| `provider_webhook_events` | Webhook deduplication and minimal evidence         | Unique provider/event ID, body digest, event type/outcome, optional payment link; no raw payload or signature                             |
 
 Database checks enforce positive quantities, nonnegative totals, exact order and line arithmetic,
 currency-code shape, valid reservation timestamps, and the expected provider receipt shape.
@@ -78,13 +78,13 @@ storage boundary and seeds `support:tickets:read`, `support:tickets:manage`, `re
 `audit:read`. `OWNER` receives all four; `ADMIN` receives support read/manage and report read;
 `CUSTOMER` receives none and will use ownership-scoped support APIs.
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `support_tickets` | Versioned customer support case | Unique ticket number; requester-scoped UUID idempotency; optional owned-order/assignee links; category/priority/status enums; valid status timestamps; no cascading history deletion |
-| `support_ticket_messages` | Immutable public replies and internal notes | Ticket/author-scoped UUID idempotency; request digest; 1–4,000-character database bound; restricted ticket/author deletion |
-| `support_ticket_events` | Append-only lifecycle, priority, and assignment evidence | Typed source/event/change snapshots; optional actor/request context; restricted ticket deletion |
-| `audit_chain_heads` | Singleton serialized audit-chain head | Fixed row ID `1`; nonnegative sequence; 64-character lowercase hexadecimal head hash |
-| `audit_events` | Integrity-protected general audit evidence | Unique positive sequence and event hash; previous hash/key ID; bounded action/target/request fields; optional actor with restricted deletion so hashed actor IDs cannot be rewritten; no mutation API planned |
+| Table                     | Purpose                                                  | Important constraints                                                                                                                                                                                         |
+| ------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `support_tickets`         | Versioned customer support case                          | Unique ticket number; requester-scoped UUID idempotency; optional owned-order/assignee links; category/priority/status enums; valid status timestamps; no cascading history deletion                          |
+| `support_ticket_messages` | Immutable public replies and internal notes              | Ticket/author-scoped UUID idempotency; request digest; 1–4,000-character database bound; restricted ticket/author deletion                                                                                    |
+| `support_ticket_events`   | Append-only lifecycle, priority, and assignment evidence | Typed source/event/change snapshots; optional actor/request context; restricted ticket deletion                                                                                                               |
+| `audit_chain_heads`       | Singleton serialized audit-chain head                    | Fixed row ID `1`; nonnegative sequence; 64-character lowercase hexadecimal head hash                                                                                                                          |
+| `audit_events`            | Integrity-protected general audit evidence               | Unique positive sequence and event hash; previous hash/key ID; bounded action/target/request fields; optional actor with restricted deletion so hashed actor IDs cannot be rewritten; no mutation API planned |
 
 The migration is deployed to development and test databases. Foundation integration tests verify
 role mappings, the zeroed chain head, support persistence, and scoped message idempotency. The
@@ -111,12 +111,12 @@ representative dataset.
 Migration `20260828094016_phase_6_realtime_jobs` seeds owner-only `jobs:read`/`jobs:replay` and
 creates the accepted durable asynchronous boundary:
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `worker_heartbeats` | Worker identity, state, start/last-seen/stop evidence | Valid state/timestamp combinations; state/last-seen index |
-| `background_jobs` | Registered durable descriptor and lifecycle | Unique dedupe; positive schema/version/attempt bounds; <= 8 KiB JSON; strict status/lease/completion state; replay pair/idempotency; claim/lease/type/owner indexes |
-| `background_job_attempts` | Append-oriented execution evidence | Unique job/attempt; SHA-256 lease-token hash; bounded safe error; consistent outcome/finish/duration; restrictive job/worker deletion |
-| `notifications` | Recipient-owned durable in-app history | Monotonic auto-increment sequence; unique dedupe; <= 2 KiB safe metadata; type-specific exactly-one resource shape; recipient/read cursor indexes; restrictive recipient/resource deletion |
+| Table                     | Purpose                                               | Important constraints                                                                                                                                                                      |
+| ------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `worker_heartbeats`       | Worker identity, state, start/last-seen/stop evidence | Valid state/timestamp combinations; state/last-seen index                                                                                                                                  |
+| `background_jobs`         | Registered durable descriptor and lifecycle           | Unique dedupe; positive schema/version/attempt bounds; <= 8 KiB JSON; strict status/lease/completion state; replay pair/idempotency; claim/lease/type/owner indexes                        |
+| `background_job_attempts` | Append-oriented execution evidence                    | Unique job/attempt; SHA-256 lease-token hash; bounded safe error; consistent outcome/finish/duration; restrictive job/worker deletion                                                      |
+| `notifications`           | Recipient-owned durable in-app history                | Monotonic auto-increment sequence; unique dedupe; <= 2 KiB safe metadata; type-specific exactly-one resource shape; recipient/read cursor indexes; restrictive recipient/resource deletion |
 
 Job source actors and active lease owners may become null through deliberate `SET NULL` foreign
 keys; replay ancestry, attempts, recipients, and linked business resources are restrictive so
@@ -132,10 +132,10 @@ source-event notification uniqueness.
 Migration `20260903060000_phase_7_ai_foundation` seeds `ai:customer:use` only for `CUSTOMER`, seeds
 `ai:owner:use` and `ai:usage:read` only for `OWNER`, gives `ADMIN` no AI permission, and creates:
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `ai_provider_consents` | Assistant-scoped provider-processing acceptance/revocation | Unique user/provider/assistant/notice version; valid notice/timestamps; restrictive user deletion; no content/policy blob |
-| `ai_usage_events` | At-most-once reservation and metadata-only outcome/cost evidence | Unique user/submission UUID; registered assistant/intent/model/prompt/status; exact state/timestamp/token arithmetic; integer reserved/exact cost; safe identifiers; restrictive user deletion; no conversation/context content |
+| Table                  | Purpose                                                          | Important constraints                                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai_provider_consents` | Assistant-scoped provider-processing acceptance/revocation       | Unique user/provider/assistant/notice version; valid notice/timestamps; restrictive user deletion; no content/policy blob                                                                                                       |
+| `ai_usage_events`      | At-most-once reservation and metadata-only outcome/cost evidence | Unique user/submission UUID; registered assistant/intent/model/prompt/status; exact state/timestamp/token arithmetic; integer reserved/exact cost; safe identifiers; restrictive user deletion; no conversation/context content |
 
 Node locks the user while checking current authorization/consent, daily quota, active request, and
 the unique submission key. The existing serialized audit-chain append also serializes the global
@@ -152,14 +152,14 @@ ADR 0011 adds three Phase 8 migrations:
 `20260905123000_phase_8_document_idempotency`. They seed the separate document permissions and
 registered document job/AI intent values, and add the following relational source-of-truth records.
 
-| Table | Purpose | Important constraints |
-|---|---|---|
-| `company_documents` | Logical document title, lifecycle, active version, optimistic version, and actor/tombstone metadata | `ACTIVE`/`ARCHIVED`/`DELETING`/`DELETED` lifecycle check; composite active-version foreign key ensures a referenced version belongs to the document; restrictive actors |
-| `company_document_versions` | Immutable upload/version, content-integrity, model/index, processing, and deletion state | Unique document/version number and opaque storage key; strict `.txt`/`.md`, English, 1–262,144-byte normalized-content, model/dimension, timestamp, and lifecycle checks; restrictive document/uploader links |
-| `company_document_version_audiences` | Immutable version visibility | Composite primary key on version/audience; only `CUSTOMER` and `OWNER`; indexed audience lookup |
-| `company_document_chunks` | Opaque deterministic vector-point and byte-range descriptors for each index generation | Unique point ID and `(version, indexVersion, ordinal)`; SHA-256/range checks; no chunk text is stored in MySQL |
-| `ai_document_citations` | Safe link from a completed AI usage event to an opaque source label and document version | Unique usage/label and usage/chunk pairs; labels limited to `S1`–`S5`; retains the version relationship after chunk-descriptor erasure so historical citation evidence is not orphaned |
-| `document_mutation_receipts` | UUID idempotency receipts for document mutations | Unique actor/key and normalized request digest; deliberately no foreign keys to mutable/deletable document rows, so lifecycle cleanup does not invalidate the receipt ledger |
+| Table                                | Purpose                                                                                             | Important constraints                                                                                                                                                                                         |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `company_documents`                  | Logical document title, lifecycle, active version, optimistic version, and actor/tombstone metadata | `ACTIVE`/`ARCHIVED`/`DELETING`/`DELETED` lifecycle check; composite active-version foreign key ensures a referenced version belongs to the document; restrictive actors                                       |
+| `company_document_versions`          | Immutable upload/version, content-integrity, model/index, processing, and deletion state            | Unique document/version number and opaque storage key; strict `.txt`/`.md`, English, 1–262,144-byte normalized-content, model/dimension, timestamp, and lifecycle checks; restrictive document/uploader links |
+| `company_document_version_audiences` | Immutable version visibility                                                                        | Composite primary key on version/audience; only `CUSTOMER` and `OWNER`; indexed audience lookup                                                                                                               |
+| `company_document_chunks`            | Opaque deterministic vector-point and byte-range descriptors for each index generation              | Unique point ID and `(version, indexVersion, ordinal)`; SHA-256/range checks; no chunk text is stored in MySQL                                                                                                |
+| `ai_document_citations`              | Safe link from a completed AI usage event to an opaque source label and document version            | Unique usage/label and usage/chunk pairs; labels limited to `S1`–`S5`; retains the version relationship after chunk-descriptor erasure so historical citation evidence is not orphaned                        |
+| `document_mutation_receipts`         | UUID idempotency receipts for document mutations                                                    | Unique actor/key and normalized request digest; deliberately no foreign keys to mutable/deletable document rows, so lifecycle cleanup does not invalidate the receipt ledger                                  |
 
 The document-version row records checksums, storage key ID, embedding model/revision/dimension,
 collection, index generation, and status, but never document plaintext. Local encrypted object
@@ -169,46 +169,55 @@ non-retrievable before asynchronous physical cleanup begins.
 
 ## Implemented and expected entities
 
-| Entity | Purpose | Key relationships | Planned phase |
-|---|---|---|---:|
-| `users` | Customer, owner, admin, and future employee identities | Roles, orders, tickets, AI consent/usage, audit events | 2 |
-| `roles` | Named authorization roles | Many permissions and users | 2 |
-| `permissions` | Granular allowed operations | Many roles | 2 |
-| `user_roles` | User-to-role assignment | User + role | 2 |
-| `role_permissions` | Role-to-permission assignment | Role + permission | 2 |
-| `auth_sessions` | Revocable opaque browser session state | User; token/CSRF digests | 2 |
-| `security_events` | Narrow authentication/authorization evidence | Optional actor and target user | 2 |
-| `categories` | Flat product classification | Products through `product_categories` | 3 |
-| `products` | Single-SKU catalog items | Categories, one balance, adjustments; future order/cart items | 3 |
-| `inventory_balances` | Aggregate whole-number stock state | One-to-one with product | 3 |
-| `inventory_adjustments` | Immutable stock-change evidence | Product and actor | 3 |
-| `carts` | Active/saved customer cart | User; cart items | 4 |
-| `cart_items` | Product, quantity, and display context in a cart | Cart + product | 4 |
-| `orders` | Customer purchase lifecycle | User, items, payments | 4 |
-| `order_items` | Immutable purchase snapshot lines | Order; optional reference to product | 4 |
-| `inventory_reservations` | Per-line reservation lifecycle | Order + order item + product | 4 |
-| `order_status_events` | Immutable order transition evidence | Order; optional actor | 4 |
-| `payments` | Provider-neutral payment attempts/state | Order | 4 |
-| `payment_attempts` | Provider payment observations | Payment | 4 |
-| `refunds` | Full-refund request and provider state | Payment + captured attempt | 4 |
-| `provider_webhook_events` | Provider event deduplication/evidence | Optional payment | 4 |
-| `support_tickets` | Customer support case | Requester, assignee, order if relevant | 5 |
-| `support_ticket_messages` | Immutable public/internal support conversation | Ticket + author | 5 |
-| `support_ticket_events` | Append-only support state evidence | Ticket + optional actor | 5 |
-| `audit_chain_heads` | Serialized integrity-chain state | One application audit stream | 5 |
-| `audit_events` | Integrity-protected security/business action evidence | Optional actor; generic bounded target | 5 |
-| `worker_heartbeats` | Worker lifecycle and liveness evidence | Claimed jobs and attempts | 6 |
-| `background_jobs` | Durable registered asynchronous work | Optional source actor, lease worker, replay parent, attempts | 6 |
-| `background_job_attempts` | Immutable safe execution evidence | Job and worker heartbeat | 6 |
-| `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
-| `ai_provider_consents` | Assistant-scoped, versioned provider-processing consent/revocation without conversation content | User | 7 |
-| `ai_usage_events` | Metadata-only AI request/submission/token/confirmed-cost/reserved-exposure/outcome evidence | User; audit request context | 7 |
-| `company_documents` | Logical document metadata and lifecycle | Creator/updater; immutable versions; current active version | 8 |
-| `company_document_versions` | Immutable source/version processing state | Logical document, uploader, audiences, chunk descriptors | 8 |
-| `company_document_version_audiences` | Immutable customer/owner source visibility | One version; composite unique audience membership | 8 |
-| `company_document_chunks` | Opaque point/range/checksum descriptors | One document version and index generation | 8 |
-| `ai_document_citations` | Metadata-only completed-answer source evidence | AI usage event and document version; opaque chunk ID/label | 8 |
-| `document_mutation_receipts` | Document-operation idempotency evidence | Actor-scoped UUID key and safe target identifiers | 8 |
+| Entity                               | Purpose                                                                                         | Key relationships                                             | Planned phase |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------: |
+| `users`                              | Customer, owner, admin, and future employee identities                                          | Roles, orders, tickets, AI consent/usage, audit events        |             2 |
+| `roles`                              | Named authorization roles                                                                       | Many permissions and users                                    |             2 |
+| `permissions`                        | Granular allowed operations                                                                     | Many roles                                                    |             2 |
+| `user_roles`                         | User-to-role assignment                                                                         | User + role                                                   |             2 |
+| `role_permissions`                   | Role-to-permission assignment                                                                   | Role + permission                                             |             2 |
+| `auth_sessions`                      | Revocable opaque browser session state                                                          | User; token/CSRF digests                                      |             2 |
+| `security_events`                    | Narrow authentication/authorization evidence                                                    | Optional actor and target user                                |             2 |
+| `categories`                         | Flat product classification                                                                     | Products through `product_categories`                         |             3 |
+| `products`                           | Single-SKU catalog items                                                                        | Categories, one balance, adjustments; future order/cart items |             3 |
+| `inventory_balances`                 | Aggregate whole-number stock state                                                              | One-to-one with product                                       |             3 |
+| `inventory_adjustments`              | Immutable stock-change evidence                                                                 | Product and actor                                             |             3 |
+| `carts`                              | Active/saved customer cart                                                                      | User; cart items                                              |             4 |
+| `cart_items`                         | Product, quantity, and display context in a cart                                                | Cart + product                                                |             4 |
+| `orders`                             | Customer purchase lifecycle                                                                     | User, items, payments                                         |             4 |
+| `order_items`                        | Immutable purchase snapshot lines                                                               | Order; optional reference to product                          |             4 |
+| `inventory_reservations`             | Per-line reservation lifecycle                                                                  | Order + order item + product                                  |             4 |
+| `order_status_events`                | Immutable order transition evidence                                                             | Order; optional actor                                         |             4 |
+| `payments`                           | Provider-neutral payment attempts/state                                                         | Order                                                         |             4 |
+| `payment_attempts`                   | Provider payment observations                                                                   | Payment                                                       |             4 |
+| `refunds`                            | Full-refund request and provider state                                                          | Payment + captured attempt                                    |             4 |
+| `provider_webhook_events`            | Provider event deduplication/evidence                                                           | Optional payment                                              |             4 |
+| `support_tickets`                    | Customer support case                                                                           | Requester, assignee, order if relevant                        |             5 |
+| `support_ticket_messages`            | Immutable public/internal support conversation                                                  | Ticket + author                                               |             5 |
+| `support_ticket_events`              | Append-only support state evidence                                                              | Ticket + optional actor                                       |             5 |
+| `audit_chain_heads`                  | Serialized integrity-chain state                                                                | One application audit stream                                  |             5 |
+| `audit_events`                       | Integrity-protected security/business action evidence                                           | Optional actor; generic bounded target                        |             5 |
+| `worker_heartbeats`                  | Worker lifecycle and liveness evidence                                                          | Claimed jobs and attempts                                     |             6 |
+| `background_jobs`                    | Durable registered asynchronous work                                                            | Optional source actor, lease worker, replay parent, attempts  |             6 |
+| `background_job_attempts`            | Immutable safe execution evidence                                                               | Job and worker heartbeat                                      |             6 |
+| `notifications`                      | In-app/delivery notification state                                                              | Recipient; related resource                                   |             6 |
+| `ai_provider_consents`               | Assistant-scoped, versioned provider-processing consent/revocation without conversation content | User                                                          |             7 |
+| `ai_usage_events`                    | Metadata-only AI request/submission/token/confirmed-cost/reserved-exposure/outcome evidence     | User; audit request context                                   |             7 |
+| `company_documents`                  | Logical document metadata and lifecycle                                                         | Creator/updater; immutable versions; current active version   |             8 |
+| `company_document_versions`          | Immutable source/version processing state                                                       | Logical document, uploader, audiences, chunk descriptors      |             8 |
+| `company_document_version_audiences` | Immutable customer/owner source visibility                                                      | One version; composite unique audience membership             |             8 |
+| `company_document_chunks`            | Opaque point/range/checksum descriptors                                                         | One document version and index generation                     |             8 |
+| `ai_document_citations`              | Metadata-only completed-answer source evidence                                                  | AI usage event and document version; opaque chunk ID/label    |             8 |
+| `document_mutation_receipts`         | Document-operation idempotency evidence                                                         | Actor-scoped UUID key and safe target identifiers             |             8 |
+| `ai_workflow_runs`                   | Immutable workflow scope and metadata-only lifecycle evidence                                    | Initiator, optional ticket/published message, tools/artifacts  |             9 |
+| `ai_workflow_tool_calls`             | Fixed ordinal/tool execution evidence without plaintext payloads                                 | Workflow run and encrypted output artifact                    |             9 |
+| `ai_workflow_artifacts`              | Short-lived AES-256-GCM workflow snapshots, drafts, edits, and results                           | Workflow run; ciphertext plus authenticated metadata          |             9 |
+| `ai_workflow_approvals`              | Digest/version/expiry-bound human decision and effect receipt                                    | Workflow run and reviewer                                     |             9 |
+
+Migration `20260906090000_phase_9_langgraph_workflows` also links metadata-only AI usage to a
+workflow run/model step and marks support messages as `HUMAN` or `AI_ASSISTED` with an optional
+unique workflow relationship. It stores no plaintext tool payload, prompt, ticket excerpt, draft,
+edit, or generated narrative.
 
 Employee records, reusable addresses, product images/variants, ticket comments,
 password reset/verification tokens, notification deliveries, and AI tool executions may need
@@ -256,40 +265,44 @@ shape are a **Decision Required** in their owning phases.
 
 Implemented Phase 2–8 rows are recorded alongside planning hints for future entities.
 
-| Entity | Candidate constraints and important data |
-|---|---|
-| `users` | Unique normalized email within applicable scope; password hash; status; timestamps; no plaintext password |
-| `roles` | Unique role name/code within applicable scope; system/custom marker |
-| `permissions` | Unique stable permission code |
-| Join tables | Composite unique keys preventing duplicate assignments; foreign keys with deliberate delete behavior |
-| `products` | Stable normalized unique SKU; name; plain-text description; fixed-precision nonnegative price; `INR`; lifecycle status; optimistic version |
-| `inventory_balances` | One row per product; nonnegative whole-number on-hand and threshold; optimistic version |
-| `inventory_adjustments` | Nonzero bounded delta; before/after arithmetic; reason, note, actor, request ID, and timestamp; no update/delete API |
-| `carts` / `cart_items` | One versioned cart per user; unique product per cart; quantity 1–99; observed price/currency |
-| `orders` | Unique human-facing number; user-scoped idempotency; status/version; `INR` immutable totals and India address snapshot |
-| `order_items` | Positive quantity; immutable SKU/name/unit-price/line-total/currency snapshot; restricted product reference |
-| `inventory_reservations` | Unique order item; positive quantity; active/consumed/released state; expiry and transition timestamps |
-| `order_status_events` | Append-oriented from/to/source/reason plus optional actor/request evidence |
-| `payments` | One per order; unique provider order/receipt; exact amount/currency; provider-neutral monotonic state |
-| `payment_attempts` | Unique provider payment ID; exact relationship/amount/currency; safe status/failure evidence |
-| `refunds` | Full amount; payment-scoped idempotency; unique provider refund ID; pending/processed/failed state |
-| `provider_webhook_events` | Unique provider event ID and body digest; allowlisted type/outcome; no raw webhook body |
-| `support_tickets` | Unique ticket number; requester-scoped idempotency/digest; optional order/assignee; category; subject; priority/status timestamps; optimistic version |
-| `support_ticket_messages` | Immutable bounded plain text; customer-visible/internal visibility; ticket/author-scoped idempotency/digest |
-| `support_ticket_events` | Append-only typed source/change snapshots plus optional actor/request evidence |
-| `worker_heartbeats` | UUID instance; starting/active/stopping/stopped state; monotonic timestamps |
-| `background_jobs` | Registered type/version; bounded safe JSON; unique dedupe; attempts/lease/error/completion; replay ancestry/idempotency; no arbitrary update/delete API |
-| `background_job_attempts` | Positive attempt; worker; token hash; safe outcome/error; consistent timing; no payload/stack |
-| `notifications` | Recipient; monotonic sequence; registered type; safe metadata; exactly one valid linked resource shape; read timestamp; unique dedupe |
-| `ai_provider_consents` | User/provider/assistant/notice-version uniqueness; consent/revocation timestamps; no prompt, answer, or arbitrary policy payload |
-| `ai_usage_events` | User/UUID-submission uniqueness; registered assistant/intent/status/prompt/model; safe provider/error ID; nonnegative integer tokens/reserved and nullable exact cost ticks/latency; consistent pending/completed timestamps; no content |
-| `company_documents` | Bounded title; logical lifecycle/tombstone; optimistic version; restrictive creator/updater; active version must belong to the document |
-| `company_document_versions` | Immutable number, allowlisted filename/media type/language, normalized byte length/checksum, opaque encrypted-storage key/key ID, model/index fields, bounded lifecycle, and restrictive document/uploader links; never plaintext or a public path |
-| `company_document_version_audiences` | Composite version/audience membership; only immutable `CUSTOMER` and `OWNER` values |
-| `company_document_chunks` | Opaque UUID point ID, ordinal, byte range, SHA-256, and index generation; unique point and per-generation ordinal; no text |
-| `ai_document_citations` | Usage/version/chunk opaque IDs and source label `S1` through `S5`; unique per usage label and per usage chunk; no excerpt or answer |
-| `document_mutation_receipts` | Actor-scoped UUID idempotency key, request digest, safe document/version/job IDs, and optional index generation; no content and no lifecycle-blocking foreign keys |
-| `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata |
+| Entity                               | Candidate constraints and important data                                                                                                                                                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                              | Unique normalized email within applicable scope; password hash; status; timestamps; no plaintext password                                                                                                                                          |
+| `roles`                              | Unique role name/code within applicable scope; system/custom marker                                                                                                                                                                                |
+| `permissions`                        | Unique stable permission code                                                                                                                                                                                                                      |
+| Join tables                          | Composite unique keys preventing duplicate assignments; foreign keys with deliberate delete behavior                                                                                                                                               |
+| `products`                           | Stable normalized unique SKU; name; plain-text description; fixed-precision nonnegative price; `INR`; lifecycle status; optimistic version                                                                                                         |
+| `inventory_balances`                 | One row per product; nonnegative whole-number on-hand and threshold; optimistic version                                                                                                                                                            |
+| `inventory_adjustments`              | Nonzero bounded delta; before/after arithmetic; reason, note, actor, request ID, and timestamp; no update/delete API                                                                                                                               |
+| `carts` / `cart_items`               | One versioned cart per user; unique product per cart; quantity 1–99; observed price/currency                                                                                                                                                       |
+| `orders`                             | Unique human-facing number; user-scoped idempotency; status/version; `INR` immutable totals and India address snapshot                                                                                                                             |
+| `order_items`                        | Positive quantity; immutable SKU/name/unit-price/line-total/currency snapshot; restricted product reference                                                                                                                                        |
+| `inventory_reservations`             | Unique order item; positive quantity; active/consumed/released state; expiry and transition timestamps                                                                                                                                             |
+| `order_status_events`                | Append-oriented from/to/source/reason plus optional actor/request evidence                                                                                                                                                                         |
+| `payments`                           | One per order; unique provider order/receipt; exact amount/currency; provider-neutral monotonic state                                                                                                                                              |
+| `payment_attempts`                   | Unique provider payment ID; exact relationship/amount/currency; safe status/failure evidence                                                                                                                                                       |
+| `refunds`                            | Full amount; payment-scoped idempotency; unique provider refund ID; pending/processed/failed state                                                                                                                                                 |
+| `provider_webhook_events`            | Unique provider event ID and body digest; allowlisted type/outcome; no raw webhook body                                                                                                                                                            |
+| `support_tickets`                    | Unique ticket number; requester-scoped idempotency/digest; optional order/assignee; category; subject; priority/status timestamps; optimistic version                                                                                              |
+| `support_ticket_messages`            | Immutable bounded plain text; customer-visible/internal visibility; ticket/author-scoped idempotency/digest                                                                                                                                        |
+| `support_ticket_events`              | Append-only typed source/change snapshots plus optional actor/request evidence                                                                                                                                                                     |
+| `worker_heartbeats`                  | UUID instance; starting/active/stopping/stopped state; monotonic timestamps                                                                                                                                                                        |
+| `background_jobs`                    | Registered type/version; bounded safe JSON; unique dedupe; attempts/lease/error/completion; replay ancestry/idempotency; no arbitrary update/delete API                                                                                            |
+| `background_job_attempts`            | Positive attempt; worker; token hash; safe outcome/error; consistent timing; no payload/stack                                                                                                                                                      |
+| `notifications`                      | Recipient; monotonic sequence; registered type; safe metadata; exactly one valid linked resource shape; read timestamp; unique dedupe                                                                                                              |
+| `ai_provider_consents`               | User/provider/assistant/notice-version uniqueness; consent/revocation timestamps; no prompt, answer, or arbitrary policy payload                                                                                                                   |
+| `ai_usage_events`                    | User/UUID-submission uniqueness; registered assistant/intent/status/prompt/model; safe provider/error ID; nonnegative integer tokens/reserved and nullable exact cost ticks/latency; consistent pending/completed timestamps; no content           |
+| `company_documents`                  | Bounded title; logical lifecycle/tombstone; optimistic version; restrictive creator/updater; active version must belong to the document                                                                                                            |
+| `company_document_versions`          | Immutable number, allowlisted filename/media type/language, normalized byte length/checksum, opaque encrypted-storage key/key ID, model/index fields, bounded lifecycle, and restrictive document/uploader links; never plaintext or a public path |
+| `company_document_version_audiences` | Composite version/audience membership; only immutable `CUSTOMER` and `OWNER` values                                                                                                                                                                |
+| `company_document_chunks`            | Opaque UUID point ID, ordinal, byte range, SHA-256, and index generation; unique point and per-generation ordinal; no text                                                                                                                         |
+| `ai_document_citations`              | Usage/version/chunk opaque IDs and source label `S1` through `S5`; unique per usage label and per usage chunk; no excerpt or answer                                                                                                                |
+| `document_mutation_receipts`         | Actor-scoped UUID idempotency key, request digest, safe document/version/job IDs, and optional index generation; no content and no lifecycle-blocking foreign keys                                                                                 |
+| Proposed `ai_workflow_runs`          | Registered workflow/graph/provider/prompt versions, initiator, immutable range/resource scope, status, optimistic transition version, expiry, safe outcome/error, and no plaintext content                                                         |
+| Proposed `ai_workflow_tool_calls`    | Run/tool/version/ordinal uniqueness, input/output digests, status/timing/row count/freshness, and safe error; no plaintext tool payload                                                                                                            |
+| Proposed `ai_workflow_approvals`     | One run/action/target/draft digest, reviewer decision/version/expiry, deterministic action idempotency and receipt; no plaintext draft                                                                                                             |
+| Proposed `ai_workflow_artifacts`     | Run/purpose/schema/key identity, AES-256-GCM nonce/tag/ciphertext, plaintext digest/length, expiry/cleared timestamp; no plaintext column                                                                                                          |
+| `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata                                                                                                   |
 
 ## Important indexes
 

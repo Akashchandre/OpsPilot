@@ -3,7 +3,8 @@
 ## Status
 
 **ACCEPTED on 2026-09-05 under ADR 0011.** The user approved this matrix with the complete Phase 8
-baseline. Database and application implementation is now in progress.
+baseline. Database/application implementation and the repository/development verification gate are
+complete, and explicit Phase 8 acceptance was recorded on 2026-09-06.
 
 ## Proposed permissions
 

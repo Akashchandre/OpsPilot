@@ -38,6 +38,7 @@ const supportTicketCreatedMetadataSchema = z.strictObject({
 const supportMessageAddedMetadataSchema = z.strictObject({
   visibility: z.enum(["CUSTOMER_VISIBLE", "INTERNAL"]),
   automaticReopen: z.boolean(),
+  origin: z.enum(["HUMAN", "AI_ASSISTED"]).optional(),
 });
 
 const supportTicketClosedMetadataSchema = z.strictObject({
@@ -218,24 +219,28 @@ const backgroundJobReplayMetadataSchema = z.strictObject({
     .nullable(),
 });
 const aiProviderSchema = z.literal("GROQ");
-const aiAssistantSchema = z.enum(["CUSTOMER", "OWNER"]);
+const aiAssistantSchema = z.enum(["CUSTOMER", "OWNER", "SUPPORT"]);
 const aiIntentSchema = z.enum([
   "CUSTOMER_HELP",
   "OWNER_OVERVIEW_EXPLAIN",
   "CUSTOMER_DOCUMENT_QA",
   "OWNER_DOCUMENT_QA",
+  "OWNER_BUSINESS_BRIEF",
+  "SUPPORT_REPLY_DRAFT",
 ]);
 const aiPromptVersionSchema = z.enum([
   "customer-help-v1",
   "owner-overview-v1",
   "customer-documents-v1",
   "owner-documents-v1",
+  "owner-business-brief-v1",
+  "support-reply-draft-v1",
 ]);
 const aiModelSchema = z.literal("openai/gpt-oss-120b");
 const aiConsentMetadataSchema = z.strictObject({
   provider: aiProviderSchema,
   assistant: aiAssistantSchema,
-  noticeVersion: z.enum(["groq-zdr-v1", "groq-zdr-documents-v1"]),
+  noticeVersion: z.enum(["groq-zdr-v1", "groq-zdr-documents-v1", "groq-zdr-workflows-v1"]),
 });
 const aiRequestIdentityShape = {
   provider: aiProviderSchema,
@@ -246,13 +251,15 @@ const aiRequestIdentityShape = {
 };
 const aiRequestStartedMetadataSchema = z.strictObject({
   ...aiRequestIdentityShape,
+  workflowRunId: z.uuid().optional(),
   status: z.literal("PENDING"),
   reservedCostTicks: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
 });
 const aiRequestCompletedMetadataSchema = z.strictObject({
   ...aiRequestIdentityShape,
+  workflowRunId: z.uuid().optional(),
   status: z.literal("SUCCEEDED"),
-  outcome: z.enum(["ANSWER", "INSUFFICIENT_EVIDENCE", "REFUSAL", "ESCALATE"]),
+  outcome: z.enum(["ANSWER", "READY_FOR_REVIEW", "INSUFFICIENT_EVIDENCE", "REFUSAL", "ESCALATE"]),
   inputTokens: z.number().int().min(0).max(100000),
   outputTokens: z.number().int().min(0).max(500),
   totalTokens: z.number().int().min(0).max(100500),
@@ -262,6 +269,7 @@ const aiRequestCompletedMetadataSchema = z.strictObject({
 });
 const aiRequestFailedMetadataSchema = z.strictObject({
   ...aiRequestIdentityShape,
+  workflowRunId: z.uuid().optional(),
   status: z.enum(["FAILED", "UNKNOWN"]),
   safeErrorCode: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
   durationMs: z.number().int().min(0).max(60000),
@@ -324,6 +332,43 @@ const documentRecoveryMetadataSchema = z.strictObject({
 const aiDocumentCitationReadMetadataSchema = z.strictObject({
   assistant: aiAssistantSchema,
   sourceLabel: z.string().regex(/^S[1-5]$/),
+});
+const workflowCodeSchema = z.enum(["OWNER_BUSINESS_BRIEF_V1", "SUPPORT_REPLY_DRAFT_V1"]);
+const workflowToolCodeSchema = z.enum([
+  "REPORTS_OVERVIEW_V1",
+  "INVENTORY_ATTENTION_V1",
+  "SUPPORT_QUEUE_SUMMARY_V1",
+  "SUPPORT_TICKET_PUBLIC_CONTEXT_V1",
+  "DOCUMENTS_CUSTOMER_POLICY_CONTEXT_V1",
+  "SUPPORT_PUBLIC_REPLY_V1",
+]);
+const workflowIdentityMetadataSchema = z.strictObject({
+  workflowCode: workflowCodeSchema,
+  graphVersion: z.literal("v1"),
+});
+const workflowToolMetadataSchema = z.strictObject({
+  workflowRunId: z.uuid(),
+  toolCode: workflowToolCodeSchema,
+  ordinal: z.number().int().min(1).max(3),
+  safeErrorCode: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9_]{0,63}$/)
+    .optional(),
+  outcomeUnknown: z.boolean().optional(),
+});
+const workflowDecisionMetadataSchema = z.strictObject({
+  workflowRunId: z.uuid(),
+  decision: z.enum(["APPROVE", "EDIT_AND_APPROVE", "REJECT"]),
+});
+const workflowFailureMetadataSchema = z.strictObject({
+  safeErrorCode: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
+  outcomeUnknown: z.boolean(),
+});
+const workflowRetentionMetadataSchema = z.strictObject({
+  expiredRuns: z.number().int().min(0),
+  expiredApprovals: z.number().int().min(0),
+  clearedArtifacts: z.number().int().min(0),
+  deletedCheckpoints: z.number().int().min(0),
 });
 
 export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
@@ -551,6 +596,46 @@ export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
     targetType: AUDIT_TARGET_TYPES.AI_DOCUMENT_CITATION,
     targetIdRequired: true,
     metadataSchema: aiDocumentCitationReadMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_STARTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: true,
+    metadataSchema: workflowIdentityMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_TOOL_EXECUTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_TOOL_CALL,
+    targetIdRequired: true,
+    metadataSchema: workflowToolMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_AWAITING_APPROVAL]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: true,
+    metadataSchema: workflowIdentityMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_DECIDED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_APPROVAL,
+    targetIdRequired: true,
+    metadataSchema: workflowDecisionMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_COMPLETED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: true,
+    metadataSchema: workflowIdentityMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_FAILED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: true,
+    metadataSchema: workflowFailureMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_CANCELLED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: true,
+    metadataSchema: z.strictObject({ workflowCode: workflowCodeSchema }),
+  }),
+  [AUDIT_ACTIONS.AI_WORKFLOW_RETENTION_APPLIED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_WORKFLOW_RUN,
+    targetIdRequired: false,
+    metadataSchema: workflowRetentionMetadataSchema,
   }),
 });
 

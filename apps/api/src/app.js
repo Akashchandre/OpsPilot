@@ -14,6 +14,7 @@ import { createRazorpayWebhookController } from "./modules/payments/payments.con
 import { createRazorpayAdapter } from "./modules/payments/razorpay.adapter.js";
 import { createRazorpayWebhookService } from "./modules/payments/payments.webhook.js";
 import { createAiInternalClient } from "./modules/ai/ai.internalClient.js";
+import { createAiWorkflowGatewayRouter } from "./modules/ai/ai.workflow.gateway.js";
 import { createApiRouter } from "./routes/index.js";
 
 export function createApp({
@@ -45,6 +46,10 @@ export function createApp({
     createWebhookRateLimiter(config),
     express.raw({ type: "application/json", limit: "64kb" }),
     createRazorpayWebhookController(createRazorpayWebhookService(database, config)),
+  );
+  app.use(
+    "/internal/v1/ai",
+    createAiWorkflowGatewayRouter(database, config, selectedAiClient, documentStore),
   );
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());

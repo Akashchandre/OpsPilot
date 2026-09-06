@@ -6,6 +6,7 @@ from opspilot_ai.constants import GROQ_MODEL, Outcome, SafeNotice
 from opspilot_ai.contracts import DocumentStructuredProviderOutput, StructuredProviderOutput
 from opspilot_ai.prompts import RenderedPrompt
 from opspilot_ai.providers import ProviderReadiness, ProviderResult, ProviderUsage
+from opspilot_ai.workflows.contracts import BusinessBriefOutput, SupportReplyOutput
 
 
 class CrossServiceMockProvider:
@@ -15,20 +16,42 @@ class CrossServiceMockProvider:
         return None
 
     async def generate(self, prompt: RenderedPrompt) -> ProviderResult:
-        output = (
-            DocumentStructuredProviderOutput(
-                answer="Returns are accepted within 30 days.",
-                outcome=Outcome.ANSWER,
-                citations=["S1"],
-                notices=[],
+        if prompt.workflow_response == "business":
+            output = BusinessBriefOutput.model_validate(
+                {
+                    "summary": "Synthetic operations are ready for owner review.",
+                    "findings": [
+                        {
+                            "text": "Authoritative inventory data was included.",
+                            "sourceLabels": ["INVENTORY"],
+                        }
+                    ],
+                    "nextSteps": ["Review the authoritative inventory snapshot."],
+                    "uncertainties": ["No demand forecast was performed."],
+                }
             )
-            if prompt.document_response
-            else StructuredProviderOutput(
-                answer="Open Support, then create a new ticket.",
-                outcome=Outcome.ANSWER,
-                notices=[SafeNotice.USE_STANDARD_SUPPORT],
+        elif prompt.workflow_response == "support":
+            output = SupportReplyOutput(
+                status="REFUSAL",
+                draft=None,
+                reasons=["Synthetic support processing is disabled in this smoke."],
+                citations=[],
             )
-        )
+        else:
+            output = (
+                DocumentStructuredProviderOutput(
+                    answer="Returns are accepted within 30 days.",
+                    outcome=Outcome.ANSWER,
+                    citations=["S1"],
+                    notices=[],
+                )
+                if prompt.document_response
+                else StructuredProviderOutput(
+                    answer="Open Support, then create a new ticket.",
+                    outcome=Outcome.ANSWER,
+                    notices=[SafeNotice.USE_STANDARD_SUPPORT],
+                )
+            )
         return ProviderResult(
             output=output,
             model=GROQ_MODEL,

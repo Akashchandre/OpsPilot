@@ -72,6 +72,9 @@ export function AppLayout() {
           {auth.hasPermission("ai:owner:use") && auth.hasPermission("reports:read") ? (
             <NavLink to="/admin/assistant">AI overview</NavLink>
           ) : null}
+          {auth.hasPermission("ai:workflows:business:use") ? (
+            <NavLink to="/admin/workflows">AI workflows</NavLink>
+          ) : null}
         </nav>
         <div className="session-actions">
           {auth.user ? (

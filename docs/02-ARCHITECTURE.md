@@ -250,8 +250,8 @@ audiences from the registered assistant, rechecks current `ACTIVE`/`READY`/activ
 before text is used, and repeats authorization/consent/source checks after generation. Groq has no
 tool or callback capability; the provider receives the question plus at most the bounded
 reauthorized excerpts. Staged publication, superseding, reindexing, deletion, and advisory orphan
-inventory are fail-closed repository/development paths. Final Phase 8 verification passes; explicit
-phase acceptance remains pending.
+inventory are fail-closed repository/development paths. Final Phase 8 verification passes and
+explicit repository/development acceptance was recorded on 2026-09-06.
 
 ## Main application layering
 
@@ -306,24 +306,27 @@ Customers / Owners / Admins / Future Employees
              v
         Groq document generation
 
-       LangChain / LangGraph / business and support tools (later Phase 9 direction)
+       Phase 9 implemented: versioned LangGraph + signed Node tool gateway
 ```
 
-The local Phase 8 object/vector/embedding topology is deliberately a single-process
-repository/development boundary, not a production deployment design. Later components remain
-direction only until their own phase approves them.
+The local Phase 8 object/vector/embedding and Phase 9 checkpoint/workflow topology is deliberately a
+single-process repository/development boundary, not a production deployment design. Phase 9's two
+fixed graphs, reverse signed tool boundary, encrypted workflow artifacts, and local metadata-only
+checkpoint store are implemented, verified, and explicitly accepted for repository/development but
+remain default-disabled. Later components remain direction only until their own phase approves them.
 
 ## Future supporting infrastructure
 
-| Component               | Intended responsibility                                                                | Earliest planned phase | Unresolved choice                                                                                                               |
-| ----------------------- | -------------------------------------------------------------------------------------- | ---------------------: | ------------------------------------------------------------------------------------------------------------------------------- |
-| Redis/shared adapters   | Future cache or multi-instance queue/socket/rate coordination if justified             |                After 6 | Need, topology, ownership, failure behavior                                                                                     |
-| Document object storage | AES-256-GCM private filesystem objects for strict text/Markdown originals              |                      8 | Verified locally under ADR 0011; production provider, IAM/KMS, scanning, retention, backups, and recovery remain unresolved     |
-| Python/FastAPI          | Isolated provider/prompt and signed document-index boundary                            |                      7 | Phase 7 provider/live development gates pass; Phase 8 adds local RAG; production mTLS/network topology remains unresolved       |
-| Vector database         | Local Qdrant candidate index with FastEmbed MiniLM vectors and opaque payload metadata |                      8 | Verified locally under ADR 0011; production topology, tenancy, network controls, backups, and capacity remain unresolved        |
-| Docker                  | Reproducible packaging and local/production topology                                   |                     10 | Images, registry, orchestration                                                                                                 |
-| GitHub Actions          | Automated quality and delivery gates                                                   |                     10 | Workflows and environments                                                                                                      |
-| AWS                     | Potential hosting platform                                                             |                     10 | Services, regions, network and cost model                                                                                       |
+| Component               | Intended responsibility                                                                | Earliest planned phase | Unresolved choice                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------- | ---------------------: | --------------------------------------------------------------------------------------------------------------------------- |
+| Redis/shared adapters   | Future cache or multi-instance queue/socket/rate coordination if justified             |                After 6 | Need, topology, ownership, failure behavior                                                                                 |
+| Document object storage | AES-256-GCM private filesystem objects for strict text/Markdown originals              |                      8 | Verified locally under ADR 0011; production provider, IAM/KMS, scanning, retention, backups, and recovery remain unresolved |
+| Python/FastAPI          | Isolated provider/prompt and signed document-index boundary                            |                      7 | Phase 7 provider/live development gates pass; Phase 8 adds local RAG; production mTLS/network topology remains unresolved   |
+| Vector database         | Local Qdrant candidate index with FastEmbed MiniLM vectors and opaque payload metadata |                      8 | Verified locally under ADR 0011; production topology, tenancy, network controls, backups, and capacity remain unresolved    |
+| Workflow checkpointer   | Private metadata-only SQLite checkpoints for bounded LangGraph pause/resume            |                      9 | Verified locally under ADR 0012; production durable/encrypted multi-instance topology and recovery remain unresolved        |
+| Docker                  | Reproducible packaging and local/production topology                                   |                     10 | Images, registry, orchestration                                                                                             |
+| GitHub Actions          | Automated quality and delivery gates                                                   |                     10 | Workflows and environments                                                                                                  |
+| AWS                     | Potential hosting platform                                                             |                     10 | Services, regions, network and cost model                                                                                   |
 
 ## Request and trust boundaries
 

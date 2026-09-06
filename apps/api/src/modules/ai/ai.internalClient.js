@@ -195,6 +195,22 @@ const documentInventoryEnvelopeSchema = z.strictObject({
   requestId: z.uuid(),
 });
 
+const workflowEnvelopeSchema = z.strictObject({
+  success: z.literal(true),
+  data: z.strictObject({
+    workflowRunId: z.uuid(),
+    status: z.enum(["RUNNING", "AWAITING_APPROVAL", "SUCCEEDED", "FAILED", "UNKNOWN"]),
+    artifactId: z.uuid().nullable(),
+  }),
+  requestId: z.uuid(),
+});
+
+const workflowDeleteEnvelopeSchema = z.strictObject({
+  success: z.literal(true),
+  data: z.strictObject({ threadId: z.uuid(), deleted: z.literal(true) }),
+  requestId: z.uuid(),
+});
+
 export class AiInternalClientError extends Error {
   constructor(code, costDisposition = "HOLD") {
     super("The internal AI service request failed");
@@ -277,6 +293,18 @@ class DisabledAiInternalClient {
   }
 
   async documentVectorInventory() {
+    throw new AiInternalClientError("AI_DISABLED", "RELEASE");
+  }
+
+  async startWorkflow() {
+    throw new AiInternalClientError("AI_DISABLED", "RELEASE");
+  }
+
+  async resumeWorkflow() {
+    throw new AiInternalClientError("AI_DISABLED", "RELEASE");
+  }
+
+  async deleteWorkflowThread() {
     throw new AiInternalClientError("AI_DISABLED", "RELEASE");
   }
 }
@@ -476,6 +504,60 @@ class SignedAiInternalClient {
       throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
     }
     this.#state = "ready";
+    return result.data.data;
+  }
+
+  async startWorkflow(payload, requestId) {
+    const parsed = await this.request("/internal/v1/workflows/start", {
+      method: "POST",
+      payload,
+      requestId,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const result = workflowEnvelopeSchema.safeParse(parsed);
+    if (
+      !result.success ||
+      result.data.requestId !== requestId ||
+      result.data.data.workflowRunId !== payload.workflowRunId
+    ) {
+      throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
+    }
+    return result.data.data;
+  }
+
+  async resumeWorkflow(payload, requestId) {
+    const parsed = await this.request("/internal/v1/workflows/resume", {
+      method: "POST",
+      payload,
+      requestId,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const result = workflowEnvelopeSchema.safeParse(parsed);
+    if (
+      !result.success ||
+      result.data.requestId !== requestId ||
+      result.data.data.workflowRunId !== payload.workflowRunId
+    ) {
+      throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
+    }
+    return result.data.data;
+  }
+
+  async deleteWorkflowThread(threadId, requestId) {
+    const path = `/internal/v1/workflows/threads/${threadId}`;
+    const parsed = await this.request(path, {
+      method: "DELETE",
+      requestId,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const result = workflowDeleteEnvelopeSchema.safeParse(parsed);
+    if (
+      !result.success ||
+      result.data.requestId !== requestId ||
+      result.data.data.threadId !== threadId
+    ) {
+      throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
+    }
     return result.data.data;
   }
 }

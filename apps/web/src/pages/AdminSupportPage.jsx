@@ -9,6 +9,7 @@ import { listUsers } from "../api/users.js";
 import { useAuth } from "../auth/auth-context.js";
 import { SupportThread } from "../components/SupportThread.jsx";
 import { SupportTicketCard } from "../components/SupportTicketCard.jsx";
+import { SupportWorkflowPanel } from "../components/SupportWorkflowPanel.jsx";
 
 const statuses = ["ALL", "OPEN", "IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"];
 const editableStatuses = statuses.slice(1);
@@ -31,6 +32,10 @@ export function AdminSupportPage() {
   const [assignees, setAssignees] = useState([]);
   const [message, setMessage] = useState({ body: "", visibility: "CUSTOMER_VISIBLE" });
   const canManage = auth.hasPermission("support:tickets:manage");
+  const canUseSupportWorkflow =
+    canManage &&
+    auth.hasPermission("ai:workflows:support:use") &&
+    auth.hasPermission("orders:read");
 
   const loadList = useCallback(async () => {
     setListState((current) => ({ ...current, status: "loading", error: "" }));
@@ -227,6 +232,14 @@ export function AdminSupportPage() {
                 Requested by {ticket.requester.displayName} · Version {ticket.version}
               </p>
               <SupportThread messages={ticket.messages} />
+
+              {canUseSupportWorkflow && ticket.status !== "CLOSED" ? (
+                <SupportWorkflowPanel
+                  key={ticket.id}
+                  ticket={ticket}
+                  onPublished={() => selectTicket(ticket.id)}
+                />
+              ) : null}
 
               {canManage && ticket.status !== "CLOSED" ? (
                 <>

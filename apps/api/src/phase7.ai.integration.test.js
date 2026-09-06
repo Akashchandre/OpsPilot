@@ -197,9 +197,15 @@ describe.sequential("Phase 7 AI foundation", () => {
         role.rolePermissions.map((entry) => entry.permission.code).sort(),
       ]),
     );
-    expect(mapping.OWNER).toEqual(["ai:owner:use", "ai:usage:read"]);
+    expect(mapping.OWNER).toEqual([
+      "ai:owner:use",
+      "ai:usage:read",
+      "ai:workflows:business:use",
+      "ai:workflows:support:approve",
+      "ai:workflows:support:use",
+    ]);
     expect(mapping.CUSTOMER).toEqual(["ai:customer:use"]);
-    expect(mapping.ADMIN).toEqual([]);
+    expect(mapping.ADMIN).toEqual(["ai:workflows:support:approve", "ai:workflows:support:use"]);
 
     const columns = await database.$queryRaw`
       SELECT COLUMN_NAME AS columnName

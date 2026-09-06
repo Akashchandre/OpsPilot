@@ -12,9 +12,9 @@ import pytest
 import uvicorn
 
 from opspilot_ai.app import create_app
-from opspilot_ai.config import load_settings
+from opspilot_ai.config import AiSettings, load_settings
 
-from .cross_service_server import app
+from .cross_service_server import CrossServiceMockProvider, app
 
 RUN_CROSS_SERVICE = os.environ.get("OPSPILOT_RUN_CROSS_SERVICE_SMOKE", "").lower() == "true"
 RUN_LIVE_RAG_CROSS_SERVICE = (
@@ -124,6 +124,79 @@ def test_real_node_to_fastapi_signed_http_contract() -> None:
         "secretValuesEmitted": False,
     }
     assert signing_key not in completed.stdout
+
+
+@pytest.mark.cross_service
+@pytest.mark.skipif(not RUN_CROSS_SERVICE, reason="explicit cross-service smoke opt-in is required")
+def test_phase9_bidirectional_workflow_contract(tmp_path: Path) -> None:
+    repository_root = Path(__file__).resolve().parents[3]
+    node_binary = os.environ.get("OPSPILOT_NODE_BINARY") or shutil.which("node")
+    if node_binary is None:
+        pytest.fail("Node.js is required for the cross-service smoke")
+
+    node_port = _available_port()
+    service_signing_key = base64.b64encode(bytes(range(32))).decode("ascii")
+    reverse_signing_key = base64.b64encode(bytes(range(32, 64))).decode("ascii")
+    artifact_key = base64.b64encode(bytes(range(64, 96))).decode("ascii")
+    checkpoint_path = tmp_path / "phase9-cross-service.sqlite"
+    settings = AiSettings(
+        _env_file=None,
+        AI_ENVIRONMENT="test",
+        AI_PROVIDER_ENABLED=True,
+        GROQ_API_KEY="gsk_phase9_cross_service_test_only",
+        GROQ_ZERO_DATA_RETENTION_CONFIRMED=True,
+        AI_SERVICE_SIGNING_KEY=service_signing_key,
+        AI_SERVICE_SIGNING_KEY_ID="phase9-node-to-ai-v1",
+        AI_WORKFLOWS_ENABLED=True,
+        AI_WORKFLOW_NODE_URL=f"http://127.0.0.1:{node_port}",
+        AI_WORKFLOW_NODE_SIGNING_KEY=reverse_signing_key,
+        AI_WORKFLOW_NODE_SIGNING_KEY_ID="phase9-ai-to-node-v1",
+        AI_WORKFLOW_CHECKPOINT_PATH=checkpoint_path,
+        LANGGRAPH_STRICT_MSGPACK=True,
+        AI_WORKFLOW_MAX_CONCURRENCY=1,
+    )
+    completed = _run_node_smoke(
+        create_app(settings, provider=CrossServiceMockProvider()),
+        repository_root=repository_root,
+        node_binary=node_binary,
+        script_name="phase9CrossServiceSmoke.js",
+        environment={
+            **os.environ,
+            "API_PORT": str(node_port),
+            "AI_SERVICE_SIGNING_KEY": service_signing_key,
+            "AI_SERVICE_SIGNING_KEY_ID": "phase9-node-to-ai-v1",
+            "AI_WORKFLOW_NODE_SIGNING_KEY": reverse_signing_key,
+            "AI_WORKFLOW_NODE_SIGNING_KEY_ID": "phase9-ai-to-node-v1",
+            "AI_WORKFLOW_ARTIFACT_KEY": artifact_key,
+            "AI_WORKFLOW_ARTIFACT_KEY_ID": "phase9-artifacts-v1",
+            "AI_WORKFLOW_CHECKPOINT_PATH": str(checkpoint_path),
+        },
+        timeout_seconds=30,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout)
+    assert result["success"] is True
+    assert result["signedBidirectionalBoundary"] is True
+    assert result["caseCount"] == 5
+    assert result["p95Ms"] <= result["maximumP95Ms"] == 8_000
+    assert result["toolP95Ms"] <= result["maximumToolP95Ms"] == 250
+    assert result["providerCalls"] == 5
+    assert result["toolCalls"] == 15
+    assert result["sourceCount"] == 15
+    assert result["totalTokens"] == 600
+    assert result["exactCostInUsdTicks"] == 500_000
+    assert result["checkpointBytes"] > 0
+    assert result["artifactCiphertextBytes"] > 0
+    assert result["checkpointCleanupMs"] >= 0
+    assert result["cpuTimeMs"] > 0
+    assert result["rssBytes"] > 0
+    assert result["contentRecorded"] is False
+    assert result["secretValuesEmitted"] is False
+    assert service_signing_key not in completed.stdout
+    assert reverse_signing_key not in completed.stdout
+    assert artifact_key not in completed.stdout
+    print(json.dumps(result, separators=(",", ":"), sort_keys=True))
 
 
 @pytest.mark.cross_service

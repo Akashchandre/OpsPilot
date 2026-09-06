@@ -3,7 +3,8 @@
 ## Status
 
 **ACCEPTED on 2026-09-05 under ADR 0011.** These controls and tests are required by the accepted
-Phase 8 implementation baseline. Implementation and verification are in progress.
+Phase 8 implementation baseline. Implementation and the repository/development verification gate
+are complete, and explicit Phase 8 acceptance was recorded on 2026-09-06.
 
 ## Scope
 

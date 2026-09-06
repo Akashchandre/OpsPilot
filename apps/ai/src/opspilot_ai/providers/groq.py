@@ -23,6 +23,12 @@ from ..contracts import (
 )
 from ..errors import AiServiceError
 from ..prompts import RenderedPrompt
+from ..workflows.contracts import (
+    BUSINESS_OUTPUT_SCHEMA,
+    SUPPORT_OUTPUT_SCHEMA,
+    BusinessBriefOutput,
+    SupportReplyOutput,
+)
 from .base import ProviderReadiness, ProviderResult, ProviderUsage
 
 MAX_PROVIDER_RESPONSE_BYTES = 262_144
@@ -250,7 +256,11 @@ class GroqChatCompletionsProvider:
                     "name": "opspilot_ai_response",
                     "strict": True,
                     "schema": (
-                        DOCUMENT_PROVIDER_OUTPUT_JSON_SCHEMA
+                        BUSINESS_OUTPUT_SCHEMA
+                        if prompt.workflow_response == "business"
+                        else SUPPORT_OUTPUT_SCHEMA
+                        if prompt.workflow_response == "support"
+                        else DOCUMENT_PROVIDER_OUTPUT_JSON_SCHEMA
                         if prompt.document_response
                         else PROVIDER_OUTPUT_JSON_SCHEMA
                     ),
@@ -265,10 +275,18 @@ class GroqChatCompletionsProvider:
         )
         self._map_http_error(response)
         payload = self._json_object(response)
-        return self._parse_response(payload, document_response=prompt.document_response)
+        return self._parse_response(
+            payload,
+            document_response=prompt.document_response,
+            workflow_response=prompt.workflow_response,
+        )
 
     def _parse_response(
-        self, payload: dict[str, Any], *, document_response: bool = False
+        self,
+        payload: dict[str, Any],
+        *,
+        document_response: bool = False,
+        workflow_response: str | None = None,
     ) -> ProviderResult:
         if payload.get("object") != "chat.completion" or payload.get("model") != GROQ_MODEL:
             raise self._invalid_response()
@@ -300,7 +318,13 @@ class GroqChatCompletionsProvider:
         try:
             structured_payload = self._strict_json_loads(text)
             output_contract = (
-                DocumentStructuredProviderOutput if document_response else StructuredProviderOutput
+                BusinessBriefOutput
+                if workflow_response == "business"
+                else SupportReplyOutput
+                if workflow_response == "support"
+                else DocumentStructuredProviderOutput
+                if document_response
+                else StructuredProviderOutput
             )
             structured_output = output_contract.model_validate(structured_payload)
         except (json.JSONDecodeError, ValidationError, ValueError) as error:

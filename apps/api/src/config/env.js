@@ -128,6 +128,25 @@ const environmentSchema = z
     AI_OWNER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(50),
     AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS: z.coerce.number().int().min(1).max(100000).default(200),
     AI_MAX_REQUEST_COST_USD_CENTS: z.coerce.number().int().min(1).max(10000).default(2),
+    AI_WORKFLOWS_ENABLED: environmentBoolean.default(false),
+    AI_BUSINESS_BRIEF_ENABLED: environmentBoolean.default(false),
+    AI_SUPPORT_WORKFLOW_ENABLED: environmentBoolean.default(false),
+    AI_SUPPORT_DATA_PROCESSING_CONFIRMED: environmentBoolean.default(false),
+    AI_WORKFLOW_NODE_SIGNING_KEY: optionalEnvironmentString(
+      z.string().trim().max(512).refine(isValidBase64Key),
+    ),
+    AI_WORKFLOW_NODE_SIGNING_KEY_ID: optionalEnvironmentString(internalSigningKeyIdSchema),
+    AI_WORKFLOW_ARTIFACT_KEY: optionalEnvironmentString(
+      z
+        .string()
+        .trim()
+        .max(512)
+        .refine((value) => isValidExactBase64Key(value, 32)),
+    ),
+    AI_WORKFLOW_ARTIFACT_KEY_ID: optionalEnvironmentString(internalSigningKeyIdSchema),
+    AI_WORKFLOW_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100).default(5),
+    AI_WORKFLOW_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(30),
+    AI_WORKFLOW_MAX_ACTIVE_PER_USER: z.coerce.number().int().min(1).max(20).default(3),
     DOCUMENTS_ENABLED: environmentBoolean.default(false),
     DOCUMENT_STORAGE_ADAPTER: z.literal("filesystem").default("filesystem"),
     DOCUMENT_STORAGE_ROOT: optionalEnvironmentString(absolutePrivatePathSchema),
@@ -212,6 +231,70 @@ const environmentSchema = z
           });
         }
       }
+    }
+
+    if (environment.AI_WORKFLOWS_ENABLED) {
+      if (!environment.AI_ENABLED) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_WORKFLOWS_ENABLED"],
+          message: "AI_WORKFLOWS_ENABLED requires AI_ENABLED",
+        });
+      }
+      for (const field of [
+        "AI_WORKFLOW_NODE_SIGNING_KEY",
+        "AI_WORKFLOW_NODE_SIGNING_KEY_ID",
+        "AI_WORKFLOW_ARTIFACT_KEY",
+        "AI_WORKFLOW_ARTIFACT_KEY_ID",
+      ]) {
+        if (!environment[field]) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `${field} is required when AI workflows are enabled`,
+          });
+        }
+      }
+    }
+
+    if (environment.AI_BUSINESS_BRIEF_ENABLED && !environment.AI_WORKFLOWS_ENABLED) {
+      context.addIssue({
+        code: "custom",
+        path: ["AI_BUSINESS_BRIEF_ENABLED"],
+        message: "AI_BUSINESS_BRIEF_ENABLED requires AI_WORKFLOWS_ENABLED",
+      });
+    }
+
+    if (environment.AI_SUPPORT_WORKFLOW_ENABLED) {
+      if (!environment.AI_WORKFLOWS_ENABLED) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_SUPPORT_WORKFLOW_ENABLED"],
+          message: "AI_SUPPORT_WORKFLOW_ENABLED requires AI_WORKFLOWS_ENABLED",
+        });
+      }
+      if (!environment.AI_SUPPORT_DATA_PROCESSING_CONFIRMED) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_SUPPORT_DATA_PROCESSING_CONFIRMED"],
+          message: "Support workflow processing requires separate data approval",
+        });
+      }
+      if (!environment.DOCUMENTS_ENABLED) {
+        context.addIssue({
+          code: "custom",
+          path: ["AI_SUPPORT_WORKFLOW_ENABLED"],
+          message: "The support workflow requires the Phase 8 document boundary",
+        });
+      }
+    }
+
+    if (environment.NODE_ENV === "production" && environment.AI_WORKFLOWS_ENABLED) {
+      context.addIssue({
+        code: "custom",
+        path: ["AI_WORKFLOWS_ENABLED"],
+        message: "The Phase 9 local workflow topology is not approved for production",
+      });
     }
 
     if (
@@ -350,6 +433,23 @@ export function loadEnvironment(source = process.env) {
       }),
       globalDailyCostLimitUsdCents: result.data.AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS,
       maximumRequestCostUsdCents: result.data.AI_MAX_REQUEST_COST_USD_CENTS,
+      workflows: Object.freeze({
+        enabled: result.data.AI_WORKFLOWS_ENABLED,
+        businessBriefEnabled: result.data.AI_BUSINESS_BRIEF_ENABLED,
+        supportEnabled: result.data.AI_SUPPORT_WORKFLOW_ENABLED,
+        supportDataProcessingConfirmed: result.data.AI_SUPPORT_DATA_PROCESSING_CONFIRMED,
+        nodeSigningKey: result.data.AI_WORKFLOW_NODE_SIGNING_KEY,
+        nodeSigningKeyId: result.data.AI_WORKFLOW_NODE_SIGNING_KEY_ID,
+        artifactKey: result.data.AI_WORKFLOW_ARTIFACT_KEY,
+        artifactKeyId: result.data.AI_WORKFLOW_ARTIFACT_KEY_ID,
+        burstWindowMinutes: 15,
+        burstMaximum: result.data.AI_WORKFLOW_RATE_LIMIT_MAX,
+        dailyMaximum: result.data.AI_WORKFLOW_DAILY_LIMIT,
+        maximumActivePerUser: result.data.AI_WORKFLOW_MAX_ACTIVE_PER_USER,
+        runTtlHours: 24,
+        approvalTtlMinutes: 30,
+        artifactTtlHours: 24,
+      }),
     }),
     documents: Object.freeze({
       enabled: result.data.DOCUMENTS_ENABLED,

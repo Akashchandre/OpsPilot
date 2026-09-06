@@ -38,9 +38,9 @@ Illustrative response shapes (not finalized):
 
 ## Phase 1 — Foundation
 
-| Method | Path | Purpose | Access |
-|---|---|---|---|
-| GET | `/api/v1/health` | Confirm API process readiness/liveness at the agreed level | Public, minimal data |
+| Method | Path             | Purpose                                                    | Access               |
+| ------ | ---------------- | ---------------------------------------------------------- | -------------------- |
+| GET    | `/api/v1/health` | Confirm API process readiness/liveness at the agreed level | Public, minimal data |
 
 The implemented endpoint is a database-dependent readiness check. Separate liveness/readiness endpoints may be added only when deployment topology requires them.
 
@@ -48,19 +48,19 @@ The implemented endpoint is a database-dependent readiness check. Separate liven
 
 Implemented endpoints:
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| POST | `/api/v1/auth/register` | Public, trusted origin, rate-limited | Create an active customer and opaque session |
-| POST | `/api/v1/auth/login` | Public, trusted origin, rate-limited | Authenticate and create an opaque session |
-| GET | `/api/v1/auth/me` | Authenticated | Return current identity, roles, and permissions |
-| POST | `/api/v1/auth/logout` | Authenticated, CSRF | Revoke current session and clear cookies |
-| GET | `/api/v1/users` | `users:read` | Paginated safe identity summaries |
-| GET | `/api/v1/users/:userId` | `users:read` | Retrieve a safe identity summary |
-| PATCH | `/api/v1/users/:userId/status` | `users:status:manage`, CSRF | Enable or disable subject to owner rules |
-| POST | `/api/v1/users/:userId/roles` | `users:roles:manage`, CSRF | Assign a system role subject to owner rules |
-| DELETE | `/api/v1/users/:userId/roles/:roleCode` | `users:roles:manage`, CSRF | Remove a system role subject to owner rules |
-| GET | `/api/v1/roles` | `roles:read` | List migration-controlled roles and mappings |
-| GET | `/api/v1/permissions` | `permissions:read` | List stable Phase 2 permissions |
+| Method | Path                                    | Access                               | Purpose                                         |
+| ------ | --------------------------------------- | ------------------------------------ | ----------------------------------------------- |
+| POST   | `/api/v1/auth/register`                 | Public, trusted origin, rate-limited | Create an active customer and opaque session    |
+| POST   | `/api/v1/auth/login`                    | Public, trusted origin, rate-limited | Authenticate and create an opaque session       |
+| GET    | `/api/v1/auth/me`                       | Authenticated                        | Return current identity, roles, and permissions |
+| POST   | `/api/v1/auth/logout`                   | Authenticated, CSRF                  | Revoke current session and clear cookies        |
+| GET    | `/api/v1/users`                         | `users:read`                         | Paginated safe identity summaries               |
+| GET    | `/api/v1/users/:userId`                 | `users:read`                         | Retrieve a safe identity summary                |
+| PATCH  | `/api/v1/users/:userId/status`          | `users:status:manage`, CSRF          | Enable or disable subject to owner rules        |
+| POST   | `/api/v1/users/:userId/roles`           | `users:roles:manage`, CSRF           | Assign a system role subject to owner rules     |
+| DELETE | `/api/v1/users/:userId/roles/:roleCode` | `users:roles:manage`, CSRF           | Remove a system role subject to owner rules     |
+| GET    | `/api/v1/roles`                         | `roles:read`                         | List migration-controlled roles and mappings    |
+| GET    | `/api/v1/permissions`                   | `permissions:read`                   | List stable Phase 2 permissions                 |
 
 Detailed requests, responses, cookies, error codes, and rationale are in `docs/phase-2/PHASE-02-IMPLEMENTATION-GUIDE.md`. Email verification, password reset, MFA, custom roles, refresh-token routes, employee invitation, and account deletion are deferred.
 
@@ -70,29 +70,29 @@ Detailed requests, responses, cookies, error codes, and rationale are in `docs/p
 
 Public reads expose only `ACTIVE` products/categories and boolean `availability.inStock`; they never expose exact stock:
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/products` | Public | Active catalog list with bounded search/filter/sort/pagination |
-| GET | `/api/v1/products/:productId` | Public | Active product detail and public availability |
-| GET | `/api/v1/categories` | Public | Active category list with bounded search/pagination |
+| Method | Path                          | Access | Purpose                                                        |
+| ------ | ----------------------------- | ------ | -------------------------------------------------------------- |
+| GET    | `/api/v1/products`            | Public | Active catalog list with bounded search/filter/sort/pagination |
+| GET    | `/api/v1/products/:productId` | Public | Active product detail and public availability                  |
+| GET    | `/api/v1/categories`          | Public | Active category list with bounded search/pagination            |
 
 Management collection reads use `?view=management`, require the matching management permission, and include all lifecycle states. Unsafe methods also require the accepted Phase 2 session, trusted origin, and CSRF token.
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/products?view=management` | `products:manage` | List draft, active, and archived products with exact management metadata but not exact stock |
-| POST | `/api/v1/products` | `products:manage`, CSRF | Create a draft product and initial inventory state |
-| PATCH | `/api/v1/products/:productId` | `products:manage`, CSRF | Update product/category data using a version precondition |
-| PATCH | `/api/v1/products/:productId/status` | `products:manage`, CSRF | Apply `DRAFT → ACTIVE → ARCHIVED → DRAFT`; activation requires an active category |
-| GET | `/api/v1/categories?view=management` | `categories:manage` | List active and inactive categories with management metadata |
-| POST | `/api/v1/categories` | `categories:manage`, CSRF | Create a category |
-| PATCH | `/api/v1/categories/:categoryId` | `categories:manage`, CSRF | Update a category using a version precondition |
-| PATCH | `/api/v1/categories/:categoryId/status` | `categories:manage`, CSRF | Activate/deactivate; an active product blocks category deactivation |
-| GET | `/api/v1/inventory` | `inventory:read` | List exact stock and low-stock state |
-| GET | `/api/v1/inventory/:productId` | `inventory:read` | Retrieve one exact inventory balance |
-| POST | `/api/v1/inventory/:productId/adjustments` | `inventory:adjust`, CSRF | Apply one atomic stock adjustment |
-| GET | `/api/v1/inventory/:productId/adjustments` | `inventory:read` | Retrieve bounded adjustment history |
-| PATCH | `/api/v1/inventory/:productId` | `inventory:adjust`, CSRF | Update the low-stock threshold using a version precondition |
+| Method | Path                                       | Access                    | Purpose                                                                                      |
+| ------ | ------------------------------------------ | ------------------------- | -------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/products?view=management`         | `products:manage`         | List draft, active, and archived products with exact management metadata but not exact stock |
+| POST   | `/api/v1/products`                         | `products:manage`, CSRF   | Create a draft product and initial inventory state                                           |
+| PATCH  | `/api/v1/products/:productId`              | `products:manage`, CSRF   | Update product/category data using a version precondition                                    |
+| PATCH  | `/api/v1/products/:productId/status`       | `products:manage`, CSRF   | Apply `DRAFT → ACTIVE → ARCHIVED → DRAFT`; activation requires an active category            |
+| GET    | `/api/v1/categories?view=management`       | `categories:manage`       | List active and inactive categories with management metadata                                 |
+| POST   | `/api/v1/categories`                       | `categories:manage`, CSRF | Create a category                                                                            |
+| PATCH  | `/api/v1/categories/:categoryId`           | `categories:manage`, CSRF | Update a category using a version precondition                                               |
+| PATCH  | `/api/v1/categories/:categoryId/status`    | `categories:manage`, CSRF | Activate/deactivate; an active product blocks category deactivation                          |
+| GET    | `/api/v1/inventory`                        | `inventory:read`          | List exact stock and low-stock state                                                         |
+| GET    | `/api/v1/inventory/:productId`             | `inventory:read`          | Retrieve one exact inventory balance                                                         |
+| POST   | `/api/v1/inventory/:productId/adjustments` | `inventory:adjust`, CSRF  | Apply one atomic stock adjustment                                                            |
+| GET    | `/api/v1/inventory/:productId/adjustments` | `inventory:read`          | Retrieve bounded adjustment history                                                          |
+| PATCH  | `/api/v1/inventory/:productId`             | `inventory:adjust`, CSRF  | Update the low-stock threshold using a version precondition                                  |
 
 Collection pagination uses `page` (default `1`) and `limit` (default `20`, maximum `100`). Successful list responses include `meta: { page, limit, total, totalPages }`. Product lists accept `search`, normalized category `slug`, `availability=all|inStock|outOfStock`, `minPrice`, `maxPrice`, `sort=name|price|createdAt`, and `direction=asc|desc`; management view additionally accepts `status=ALL|DRAFT|ACTIVE|ARCHIVED`. Category lists accept `search`; management view additionally accepts `status=ALL|ACTIVE|INACTIVE`. Inventory lists accept `search`.
 
@@ -123,23 +123,23 @@ All customer commerce endpoints require an active authenticated session. Browser
 the accepted trusted-origin and CSRF controls. Ownership failures use not-found behavior so they do
 not disclose another customer's records.
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/cart` | Authenticated owner | Read or lazily create the current cart and refresh price/availability review state |
-| PUT | `/api/v1/cart/items/:productId` | Authenticated owner, CSRF | Set desired quantity `1`–`99` using the current cart version |
-| DELETE | `/api/v1/cart/items/:productId` | Authenticated owner, CSRF | Remove one line using the current cart version |
-| DELETE | `/api/v1/cart/items` | Authenticated owner, CSRF | Clear the cart using the current cart version |
-| POST | `/api/v1/orders` | Authenticated owner, CSRF, `Idempotency-Key` | Convert the current cart into a reserved order and prepare safe hosted Checkout options |
-| GET | `/api/v1/orders` | Authenticated owner; `orders:read` for `view=management` | List owned or authorized management orders |
-| GET | `/api/v1/orders/:orderId` | Authenticated owner; `orders:read` for `view=management` | Read owned or authorized management order details/history |
-| POST | `/api/v1/orders/:orderId/payment-session` | Authenticated owner, CSRF | Resume the same payable provider order while its reservation is active |
-| POST | `/api/v1/orders/:orderId/cancellation` | Authenticated owner, CSRF | Cancel an owned unpaid pending order using its version |
-| PATCH | `/api/v1/orders/:orderId/status` | `orders:manage`, CSRF | Apply an allowed versioned cancellation or fulfillment transition |
-| POST | `/api/v1/payments/confirm` | Authenticated owner, CSRF | Verify the Checkout HMAC, fetch provider state, and apply only an exact capture |
-| GET | `/api/v1/payments/:paymentId` | Owner or `payments:read` | Read safe local payment, attempt, and refund state |
-| POST | `/api/v1/payments/:paymentId/refunds` | `payments:refund`, CSRF, `Idempotency-Key` | Request the server-derived normal full refund |
-| POST | `/api/v1/payments/:paymentId/reconcile` | `payments:reconcile`, CSRF | Fetch provider order/payment/refund state and apply allowed monotonic transitions |
-| POST | `/api/v1/payments/webhooks/razorpay` | Razorpay signature + event ID | Verify the exact raw body, deduplicate, and apply an allowlisted provider event |
+| Method | Path                                      | Access                                                   | Purpose                                                                                 |
+| ------ | ----------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/cart`                            | Authenticated owner                                      | Read or lazily create the current cart and refresh price/availability review state      |
+| PUT    | `/api/v1/cart/items/:productId`           | Authenticated owner, CSRF                                | Set desired quantity `1`–`99` using the current cart version                            |
+| DELETE | `/api/v1/cart/items/:productId`           | Authenticated owner, CSRF                                | Remove one line using the current cart version                                          |
+| DELETE | `/api/v1/cart/items`                      | Authenticated owner, CSRF                                | Clear the cart using the current cart version                                           |
+| POST   | `/api/v1/orders`                          | Authenticated owner, CSRF, `Idempotency-Key`             | Convert the current cart into a reserved order and prepare safe hosted Checkout options |
+| GET    | `/api/v1/orders`                          | Authenticated owner; `orders:read` for `view=management` | List owned or authorized management orders                                              |
+| GET    | `/api/v1/orders/:orderId`                 | Authenticated owner; `orders:read` for `view=management` | Read owned or authorized management order details/history                               |
+| POST   | `/api/v1/orders/:orderId/payment-session` | Authenticated owner, CSRF                                | Resume the same payable provider order while its reservation is active                  |
+| POST   | `/api/v1/orders/:orderId/cancellation`    | Authenticated owner, CSRF                                | Cancel an owned unpaid pending order using its version                                  |
+| PATCH  | `/api/v1/orders/:orderId/status`          | `orders:manage`, CSRF                                    | Apply an allowed versioned cancellation or fulfillment transition                       |
+| POST   | `/api/v1/payments/confirm`                | Authenticated owner, CSRF                                | Verify the Checkout HMAC, fetch provider state, and apply only an exact capture         |
+| GET    | `/api/v1/payments/:paymentId`             | Owner or `payments:read`                                 | Read safe local payment, attempt, and refund state                                      |
+| POST   | `/api/v1/payments/:paymentId/refunds`     | `payments:refund`, CSRF, `Idempotency-Key`               | Request the server-derived normal full refund                                           |
+| POST   | `/api/v1/payments/:paymentId/reconcile`   | `payments:reconcile`, CSRF                               | Fetch provider order/payment/refund state and apply allowed monotonic transitions       |
+| POST   | `/api/v1/payments/webhooks/razorpay`      | Razorpay signature + event ID                            | Verify the exact raw body, deduplicate, and apply an allowlisted provider event         |
 
 Cart mutations set an exact quantity and require `{ version }`; stale writes return
 `409 RESOURCE_VERSION_CONFLICT`. Cart reads expose observed/current prices and a review flag.
@@ -172,14 +172,14 @@ hardening routes are active.
 
 ### `/api/v1/support`
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| POST | `/api/v1/support/tickets` | Active session; CSRF; UUID idempotency key | Create a ticket for the session user with one optional owned order |
-| GET | `/api/v1/support/tickets` | Active session; `view=management` additionally needs `support:tickets:read` | List owned or management tickets with strict filters and pagination |
-| GET | `/api/v1/support/tickets/:ticketId` | Owned ticket, or `support:tickets:read` in management view | Read a safe thread; customer projection excludes internal notes |
-| POST | `/api/v1/support/tickets/:ticketId/messages` | Owned ticket or management reader; CSRF; UUID idempotency key | Add immutable plain-text customer-visible message or authorized internal note |
-| POST | `/api/v1/support/tickets/:ticketId/closure` | Owned ticket; CSRF | Close with the expected optimistic version |
-| PATCH | `/api/v1/support/tickets/:ticketId` | `support:tickets:manage`; CSRF | Apply allowed status, priority, and assignee changes with expected version |
+| Method | Path                                         | Access                                                                      | Purpose                                                                       |
+| ------ | -------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| POST   | `/api/v1/support/tickets`                    | Active session; CSRF; UUID idempotency key                                  | Create a ticket for the session user with one optional owned order            |
+| GET    | `/api/v1/support/tickets`                    | Active session; `view=management` additionally needs `support:tickets:read` | List owned or management tickets with strict filters and pagination           |
+| GET    | `/api/v1/support/tickets/:ticketId`          | Owned ticket, or `support:tickets:read` in management view                  | Read a safe thread; customer projection excludes internal notes               |
+| POST   | `/api/v1/support/tickets/:ticketId/messages` | Owned ticket or management reader; CSRF; UUID idempotency key               | Add immutable plain-text customer-visible message or authorized internal note |
+| POST   | `/api/v1/support/tickets/:ticketId/closure`  | Owned ticket; CSRF                                                          | Close with the expected optimistic version                                    |
+| PATCH  | `/api/v1/support/tickets/:ticketId`          | `support:tickets:manage`; CSRF                                              | Apply allowed status, priority, and assignee changes with expected version    |
 
 Customer reads use ownership-scoped not-found behavior. Subjects are normalized plain text of
 5–160 characters and messages are normalized plain text of 1–4,000 characters. Statuses are
@@ -190,9 +190,9 @@ merge, bulk, email, or realtime routes.
 
 ### `/api/v1/reports`
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/reports/overview` | `reports:read` | Return the accepted aggregate operations snapshot from authoritative MySQL data |
+| Method | Path                       | Access         | Purpose                                                                         |
+| ------ | -------------------------- | -------------- | ------------------------------------------------------------------------------- |
+| GET    | `/api/v1/reports/overview` | `reports:read` | Return the accepted aggregate operations snapshot from authoritative MySQL data |
 
 The optional `from` and `to` values are strict RFC 3339 `Z` timestamps. The range is half-open,
 defaults to the exact prior 30 days, and is capped at 366 days. The response declares `UTC` and
@@ -202,9 +202,9 @@ There are no exports, arbitrary dimensions, forecasts, tax/profit recognition, o
 
 ### `/api/v1/audit-events`
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/audit-events` | Owner-only `audit:read` | List integrity-protected audit evidence using bounded filters; each successful access is audited once |
+| Method | Path                   | Access                  | Purpose                                                                                               |
+| ------ | ---------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/audit-events` | Owner-only `audit:read` | List integrity-protected audit evidence using bounded filters; each successful access is audited once |
 
 The audit collection defaults to the last 30 days, allows at most 366 days, uses a half-open
 `from <= occurredAt < to` UTC range, and supports `page`, `limit`, `from`, `to`, `action`, `outcome`,
@@ -227,12 +227,12 @@ safe `400 INVALID_JSON`, oversized bodies have `413 PAYLOAD_TOO_LARGE`, and URL-
 
 ### `/api/v1/notifications`
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/notifications?after=<cursor>&limit=<1..100>` | Active session; recipient is session-derived | Latest history when `after` is absent, or ascending cursor catch-up when present |
-| GET | `/api/v1/notifications/unread-count` | Active session; recipient is session-derived | Return the exact unread count |
-| PATCH | `/api/v1/notifications/:notificationId/read` | Owned notification + CSRF/exact origin | Idempotently mark one row read; another recipient's UUID is not found |
-| POST | `/api/v1/notifications/read-all` | Active session + CSRF/exact origin | Mark owned unread rows through a validated decimal `highWaterCursor` |
+| Method | Path                                                  | Access                                       | Purpose                                                                          |
+| ------ | ----------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------- |
+| GET    | `/api/v1/notifications?after=<cursor>&limit=<1..100>` | Active session; recipient is session-derived | Latest history when `after` is absent, or ascending cursor catch-up when present |
+| GET    | `/api/v1/notifications/unread-count`                  | Active session; recipient is session-derived | Return the exact unread count                                                    |
+| PATCH  | `/api/v1/notifications/:notificationId/read`          | Owned notification + CSRF/exact origin       | Idempotently mark one row read; another recipient's UUID is not found            |
+| POST   | `/api/v1/notifications/read-all`                      | Active session + CSRF/exact origin           | Mark owned unread rows through a validated decimal `highWaterCursor`             |
 
 Notification cursors are decimal strings backed by a monotonic MySQL `BIGINT`. Collection metadata
 contains `nextCursor`, `hasMore`, `truncatedBefore`, and `limit`. The response is a registered safe
@@ -242,12 +242,12 @@ provider payloads, credentials, or arbitrary HTML. The client cannot choose a re
 
 ### `/api/v1/jobs`
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/jobs` | Owner-only `jobs:read` | Bounded page/filter list without payload JSON; access is audited |
-| GET | `/api/v1/jobs/health` | Owner-only `jobs:read` | Status counts, oldest pending age, stale claims, and recent safe heartbeat state; access is audited |
-| GET | `/api/v1/jobs/:jobId` | Owner-only `jobs:read` | Registered safe payload plus immutable attempt evidence; access is audited |
-| POST | `/api/v1/jobs/:jobId/replay` | Owner-only `jobs:replay` + CSRF/exact origin | Idempotently create one linked replay of an eligible dead letter and audit it |
+| Method | Path                         | Access                                       | Purpose                                                                                             |
+| ------ | ---------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/jobs`               | Owner-only `jobs:read`                       | Bounded page/filter list without payload JSON; access is audited                                    |
+| GET    | `/api/v1/jobs/health`        | Owner-only `jobs:read`                       | Status counts, oldest pending age, stale claims, and recent safe heartbeat state; access is audited |
+| GET    | `/api/v1/jobs/:jobId`        | Owner-only `jobs:read`                       | Registered safe payload plus immutable attempt evidence; access is audited                          |
+| POST   | `/api/v1/jobs/:jobId/replay` | Owner-only `jobs:replay` + CSRF/exact origin | Idempotently create one linked replay of an eligible dead letter and audit it                       |
 
 Job lists accept `page`, `limit` (maximum 100), registered `status`, and registered `type` filters.
 Replay accepts only `{ "idempotencyKey": "uuid" }`; it copies the stored descriptor after current
@@ -264,7 +264,7 @@ bounds. Browser application events are rejected.
 The only application event is server-to-client `notification.changed`:
 
 ```json
-{"id":"notification-uuid","cursor":"12345"}
+{ "id": "notification-uuid", "cursor": "12345" }
 ```
 
 This hint is best effort. It does not establish authorization or delivery; the client recovers
@@ -280,14 +280,14 @@ The Phase 7 implementation is stateless and was accepted for the repository/deve
 Its development provider gates passed; production rollout remains pending the separate
 account/privacy/operations review.
 
-| Method | Path | Access | Behavior |
-|---|---|---|---|
-| GET | `/api/v1/ai/consents/:assistant` | Active session + registered assistant scope | Read only the caller's matching versioned Groq processing consent |
-| PUT | `/api/v1/ai/consents/:assistant` | Matching assistant-use permission + CSRF/exact origin | Accept the server-owned current notice for that caller/scope |
-| DELETE | `/api/v1/ai/consents/:assistant` | Active session + CSRF/exact origin | Revoke the caller's matching consent even after permission removal |
-| POST | `/api/v1/ai/customer/responses` | `ai:customer:use` + matching consent + CSRF + UUID at-most-once submission/quota | Send one bounded `CUSTOMER_HELP` question with public-feature context only |
-| POST | `/api/v1/ai/owner/overview-responses` | `ai:owner:use` + `reports:read` + matching consent + CSRF + UUID at-most-once submission/quota | Explain one existing authoritative aggregate overview for a validated UTC range |
-| GET | `/api/v1/ai/usage` | `ai:usage:read` | Return bounded non-user-attributed request/token/confirmed-cost/reserved-exposure/latency/safe-failure aggregates |
+| Method | Path                                  | Access                                                                                         | Behavior                                                                                                          |
+| ------ | ------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/ai/consents/:assistant`      | Active session + registered assistant scope                                                    | Read only the caller's matching versioned Groq processing consent                                                 |
+| PUT    | `/api/v1/ai/consents/:assistant`      | Matching assistant-use permission + CSRF/exact origin                                          | Accept the server-owned current notice for that caller/scope                                                      |
+| DELETE | `/api/v1/ai/consents/:assistant`      | Active session + CSRF/exact origin                                                             | Revoke the caller's matching consent even after permission removal                                                |
+| POST   | `/api/v1/ai/customer/responses`       | `ai:customer:use` + matching consent + CSRF + UUID at-most-once submission/quota               | Send one bounded `CUSTOMER_HELP` question with public-feature context only                                        |
+| POST   | `/api/v1/ai/owner/overview-responses` | `ai:owner:use` + `reports:read` + matching consent + CSRF + UUID at-most-once submission/quota | Explain one existing authoritative aggregate overview for a validated UTC range                                   |
+| GET    | `/api/v1/ai/usage`                    | `ai:usage:read`                                                                                | Return bounded non-user-attributed request/token/confirmed-cost/reserved-exposure/latency/safe-failure aggregates |
 
 The browser calls Node.js only. Node authorizes and minimizes context before an HMAC-authenticated
 internal FastAPI request. Questions are normalized plain text from 1 to 2,000 characters. A UUID
@@ -325,18 +325,18 @@ Phase 8 implements the public document resource boundary at `/api/v1/documents` 
 document Q&A under `/api/v1/ai`. The table below describes the verified repository/development
 contract accepted on 2026-09-06; production approval remains separate.
 
-| Method | Path | Access | Behavior |
-|---|---|---|---|
-| GET | `/api/v1/documents` | `documents:read` | Return bounded, safe document/version metadata with strict `page`, `limit`, and lifecycle-status query values |
-| POST | `/api/v1/documents` | `documents:manage` + CSRF + UUID idempotency key | Create a logical document and its first awaiting-upload immutable version from validated metadata |
-| GET | `/api/v1/documents/recovery/orphans` | `documents:delete` | Return an owner-only, aggregate-only advisory inventory of storage/vector anomalies; it never repairs or deletes data |
-| GET | `/api/v1/documents/:documentId` | `documents:read` | Return safe logical-document and version metadata |
-| POST | `/api/v1/documents/:documentId/versions` | `documents:manage` + CSRF + UUID idempotency key | Create the next immutable version after an optimistic document-version check |
-| PUT | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:manage` + CSRF + UUID idempotency key | Accept the approved raw text body, encrypt it through the private store, and enqueue ingestion; request JSON is not accepted here |
-| GET | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:read` | Read an authorized original through the protected API; no storage path is exposed |
-| PATCH | `/api/v1/documents/:documentId/status` | `documents:manage` + CSRF + UUID idempotency key | Archive or restore an eligible document using its optimistic version |
-| POST | `/api/v1/documents/:documentId/versions/:versionId/reindex` | `documents:manage` + CSRF + UUID idempotency key | Request an eligible version's registered reindex job |
-| DELETE | `/api/v1/documents/:documentId` | owner-only `documents:delete` + CSRF + UUID idempotency key | Mark the document deleting and enqueue fail-closed asynchronous vector/object/chunk cleanup |
+| Method | Path                                                        | Access                                                      | Behavior                                                                                                                          |
+| ------ | ----------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/documents`                                         | `documents:read`                                            | Return bounded, safe document/version metadata with strict `page`, `limit`, and lifecycle-status query values                     |
+| POST   | `/api/v1/documents`                                         | `documents:manage` + CSRF + UUID idempotency key            | Create a logical document and its first awaiting-upload immutable version from validated metadata                                 |
+| GET    | `/api/v1/documents/recovery/orphans`                        | `documents:delete`                                          | Return an owner-only, aggregate-only advisory inventory of storage/vector anomalies; it never repairs or deletes data             |
+| GET    | `/api/v1/documents/:documentId`                             | `documents:read`                                            | Return safe logical-document and version metadata                                                                                 |
+| POST   | `/api/v1/documents/:documentId/versions`                    | `documents:manage` + CSRF + UUID idempotency key            | Create the next immutable version after an optimistic document-version check                                                      |
+| PUT    | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:manage` + CSRF + UUID idempotency key            | Accept the approved raw text body, encrypt it through the private store, and enqueue ingestion; request JSON is not accepted here |
+| GET    | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:read`                                            | Read an authorized original through the protected API; no storage path is exposed                                                 |
+| PATCH  | `/api/v1/documents/:documentId/status`                      | `documents:manage` + CSRF + UUID idempotency key            | Archive or restore an eligible document using its optimistic version                                                              |
+| POST   | `/api/v1/documents/:documentId/versions/:versionId/reindex` | `documents:manage` + CSRF + UUID idempotency key            | Request an eligible version's registered reindex job                                                                              |
+| DELETE | `/api/v1/documents/:documentId`                             | owner-only `documents:delete` + CSRF + UUID idempotency key | Mark the document deleting and enqueue fail-closed asynchronous vector/object/chunk cleanup                                       |
 
 Document metadata uses strict JSON objects. Creation includes an NFC-normalized title; a version
 permits only an NFC-normalized filename, `text/plain` or `text/markdown`, matching `.txt` or `.md`,
@@ -353,14 +353,14 @@ delete. A customer cannot list, upload, download, or select a source through thi
 Document-Q&A uses a separate versioned processing-consent family and never accepts a document,
 version, chunk, point, audience, model, or vector-filter value from the browser:
 
-| Method | Path | Access | Behavior |
-|---|---|---|---|
-| GET | `/api/v1/ai/document-consents/:assistant` | Active session | Read the caller's matching server-owned document-processing consent state |
-| PUT | `/api/v1/ai/document-consents/:assistant` | Matching assistant-use permission + CSRF | Accept the exact server-owned `groq-zdr-documents-v1` notice |
-| DELETE | `/api/v1/ai/document-consents/:assistant` | Active session + CSRF | Revoke the caller's matching document-processing consent |
-| POST | `/api/v1/ai/customer/document-responses` | `ai:customer:use` + current customer document consent + CSRF + UUID at-most-once key/quota | Answer from only current `CUSTOMER`-audience sources |
-| POST | `/api/v1/ai/owner/document-responses` | `ai:owner:use` + current owner document consent + CSRF + UUID at-most-once key/quota | Answer from only current `CUSTOMER` or `OWNER` sources |
-| GET | `/api/v1/ai/document-citations/:citationId` | Active caller with the completed request's same assistant permission, current consent, and current source authorization | Return one current authorized citation excerpt; it is not a general document lookup |
+| Method | Path                                        | Access                                                                                                                  | Behavior                                                                            |
+| ------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/v1/ai/document-consents/:assistant`   | Active session                                                                                                          | Read the caller's matching server-owned document-processing consent state           |
+| PUT    | `/api/v1/ai/document-consents/:assistant`   | Matching assistant-use permission + CSRF                                                                                | Accept the exact server-owned `groq-zdr-documents-v1` notice                        |
+| DELETE | `/api/v1/ai/document-consents/:assistant`   | Active session + CSRF                                                                                                   | Revoke the caller's matching document-processing consent                            |
+| POST   | `/api/v1/ai/customer/document-responses`    | `ai:customer:use` + current customer document consent + CSRF + UUID at-most-once key/quota                              | Answer from only current `CUSTOMER`-audience sources                                |
+| POST   | `/api/v1/ai/owner/document-responses`       | `ai:owner:use` + current owner document consent + CSRF + UUID at-most-once key/quota                                    | Answer from only current `CUSTOMER` or `OWNER` sources                              |
+| GET    | `/api/v1/ai/document-citations/:citationId` | Active caller with the completed request's same assistant permission, current consent, and current source authorization | Return one current authorized citation excerpt; it is not a general document lookup |
 
 Node derives audiences from the registered assistant, reauthorizes every FastAPI candidate against
 current MySQL lifecycle/audience/integrity data before source text is sent to Groq, and repeats the
@@ -380,7 +380,27 @@ aggregate inventory data.
 
 ## Phase 9 — LangGraph Business AI and AI Support
 
-Planned AI operations expand to permission-aware business analysis and support workflows. Each tool/action requires a contract with validated inputs, authorization, timeout, idempotency where relevant, audit behavior, and human confirmation for consequential actions. Exact workflows are a **Decision Required**.
+**Implemented and verified for repository/development review.** Phase 9 provides an owner-only
+read-only business brief and an owner/admin support reply-draft workflow. Each uses a fixed
+versioned graph and graph-selected typed Node tools; the model cannot choose a tool or argument.
+
+| Method         | Path                                                   | Authorization summary                                                                                  | Behavior                                                                   |
+| -------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| GET/PUT/DELETE | `/api/v1/ai/workflow-consents/:scope`                  | Active user; exact workflow permission; CSRF for writes                                                | Read/accept/revoke `groq-zdr-workflows-v1` processing notice               |
+| POST           | `/api/v1/ai/workflows/owner-business-brief/runs`       | Owner workflow + owner AI + report/inventory/support-read permissions; consent; CSRF; UUID idempotency | Queue a 1–90 day fixed-tool read-only brief                                |
+| POST           | `/api/v1/ai/workflows/support-reply/runs`              | Support workflow + support read/manage + order read; consent; CSRF; UUID idempotency                   | Queue one ticket-scoped draft workflow                                     |
+| GET            | `/api/v1/ai/workflow-runs`                             | Current workflow/domain permissions and initiator/support scope                                        | Bounded safe run list                                                      |
+| GET            | `/api/v1/ai/workflow-runs/:workflowRunId`              | Current workflow/domain permissions and run/resource scope                                             | Reauthorized status plus decrypted short-lived result/draft where eligible |
+| POST           | `/api/v1/ai/workflow-runs/:workflowRunId/decisions`    | Support approval + support read/manage + order read; CSRF; UUID idempotency; optimistic version        | Approve, edit-and-approve, or reject one unexpired draft                   |
+| POST           | `/api/v1/ai/workflow-runs/:workflowRunId/cancellation` | Initiator or currently authorized support approver; CSRF; UUID idempotency; optimistic version         | Cancel only a nonterminal run before effect completion                     |
+
+Node-to-FastAPI `start`/`resume`/thread-delete contracts and a separately keyed
+FastAPI-to-Node tool/model-step boundary remain internal, HMAC-signed, replay-protected, strict, and
+byte-bounded. Node derives the stored run scope; no public request accepts a graph/tool/prompt/model
+version, actor/customer/order/source ID outside that scope, checkpoint, arbitrary state, resume
+value, or model setting. Public mutations use strict schemas, CSRF, UUID idempotency keys, and
+optimistic run versions; safe conflict/disabled/authorization/provider errors use the existing
+centralized API envelope.
 
 ## Query and collection standards
 

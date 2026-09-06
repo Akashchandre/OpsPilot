@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createAuditRouter } from "../modules/audit/audit.routes.js";
 import { createAiRouter } from "../modules/ai/ai.routes.js";
+import { createAiWorkflowRouter } from "../modules/ai/ai.workflow.routes.js";
 import { createAuthRouter } from "../modules/auth/auth.routes.js";
 import { createAuthorizationRouter } from "../modules/authorization/authorization.routes.js";
 import { createCatalogRouter } from "../modules/catalog/catalog.routes.js";
@@ -21,6 +22,7 @@ export function createApiRouter(database, config, paymentProvider, aiClient, doc
 
   router.use("/health", createHealthRouter(database, config, aiClient, documentStore));
   router.use("/ai", createAiRouter(database, config, aiClient, documentStore));
+  router.use("/ai", createAiWorkflowRouter(database, config, aiClient, documentStore));
   router.use("/audit-events", createAuditRouter(database, config));
   router.use("/auth", createAuthRouter(database, config));
   router.use("/users", createUsersRouter(database, config));

@@ -3,11 +3,14 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import aiosqlite
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHttpException
@@ -33,6 +36,9 @@ from .rag.factory import create_configured_rag_service
 from .rag.service import RagIndexService
 from .security import InternalRequestVerifier, ReplayCache
 from .service import AiResponseService
+from .workflows.contracts import WorkflowRequest
+from .workflows.gateway import WorkflowNodeGateway
+from .workflows.service import WorkflowService
 
 
 def _request_id(request: Request) -> str:
@@ -98,10 +104,12 @@ def create_app(
         maximum_concurrency=settings.max_concurrency,
         logger=logger,
     )
+    workflow_gateway: WorkflowNodeGateway | None = None
+    workflow_connection: aiosqlite.Connection | None = None
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-        del application
+        nonlocal workflow_gateway, workflow_connection
         if selected_provider.state != ProviderReadiness.DISABLED:
             try:
                 await selected_provider.preflight()
@@ -119,9 +127,36 @@ def create_app(
                     provider_state=selected_provider.state.value,
                     error_code=error.code,
                 )
+        if settings.workflows_enabled:
+            checkpoint_path = settings.workflow_checkpoint_path
+            if checkpoint_path is None:
+                raise RuntimeError("workflow checkpoint path is unavailable")
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            workflow_connection = await aiosqlite.connect(str(checkpoint_path))
+            saver = AsyncSqliteSaver(
+                workflow_connection,
+                serde=JsonPlusSerializer(
+                    pickle_fallback=False,
+                    allowed_json_modules=None,
+                    allowed_msgpack_modules=None,
+                ),
+            )
+            await saver.setup()
+            workflow_gateway = WorkflowNodeGateway(settings)
+            application.state.workflow_service = WorkflowService(
+                saver=saver,
+                gateway=workflow_gateway,
+                provider=selected_provider,
+                maximum_concurrency=settings.workflow_max_concurrency,
+                support_enabled=settings.support_data_processing_confirmed,
+            )
         try:
             yield
         finally:
+            if workflow_gateway is not None:
+                await workflow_gateway.aclose()
+            if workflow_connection is not None:
+                await workflow_connection.close()
             await selected_provider.aclose()
             if selected_rag_service is not None:
                 await run_in_threadpool(selected_rag_service.close)
@@ -136,6 +171,7 @@ def create_app(
     app.state.settings = settings
     app.state.provider = selected_provider
     app.state.rag_service = selected_rag_service
+    app.state.workflow_service = None
 
     @app.exception_handler(AiServiceError)
     async def handle_service_error(
@@ -361,6 +397,70 @@ def create_app(
         return JSONResponse(
             status_code=200,
             content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    def require_workflow_service() -> WorkflowService:
+        workflow_service = app.state.workflow_service
+        if not isinstance(workflow_service, WorkflowService):
+            raise AiServiceError(
+                503,
+                "AI_WORKFLOWS_DISABLED",
+                "AI workflows are currently disabled",
+            )
+        return workflow_service
+
+    def validated_workflow_request(body: bytes) -> WorkflowRequest:
+        raw_payload = _strict_json_object(body)
+        try:
+            return WorkflowRequest.model_validate(raw_payload)
+        except ValidationError as error:
+            raise invalid_internal_request() from error
+
+    @app.post("/internal/v1/workflows/start")
+    async def start_workflow(
+        request: Request,
+        verified_body: bytes = Depends(verifier.verify),
+    ) -> JSONResponse:
+        workflow_request = validated_workflow_request(verified_body)
+        result = await require_workflow_service().start(workflow_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.post("/internal/v1/workflows/resume")
+    async def resume_workflow(
+        request: Request,
+        verified_body: bytes = Depends(verifier.verify),
+    ) -> JSONResponse:
+        workflow_request = validated_workflow_request(verified_body)
+        result = await require_workflow_service().resume(workflow_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.delete("/internal/v1/workflows/threads/{thread_id}")
+    async def delete_workflow_thread(
+        thread_id: str,
+        request: Request,
+        verified_body: bytes = Depends(verifier.verify),
+    ) -> JSONResponse:
+        del verified_body
+        try:
+            canonical_thread_id = str(UUID(thread_id))
+        except ValueError as error:
+            raise invalid_internal_request() from error
+        if canonical_thread_id != thread_id:
+            raise invalid_internal_request()
+        await require_workflow_service().delete_thread(thread_id)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "data": {"threadId": thread_id, "deleted": True},
+                "requestId": _request_id(request),
+            },
         )
 
     return app

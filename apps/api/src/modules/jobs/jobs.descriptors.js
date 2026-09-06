@@ -49,6 +49,11 @@ export const JOB_PAYLOAD_SCHEMAS = Object.freeze({
     documentVersionId: uuid,
     indexVersion: z.number().int().min(1).max(2_147_483_647),
   }),
+  [JOB_TYPES.AI_WORKFLOW_ADVANCE]: z.strictObject({
+    workflowRunId: uuid,
+    operation: z.enum(["START", "RESUME"]),
+  }),
+  [JOB_TYPES.AI_WORKFLOW_RETENTION_SWEEP]: z.strictObject({ bucket: minuteBucket }),
 });
 
 function canonicalize(value) {

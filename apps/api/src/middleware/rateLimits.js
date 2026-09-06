@@ -87,6 +87,15 @@ export function createAiOwnerRateLimiter(config) {
   });
 }
 
+export function createAiWorkflowRateLimiter(config) {
+  return createLimiter({
+    windowMinutes: config.ai?.workflows?.burstWindowMinutes ?? 15,
+    maximum: config.ai?.workflows?.burstMaximum ?? 5,
+    authenticated: true,
+    identifier: "ai-workflow",
+  });
+}
+
 export function createWebhookRateLimiter(config) {
   return createLimiter({
     ...config.rateLimit.webhook,

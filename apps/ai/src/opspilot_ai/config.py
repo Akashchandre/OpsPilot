@@ -4,6 +4,7 @@ import ipaddress
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -107,6 +108,26 @@ class AiSettings(BaseSettings):
         alias="AI_RAG_COLLECTION_NAME",
     )
     rag_embedding_threads: int = Field(default=1, ge=1, le=1, alias="AI_RAG_EMBEDDING_THREADS")
+    workflows_enabled: bool = Field(default=False, alias="AI_WORKFLOWS_ENABLED")
+    workflow_node_url: str | None = Field(default=None, alias="AI_WORKFLOW_NODE_URL")
+    workflow_node_signing_key: SecretStr | None = Field(
+        default=None, alias="AI_WORKFLOW_NODE_SIGNING_KEY"
+    )
+    workflow_node_signing_key_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
+        alias="AI_WORKFLOW_NODE_SIGNING_KEY_ID",
+    )
+    support_data_processing_confirmed: bool = Field(
+        default=False, alias="AI_SUPPORT_DATA_PROCESSING_CONFIRMED"
+    )
+    workflow_checkpoint_path: Path | None = Field(default=None, alias="AI_WORKFLOW_CHECKPOINT_PATH")
+    langgraph_strict_msgpack: bool = Field(default=True, alias="LANGGRAPH_STRICT_MSGPACK")
+    workflow_max_concurrency: int = Field(
+        default=1, ge=1, le=1, alias="AI_WORKFLOW_MAX_CONCURRENCY"
+    )
 
     @field_validator("host")
     @classmethod
@@ -169,6 +190,55 @@ class AiSettings(BaseSettings):
                     raise ValueError(f"{field_name} must be outside repository and public roots")
             if self.rag_model_cache_dir == self.rag_qdrant_path:
                 raise ValueError("AI_RAG_MODEL_CACHE_DIR and AI_RAG_QDRANT_PATH must be different")
+        if self.workflows_enabled:
+            if self.environment == "production":
+                raise ValueError("Local Phase 9 checkpoints are not approved for production")
+            if not self.provider_enabled:
+                raise ValueError("AI_WORKFLOWS_ENABLED requires AI_PROVIDER_ENABLED")
+            if not self.langgraph_strict_msgpack:
+                raise ValueError("LANGGRAPH_STRICT_MSGPACK must remain true")
+            if self.workflow_node_url is None:
+                raise ValueError("AI_WORKFLOW_NODE_URL is required")
+            parsed_url = urlparse(self.workflow_node_url)
+            if (
+                parsed_url.scheme != "http"
+                or parsed_url.hostname not in {"127.0.0.1", "::1"}
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or parsed_url.path not in {"", "/"}
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ValueError("AI_WORKFLOW_NODE_URL must be a loopback HTTP origin")
+            if self.workflow_node_signing_key is None or self.workflow_node_signing_key_id is None:
+                raise ValueError("The workflow Node signing key and key ID are required")
+            raw_key = self.workflow_node_signing_key.get_secret_value()
+            try:
+                decoded_key = base64.b64decode(raw_key, validate=True)
+            except (binascii.Error, ValueError) as error:
+                raise ValueError("AI_WORKFLOW_NODE_SIGNING_KEY must be valid Base64") from error
+            if base64.b64encode(decoded_key).decode("ascii") != raw_key or len(decoded_key) < 32:
+                raise ValueError(
+                    "AI_WORKFLOW_NODE_SIGNING_KEY must contain at least 32 Base64 bytes"
+                )
+            if (
+                self.workflow_checkpoint_path is None
+                or not self.workflow_checkpoint_path.is_absolute()
+            ):
+                raise ValueError("AI_WORKFLOW_CHECKPOINT_PATH must be an absolute path")
+            checkpoint_path = self.workflow_checkpoint_path.resolve()
+            if any(
+                _paths_overlap(checkpoint_path, restricted_root.resolve())
+                for restricted_root in RAG_RESTRICTED_PATH_ROOTS
+            ):
+                raise ValueError(
+                    "AI_WORKFLOW_CHECKPOINT_PATH must be outside repository/public roots"
+                )
+            for other_path in (self.rag_model_cache_dir, self.rag_qdrant_path):
+                if other_path is not None and _paths_overlap(checkpoint_path, other_path.resolve()):
+                    raise ValueError("The workflow checkpoint path must be isolated")
+            if self.support_data_processing_confirmed and not self.rag_enabled:
+                raise ValueError("Support workflows require AI_RAG_ENABLED")
         return self
 
     @property
@@ -181,6 +251,11 @@ class AiSettings(BaseSettings):
 
     def signing_key_bytes(self) -> bytes:
         return base64.b64decode(self.signing_key.get_secret_value(), validate=True)
+
+    def workflow_node_signing_key_bytes(self) -> bytes:
+        if self.workflow_node_signing_key is None:
+            raise ValueError("The workflow Node signing key is unavailable")
+        return base64.b64decode(self.workflow_node_signing_key.get_secret_value(), validate=True)
 
 
 @lru_cache(maxsize=1)

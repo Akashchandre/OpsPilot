@@ -31,6 +31,9 @@ export const PERMISSIONS = Object.freeze({
   DOCUMENTS_READ: "documents:read",
   DOCUMENTS_MANAGE: "documents:manage",
   DOCUMENTS_DELETE: "documents:delete",
+  AI_WORKFLOWS_BUSINESS_USE: "ai:workflows:business:use",
+  AI_WORKFLOWS_SUPPORT_USE: "ai:workflows:support:use",
+  AI_WORKFLOWS_SUPPORT_APPROVE: "ai:workflows:support:approve",
 });
 
 export const USER_STATUSES = Object.freeze({

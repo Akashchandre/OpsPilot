@@ -31,7 +31,19 @@ export async function enqueueScheduledJobs(database, config, timestamp = new Dat
       dedupeKey: `schedule:audit-chain:${day}`,
       payload: { bucket: day },
     });
-    return { reservationCreated: reservation.created, auditCreated: audit.created };
+    const result = {
+      reservationCreated: reservation.created,
+      auditCreated: audit.created,
+    };
+    if (config.ai?.workflows?.enabled) {
+      const workflowRetention = await enqueueJob(transaction, config, {
+        type: JOB_TYPES.AI_WORKFLOW_RETENTION_SWEEP,
+        dedupeKey: `schedule:ai-workflow-retention:${minute}`,
+        payload: { bucket: minute },
+      });
+      result.workflowRetentionCreated = workflowRetention.created;
+    }
+    return result;
   });
 }
 

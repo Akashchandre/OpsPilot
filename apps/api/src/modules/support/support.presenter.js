@@ -64,14 +64,17 @@ export function presentSupportTicketSummary(ticket, { management = false } = {})
   return result;
 }
 
-function presentMessage(message) {
-  return {
+function presentMessage(message, management) {
+  const result = {
     id: message.id,
     visibility: message.visibility,
     body: message.body,
+    origin: message.origin,
     author: person(message.author),
     createdAt: message.createdAt,
   };
+  if (management && message.workflowRunId) result.workflowRunId = message.workflowRunId;
+  return result;
 }
 
 function presentEvent(event, management) {
@@ -95,14 +98,15 @@ function presentEvent(event, management) {
 }
 
 export function presentSupportTicket(ticket, { management = false } = {}) {
-  return {
+  const result = {
     ...presentSupportTicketSummary(ticket, { management }),
     messages: ticket.messages
       .filter(
         (message) =>
           management || message.visibility === SUPPORT_MESSAGE_VISIBILITIES.CUSTOMER_VISIBLE,
       )
-      .map(presentMessage),
+      .map((message) => presentMessage(message, management)),
     history: ticket.events.map((event) => presentEvent(event, management)),
   };
+  return result;
 }

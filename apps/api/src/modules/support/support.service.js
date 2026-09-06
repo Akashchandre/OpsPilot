@@ -295,7 +295,16 @@ export function createSupportService(database, config) {
       );
     },
 
-    async addMessage({ actor, ticketId, input, idempotencyKey, requestId, management }) {
+    async addMessage({
+      actor,
+      ticketId,
+      input,
+      idempotencyKey,
+      requestId,
+      management,
+      origin = "HUMAN",
+      workflowRunId = null,
+    }) {
       if (!management && input.visibility !== SUPPORT_MESSAGE_VISIBILITIES.CUSTOMER_VISIBLE) {
         throw supportError(
           403,
@@ -303,7 +312,10 @@ export function createSupportService(database, config) {
           "Only support operators may add internal notes",
         );
       }
-      const requestHash = digestRequest(input);
+      const requestHash =
+        origin === "HUMAN" && workflowRunId === null
+          ? digestRequest(input)
+          : digestRequest({ input, origin, workflowRunId });
 
       let result;
       try {
@@ -358,6 +370,8 @@ export function createSupportService(database, config) {
                 body: input.body,
                 idempotencyKey,
                 requestHash,
+                origin,
+                workflowRunId,
               },
             });
 
@@ -426,6 +440,7 @@ export function createSupportService(database, config) {
                     ? input.visibility
                     : SUPPORT_MESSAGE_VISIBILITIES.CUSTOMER_VISIBLE,
                   automaticReopen,
+                  origin,
                 },
               }),
             );
@@ -456,6 +471,25 @@ export function createSupportService(database, config) {
         );
       } catch (error) {
         if (isPrismaUniqueViolation(error)) {
+          if (workflowRunId) {
+            const published = await database.supportTicketMessage.findUnique({
+              where: { workflowRunId },
+            });
+            if (published?.requestHash === requestHash) {
+              return {
+                ticket: presentSupportTicket(
+                  await loadTicket(database, {
+                    actorUserId: actor.id,
+                    ticketId,
+                    management,
+                  }),
+                  { management },
+                ),
+                replayed: true,
+                messageId: published.id,
+              };
+            }
+          }
           const existing = await database.supportTicketMessage.findUnique({
             where: {
               ticketId_authorUserId_idempotencyKey: {
@@ -486,6 +520,13 @@ export function createSupportService(database, config) {
       return {
         ticket: presentSupportTicket(result.ticket, { management }),
         replayed: result.replayed,
+        ...(workflowRunId
+          ? {
+              messageId: result.ticket.messages.find(
+                (message) => message.workflowRunId === workflowRunId,
+              )?.id,
+            }
+          : {}),
       };
     },
 
