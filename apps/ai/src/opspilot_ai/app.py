@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHttpException
 
 from .config import AiSettings
@@ -22,7 +23,15 @@ from .providers import (
     ProviderReadiness,
     ResponseProvider,
 )
-from .security import InternalRequestVerifier
+from .rag.contracts import (
+    CandidateSearchRequest,
+    DeleteDocumentVectorsRequest,
+    DocumentPublicationRequest,
+    IndexDocumentRequest,
+)
+from .rag.factory import create_configured_rag_service
+from .rag.service import RagIndexService
+from .security import InternalRequestVerifier, ReplayCache
 from .service import AiResponseService
 
 
@@ -60,6 +69,7 @@ def create_app(
     settings: AiSettings,
     *,
     provider: ResponseProvider | None = None,
+    rag_service: RagIndexService | None = None,
 ) -> FastAPI:
     logger = configure_logging(settings.environment, settings.log_level)
     selected_provider: ResponseProvider
@@ -70,10 +80,19 @@ def create_app(
     else:
         selected_provider = DisabledProvider()
 
+    replay_cache = ReplayCache()
     verifier = InternalRequestVerifier(
         key=settings.signing_key_bytes(),
         key_id=settings.signing_key_id,
+        replay_cache=replay_cache,
     )
+    document_verifier = InternalRequestVerifier(
+        key=settings.signing_key_bytes(),
+        key_id=settings.signing_key_id,
+        replay_cache=replay_cache,
+        maximum_body_bytes=600_000,
+    )
+    selected_rag_service = rag_service or create_configured_rag_service(settings)
     response_service = AiResponseService(
         selected_provider,
         maximum_concurrency=settings.max_concurrency,
@@ -104,6 +123,8 @@ def create_app(
             yield
         finally:
             await selected_provider.aclose()
+            if selected_rag_service is not None:
+                await run_in_threadpool(selected_rag_service.close)
 
     app = FastAPI(
         title=SERVICE_NAME,
@@ -114,6 +135,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.provider = selected_provider
+    app.state.rag_service = selected_rag_service
 
     @app.exception_handler(AiServiceError)
     async def handle_service_error(
@@ -189,9 +211,25 @@ def create_app(
     ) -> JSONResponse:
         del verified_body
         provider_state = selected_provider.state
+        embedding_state = "disabled"
+        vector_index_state = "disabled"
+        if settings.rag_enabled:
+            if selected_rag_service is None:
+                embedding_state = "unavailable"
+                vector_index_state = "unavailable"
+            else:
+                try:
+                    rag_health = await run_in_threadpool(selected_rag_service.health)
+                    embedding_state = rag_health["embedding"]
+                    vector_index_state = rag_health["vectorIndex"]
+                except Exception:
+                    embedding_state = "unavailable"
+                    vector_index_state = "unavailable"
         status = (
             "ready"
             if provider_state in (ProviderReadiness.DISABLED, ProviderReadiness.READY)
+            and embedding_state != "unavailable"
+            and vector_index_state != "unavailable"
             else "unavailable"
         )
         return JSONResponse(
@@ -202,6 +240,8 @@ def create_app(
                     "service": SERVICE_NAME,
                     "status": status,
                     "provider": provider_state.value,
+                    "embedding": embedding_state,
+                    "vectorIndex": vector_index_state,
                 },
                 "requestId": _request_id(request),
             },
@@ -230,6 +270,7 @@ def create_app(
                     "answer": provider_result.output.answer,
                     "outcome": provider_result.output.outcome.value,
                     "notices": [notice.value for notice in provider_result.output.notices],
+                    "citations": getattr(provider_result.output, "citations", []),
                     "promptVersion": result.prompt_version,
                     "model": provider_result.model,
                     "providerRequestId": provider_result.request_id,
@@ -244,6 +285,82 @@ def create_app(
                 },
                 "requestId": request_id,
             },
+        )
+
+    def require_rag_service() -> RagIndexService:
+        if selected_rag_service is None:
+            raise AiServiceError(
+                503,
+                "DOCUMENT_INDEX_DISABLED",
+                "The document index is currently disabled",
+            )
+        return selected_rag_service
+
+    def validated_rag_request(body: bytes, contract: type[Any]) -> Any:
+        raw_payload = _strict_json_object(body)
+        try:
+            return contract.model_validate(raw_payload)
+        except ValidationError as error:
+            raise invalid_internal_request() from error
+
+    @app.post("/internal/v1/documents/index")
+    async def index_document(
+        request: Request,
+        verified_body: bytes = Depends(document_verifier.verify),
+    ) -> JSONResponse:
+        internal_request = validated_rag_request(verified_body, IndexDocumentRequest)
+        result = await run_in_threadpool(require_rag_service().index_document, internal_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.post("/internal/v1/documents/publication")
+    async def publish_document(
+        request: Request,
+        verified_body: bytes = Depends(document_verifier.verify),
+    ) -> JSONResponse:
+        internal_request = validated_rag_request(verified_body, DocumentPublicationRequest)
+        result = await run_in_threadpool(require_rag_service().set_publication, internal_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.post("/internal/v1/documents/candidates")
+    async def document_candidates(
+        request: Request,
+        verified_body: bytes = Depends(document_verifier.verify),
+    ) -> JSONResponse:
+        internal_request = validated_rag_request(verified_body, CandidateSearchRequest)
+        result = await run_in_threadpool(require_rag_service().candidates, internal_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.post("/internal/v1/documents/delete")
+    async def delete_document_vectors(
+        request: Request,
+        verified_body: bytes = Depends(document_verifier.verify),
+    ) -> JSONResponse:
+        internal_request = validated_rag_request(verified_body, DeleteDocumentVectorsRequest)
+        result = await run_in_threadpool(require_rag_service().delete_vectors, internal_request)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
+        )
+
+    @app.get("/internal/v1/documents/inventory")
+    async def document_vector_inventory(
+        request: Request,
+        verified_body: bytes = Depends(verifier.verify),
+    ) -> JSONResponse:
+        del verified_body
+        result = await run_in_threadpool(require_rag_service().inventory)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "data": result, "requestId": _request_id(request)},
         )
 
     return app

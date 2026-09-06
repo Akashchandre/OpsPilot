@@ -52,6 +52,15 @@ async function countActiveOwners(transaction) {
   });
 }
 
+async function lockUser(transaction, userId) {
+  await transaction.$queryRaw`
+    SELECT id
+    FROM users
+    WHERE id = ${userId}
+    FOR UPDATE
+  `;
+}
+
 export function createUsersService(database, config) {
   const appendAudit = createAuditService(database, config).append;
   return {
@@ -86,6 +95,7 @@ export function createUsersService(database, config) {
     async updateStatus({ actor, userId, status, requestId }) {
       return database.$transaction(
         async (transaction) => {
+          await lockUser(transaction, userId);
           const target = await transaction.user.findUnique({
             where: { id: userId },
             include: authorizationInclude,
@@ -148,6 +158,7 @@ export function createUsersService(database, config) {
     async assignRole({ actor, userId, roleCode, requestId }) {
       return database.$transaction(
         async (transaction) => {
+          await lockUser(transaction, userId);
           const [target, role] = await Promise.all([
             transaction.user.findUnique({
               where: { id: userId },
@@ -200,6 +211,7 @@ export function createUsersService(database, config) {
     async removeRole({ actor, userId, roleCode, requestId }) {
       return database.$transaction(
         async (transaction) => {
+          await lockUser(transaction, userId);
           const [target, role] = await Promise.all([
             transaction.user.findUnique({
               where: { id: userId },

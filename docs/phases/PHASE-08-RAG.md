@@ -1,5 +1,16 @@
 # Phase 8 — RAG and Document Intelligence
 
+## Status
+
+**ACCEPTED AND COMPLETE on 2026-09-06 for the repository/development scope under ADR 0011.** The
+user accepted the complete Phase 8 baseline, exact dependencies, and one-time model download, then
+requested implementation. The approved text/Markdown document lifecycle, private encrypted
+development storage, local embedding/Qdrant retrieval, two-step source authorization, citations,
+recovery, UI, and evaluation baseline is implemented and verified. After the full gate passed, the
+user instructed that Phase 8 be committed if complete; this records explicit acceptance. Production
+storage/vector topology, privacy/retention, network, monitoring, backup, and rollout approval remain
+separate blockers.
+
 ## Objective
 
 Add secure company-document ingestion and permission-aware retrieval so assistants can provide grounded answers with provenance.
@@ -18,7 +29,23 @@ Formats/limits/OCR; object storage; malware scanning; parser; chunking; embeddin
 
 ## Tasks
 
-Approve data flow/dependencies/services/accounts/env variables; threat-model uploads/retrieval; implement document metadata/storage APIs and access controls; create idempotent ingestion jobs and status UI; implement metadata-filtered retrieval and context construction; add citations/refusal and source authorization; implement version/reindex/delete/recovery flows; build RAG/security evaluations; document operations/progress.
+- [x] Confirm the Phase 7 repository gate and the user's explicit authorization to start Phase 8.
+- [x] Inspect the existing AI, authentication/RBAC, audit, job, configuration, persistence, and UI
+      boundaries relevant to documents and retrieval.
+- [x] Draft the Phase 8 decision proposal, proposed permission/audience matrix, upload/retrieval
+      threat model, dependency/service/account catalog, and measurable evaluation targets.
+- [x] Explicitly approve the complete Phase 8 baseline and separately authorize the exact approved
+      dependencies and one-time model download under ADR 0011.
+- [x] Implement document metadata/storage APIs and access controls.
+- [x] Create idempotent ingestion jobs plus lifecycle/status UI.
+- [x] Implement validated scanning, extraction, chunking, embedding, and indexing.
+- [x] Implement metadata-filtered retrieval, bounded context construction, citations,
+      insufficient-evidence behavior, and source authorization.
+- [x] Implement version, replacement, reindex, deletion, recovery, and retention flows.
+- [x] Build retrieval, grounding, security, outage, latency, and cost evaluations; run the complete
+      prior-phase regression; synchronize operations and progress documentation.
+- [x] Record explicit user acceptance after reviewing the completed repository/development
+      evidence. Production rollout remains a separate authorization.
 
 ## Acceptance criteria
 
@@ -52,4 +79,3 @@ Update AI/system architecture, database/API contracts, storage/vector topology, 
 ## Explicit exclusions
 
 LangGraph multi-step business-data and AI support workflows remain out of scope.
-

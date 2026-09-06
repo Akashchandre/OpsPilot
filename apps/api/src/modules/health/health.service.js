@@ -1,6 +1,6 @@
 import { AppError } from "../../errors/AppError.js";
 
-export function createHealthService(database, config = {}, aiClient = null) {
+export function createHealthService(database, config = {}, aiClient = null, documentStore = null) {
   return {
     async check() {
       try {
@@ -14,13 +14,36 @@ export function createHealthService(database, config = {}, aiClient = null) {
       }
 
       let ai = "disabled";
+      let internalHealth = null;
       if (config.ai?.enabled) {
         try {
-          const health = await aiClient.health();
-          ai = health.status === "ready" && health.provider === "ready" ? "ready" : "unavailable";
+          internalHealth = await aiClient.health();
+          ai =
+            internalHealth.status === "ready" && internalHealth.provider === "ready"
+              ? "ready"
+              : "unavailable";
         } catch {
           ai = "unavailable";
         }
+      }
+
+      const documents = {
+        storage: "disabled",
+        embedding: "disabled",
+        vectorIndex: "disabled",
+      };
+      if (config.documents?.enabled) {
+        try {
+          documents.storage = (await documentStore?.health()) ?? "unavailable";
+        } catch {
+          documents.storage = "unavailable";
+        }
+        documents.embedding = config.ai?.enabled
+          ? (internalHealth?.embedding ?? "unavailable")
+          : "disabled";
+        documents.vectorIndex = config.ai?.enabled
+          ? (internalHealth?.vectorIndex ?? "unavailable")
+          : "disabled";
       }
 
       return {
@@ -28,6 +51,7 @@ export function createHealthService(database, config = {}, aiClient = null) {
         service: "opspilot-api",
         database: "reachable",
         ai,
+        documents,
         timestamp: new Date().toISOString(),
       };
     },

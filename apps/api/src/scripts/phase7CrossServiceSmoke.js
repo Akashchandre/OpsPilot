@@ -50,6 +50,28 @@ if (
   throw new Error("The cross-service response contract did not match Phase 7 policy");
 }
 
+const documentResult = await client.respond(
+  {
+    contractVersion: 1,
+    subjectId: randomUUID(),
+    assistant: "CUSTOMER",
+    intent: "CUSTOMER_DOCUMENT_QA",
+    question: "What is the return period?",
+    context: {
+      sources: [{ label: "S1", excerpt: "Returns are accepted within 30 days." }],
+    },
+  },
+  randomUUID(),
+);
+if (
+  documentResult.promptVersion !== "customer-documents-v1" ||
+  documentResult.outcome !== "ANSWER" ||
+  documentResult.citations.length !== 1 ||
+  documentResult.citations[0] !== "S1"
+) {
+  throw new Error("The signed document response contract did not match Phase 8 policy");
+}
+
 console.log(
   JSON.stringify({
     success: true,
@@ -58,6 +80,9 @@ console.log(
     promptVersion: result.promptVersion,
     outcome: result.outcome,
     zeroDataRetention: result.zeroDataRetention,
+    documentPromptVersion: documentResult.promptVersion,
+    documentOutcome: documentResult.outcome,
+    documentCitations: documentResult.citations,
     contentRecorded: false,
     secretValuesEmitted: false,
   }),

@@ -11,6 +11,8 @@ runtime = [
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
   "python-dotenv==1.2.3",
+  "qdrant-client==1.19.0",
+  "fastembed==0.8.0",
   "uvicorn==0.52.4",
 ]
 dev = [

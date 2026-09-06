@@ -15,7 +15,12 @@ from ..constants import (
     GROQ_OUTPUT_COST_TICKS_PER_TOKEN,
     GROQ_REASONING_EFFORT,
 )
-from ..contracts import PROVIDER_OUTPUT_JSON_SCHEMA, StructuredProviderOutput
+from ..contracts import (
+    DOCUMENT_PROVIDER_OUTPUT_JSON_SCHEMA,
+    PROVIDER_OUTPUT_JSON_SCHEMA,
+    DocumentStructuredProviderOutput,
+    StructuredProviderOutput,
+)
 from ..errors import AiServiceError
 from ..prompts import RenderedPrompt
 from .base import ProviderReadiness, ProviderResult, ProviderUsage
@@ -244,7 +249,11 @@ class GroqChatCompletionsProvider:
                 "json_schema": {
                     "name": "opspilot_ai_response",
                     "strict": True,
-                    "schema": PROVIDER_OUTPUT_JSON_SCHEMA,
+                    "schema": (
+                        DOCUMENT_PROVIDER_OUTPUT_JSON_SCHEMA
+                        if prompt.document_response
+                        else PROVIDER_OUTPUT_JSON_SCHEMA
+                    ),
                 },
             },
         }
@@ -256,9 +265,11 @@ class GroqChatCompletionsProvider:
         )
         self._map_http_error(response)
         payload = self._json_object(response)
-        return self._parse_response(payload)
+        return self._parse_response(payload, document_response=prompt.document_response)
 
-    def _parse_response(self, payload: dict[str, Any]) -> ProviderResult:
+    def _parse_response(
+        self, payload: dict[str, Any], *, document_response: bool = False
+    ) -> ProviderResult:
         if payload.get("object") != "chat.completion" or payload.get("model") != GROQ_MODEL:
             raise self._invalid_response()
 
@@ -288,7 +299,10 @@ class GroqChatCompletionsProvider:
             raise self._invalid_response()
         try:
             structured_payload = self._strict_json_loads(text)
-            structured_output = StructuredProviderOutput.model_validate(structured_payload)
+            output_contract = (
+                DocumentStructuredProviderOutput if document_response else StructuredProviderOutput
+            )
+            structured_output = output_contract.model_validate(structured_payload)
         except (json.JSONDecodeError, ValidationError, ValueError) as error:
             raise self._invalid_response() from error
 

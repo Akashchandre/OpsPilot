@@ -1,3 +1,5 @@
+import { AiCitationList } from "./AiCitationList.jsx";
+
 const noticeLabels = Object.freeze({
   VERIFY_AUTHORITATIVE_DATA: "Verify important details in the authoritative OpsPilot view.",
   USE_STANDARD_SUPPORT: "Use standard OpsPilot support for account-specific help.",
@@ -6,6 +8,7 @@ const noticeLabels = Object.freeze({
 
 const outcomeLabels = Object.freeze({
   ANSWER: "AI-generated answer",
+  INSUFFICIENT_EVIDENCE: "Not enough document evidence",
   REFUSAL: "Request not answered",
   ESCALATE: "Standard support recommended",
 });
@@ -18,7 +21,8 @@ export function AiResponsePanel({ response }) {
       <p className="eyebrow">{response.outcome}</p>
       <h2 id="ai-response-title">{outcomeLabels[response.outcome]}</h2>
       <p className="ai-answer-text">{response.answer}</p>
-      {response.notices.length > 0 ? (
+      <AiCitationList citations={response.citations} />
+      {response.notices?.length > 0 ? (
         <ul className="ai-response-notices">
           {response.notices.map((notice) => (
             <li key={notice}>{noticeLabels[notice]}</li>

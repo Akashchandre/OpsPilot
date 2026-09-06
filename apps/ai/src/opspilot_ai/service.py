@@ -3,7 +3,13 @@ import logging
 from dataclasses import dataclass
 from time import monotonic
 
-from .contracts import InternalResponseRequest
+from .constants import AssistantIntent
+from .contracts import (
+    DocumentContext,
+    DocumentStructuredProviderOutput,
+    InternalResponseRequest,
+    StructuredProviderOutput,
+)
 from .errors import AiServiceError
 from .logging_config import log_event
 from .prompts import render_prompt
@@ -40,6 +46,35 @@ class AiResponseService:
         try:
             async with self._semaphore:
                 provider_result = await self._provider.generate(prompt)
+            document_request = request.intent in {
+                AssistantIntent.CUSTOMER_DOCUMENT_QA,
+                AssistantIntent.OWNER_DOCUMENT_QA,
+            }
+            if document_request:
+                if not isinstance(
+                    provider_result.output, DocumentStructuredProviderOutput
+                ) or not isinstance(request.context, DocumentContext):
+                    raise AiServiceError(
+                        502,
+                        "PROVIDER_RESPONSE_INVALID",
+                        "The AI provider returned an invalid response",
+                        "HOLD",
+                    )
+                allowed_labels = {source.label for source in request.context.sources}
+                if any(label not in allowed_labels for label in provider_result.output.citations):
+                    raise AiServiceError(
+                        502,
+                        "PROVIDER_RESPONSE_INVALID",
+                        "The AI provider returned an invalid response",
+                        "HOLD",
+                    )
+            elif not isinstance(provider_result.output, StructuredProviderOutput):
+                raise AiServiceError(
+                    502,
+                    "PROVIDER_RESPONSE_INVALID",
+                    "The AI provider returned an invalid response",
+                    "HOLD",
+                )
         except AiServiceError as error:
             duration_ms = round((monotonic() - started) * 1_000)
             log_event(

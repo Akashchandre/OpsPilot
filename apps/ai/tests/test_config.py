@@ -4,7 +4,15 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from opspilot_ai.config import AiSettings
+from opspilot_ai.config import (
+    RAG_EMBEDDING_MODEL,
+    RAG_EMBEDDING_MODEL_REVISION,
+    REPOSITORY_ROOT,
+    WEB_BUILD_ROOT,
+    WEB_PUBLIC_ROOT,
+    WEB_ROOT,
+    AiSettings,
+)
 
 from .conftest import SIGNING_KEY_BASE64, SIGNING_KEY_ID, make_settings
 
@@ -20,6 +28,13 @@ def test_loads_safe_defaults_and_decodes_signing_key() -> None:
     assert settings.groq_request_timeout_ms == 20_000
     assert settings.groq_max_output_tokens == 500
     assert settings.max_concurrency == 4
+    assert settings.rag_enabled is False
+    assert settings.rag_model_cache_dir is None
+    assert settings.rag_qdrant_path is None
+    assert settings.rag_collection_name == "opspilot_documents_v1"
+    assert settings.rag_embedding_threads == 1
+    assert settings.rag_embedding_model == RAG_EMBEDDING_MODEL
+    assert settings.rag_embedding_model_revision == RAG_EMBEDDING_MODEL_REVISION
     assert settings.signing_key_bytes() == bytes(range(32))
 
 
@@ -157,3 +172,68 @@ def test_rejects_disabling_zero_data_retention_requirement() -> None:
 def test_rejects_values_outside_policy_bounds(name: str, value: int) -> None:
     with pytest.raises(ValidationError):
         make_settings(**{name: value})
+
+
+def test_requires_distinct_absolute_local_rag_paths_when_enabled(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(AI_RAG_ENABLED=True)
+
+    relative_path = Path("relative-rag-cache")
+    with pytest.raises(ValidationError):
+        make_settings(
+            AI_RAG_ENABLED=True,
+            AI_RAG_MODEL_CACHE_DIR=relative_path,
+            AI_RAG_QDRANT_PATH=tmp_path / "qdrant",
+        )
+
+    with pytest.raises(ValidationError):
+        make_settings(
+            AI_RAG_ENABLED=True,
+            AI_RAG_MODEL_CACHE_DIR=tmp_path,
+            AI_RAG_QDRANT_PATH=tmp_path,
+        )
+
+    settings = make_settings(
+        AI_RAG_ENABLED=True,
+        AI_RAG_MODEL_CACHE_DIR=tmp_path / "models",
+        AI_RAG_QDRANT_PATH=tmp_path / "qdrant",
+    )
+    assert settings.rag_enabled is True
+    assert settings.rag_model_cache_dir == tmp_path / "models"
+    assert settings.rag_qdrant_path == tmp_path / "qdrant"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "unsafe_path"),
+    [
+        ("AI_RAG_MODEL_CACHE_DIR", REPOSITORY_ROOT),
+        ("AI_RAG_MODEL_CACHE_DIR", REPOSITORY_ROOT / "private-rag-cache"),
+        ("AI_RAG_MODEL_CACHE_DIR", REPOSITORY_ROOT.parent),
+        ("AI_RAG_QDRANT_PATH", WEB_ROOT),
+        ("AI_RAG_QDRANT_PATH", WEB_PUBLIC_ROOT),
+        ("AI_RAG_QDRANT_PATH", WEB_PUBLIC_ROOT / "qdrant"),
+        ("AI_RAG_QDRANT_PATH", WEB_BUILD_ROOT),
+        ("AI_RAG_QDRANT_PATH", WEB_ROOT.parent),
+    ],
+)
+def test_rejects_rag_paths_overlapping_repository_or_web_roots(
+    field_name: str, unsafe_path: Path, tmp_path: Path
+) -> None:
+    rag_paths: dict[str, Path] = {
+        "AI_RAG_MODEL_CACHE_DIR": tmp_path / "models",
+        "AI_RAG_QDRANT_PATH": tmp_path / "qdrant",
+    }
+    rag_paths[field_name] = unsafe_path
+
+    with pytest.raises(ValidationError, match="outside repository and public roots"):
+        make_settings(AI_RAG_ENABLED=True, **rag_paths)
+
+
+def test_rejects_local_rag_persistence_in_production(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="not approved for production"):
+        make_settings(
+            AI_ENVIRONMENT="production",
+            AI_RAG_ENABLED=True,
+            AI_RAG_MODEL_CACHE_DIR=tmp_path / "models",
+            AI_RAG_QDRANT_PATH=tmp_path / "qdrant",
+        )

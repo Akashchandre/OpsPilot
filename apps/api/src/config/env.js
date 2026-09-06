@@ -1,3 +1,4 @@
+import path from "node:path";
 import { z } from "zod";
 
 const routineTestAuditKey = Buffer.alloc(32, 0x5a).toString("base64");
@@ -11,6 +12,11 @@ function isValidBase64Key(value) {
   const normalizedInput = value.replace(/=+$/, "");
   const normalizedRoundTrip = decoded.toString("base64").replace(/=+$/, "");
   return decoded.length >= 32 && normalizedInput === normalizedRoundTrip;
+}
+
+function isValidExactBase64Key(value, byteLength) {
+  if (!isValidBase64Key(value)) return false;
+  return Buffer.from(value, "base64").length === byteLength;
 }
 
 const environmentBoolean = z.preprocess((value) => {
@@ -56,6 +62,13 @@ const aiServiceUrlSchema = z
     );
   })
   .transform((value) => new URL(value).origin);
+
+const absolutePrivatePathSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1024)
+  .refine((value) => path.isAbsolute(value));
 
 const environmentSchema = z
   .object({
@@ -108,12 +121,25 @@ const environmentSchema = z
     ),
     AI_SERVICE_SIGNING_KEY_ID: optionalEnvironmentString(internalSigningKeyIdSchema),
     AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(22000).default(22000),
+    AI_DOCUMENT_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(120000),
     AI_CUSTOMER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(5),
     AI_OWNER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
     AI_CUSTOMER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(20),
     AI_OWNER_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(50),
     AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS: z.coerce.number().int().min(1).max(100000).default(200),
     AI_MAX_REQUEST_COST_USD_CENTS: z.coerce.number().int().min(1).max(10000).default(2),
+    DOCUMENTS_ENABLED: environmentBoolean.default(false),
+    DOCUMENT_STORAGE_ADAPTER: z.literal("filesystem").default("filesystem"),
+    DOCUMENT_STORAGE_ROOT: optionalEnvironmentString(absolutePrivatePathSchema),
+    DOCUMENT_ENCRYPTION_KEY: optionalEnvironmentString(
+      z
+        .string()
+        .trim()
+        .max(512)
+        .refine((value) => isValidExactBase64Key(value, 32)),
+    ),
+    DOCUMENT_ENCRYPTION_KEY_ID: optionalEnvironmentString(internalSigningKeyIdSchema),
+    DOCUMENT_MAX_UPLOAD_BYTES: z.coerce.number().int().min(262144).max(262144).default(262144),
     RAZORPAY_ENABLED: environmentBoolean.default(false),
     RAZORPAY_KEY_ID: optionalEnvironmentString(razorpayTestKeyIdSchema),
     RAZORPAY_KEY_SECRET: optionalEnvironmentString(z.string().trim().min(8).max(256)),
@@ -195,6 +221,30 @@ const environmentSchema = z
         code: "custom",
         path: ["AI_MAX_REQUEST_COST_USD_CENTS"],
         message: "The per-request AI cost hold cannot exceed the daily AI cost ceiling",
+      });
+    }
+
+    if (environment.DOCUMENTS_ENABLED) {
+      for (const field of [
+        "DOCUMENT_STORAGE_ROOT",
+        "DOCUMENT_ENCRYPTION_KEY",
+        "DOCUMENT_ENCRYPTION_KEY_ID",
+      ]) {
+        if (!environment[field]) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `${field} is required when document storage is enabled`,
+          });
+        }
+      }
+    }
+
+    if (environment.NODE_ENV === "production" && environment.DOCUMENTS_ENABLED) {
+      context.addIssue({
+        code: "custom",
+        path: ["DOCUMENT_STORAGE_ADAPTER"],
+        message: "The Phase 8 filesystem document adapter is not approved for production",
       });
     }
 
@@ -286,6 +336,7 @@ export function loadEnvironment(source = process.env) {
       signingKey: result.data.AI_SERVICE_SIGNING_KEY,
       signingKeyId: result.data.AI_SERVICE_SIGNING_KEY_ID,
       timeoutMs: result.data.AI_SERVICE_TIMEOUT_MS,
+      documentTimeoutMs: result.data.AI_DOCUMENT_SERVICE_TIMEOUT_MS,
       maximumConcurrency: 4,
       customer: Object.freeze({
         burstWindowMinutes: 15,
@@ -299,6 +350,18 @@ export function loadEnvironment(source = process.env) {
       }),
       globalDailyCostLimitUsdCents: result.data.AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS,
       maximumRequestCostUsdCents: result.data.AI_MAX_REQUEST_COST_USD_CENTS,
+    }),
+    documents: Object.freeze({
+      enabled: result.data.DOCUMENTS_ENABLED,
+      storage: Object.freeze({
+        adapter: result.data.DOCUMENT_STORAGE_ADAPTER,
+        root: result.data.DOCUMENT_STORAGE_ROOT,
+      }),
+      encryption: Object.freeze({
+        key: result.data.DOCUMENT_ENCRYPTION_KEY,
+        keyId: result.data.DOCUMENT_ENCRYPTION_KEY_ID,
+      }),
+      maximumUploadBytes: result.data.DOCUMENT_MAX_UPLOAD_BYTES,
     }),
     payments: Object.freeze({
       reservationTtlMinutes: result.data.CHECKOUT_RESERVATION_TTL_MINUTES,

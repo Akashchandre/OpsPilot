@@ -7,7 +7,9 @@
 **Current lifecycle state:** Phases 1–3 accepted; Phase 4 repository-complete with external Razorpay
 smoke deferred and acceptance pending; Phase 5 repository-complete and committed; Phase 6
 repository-complete and verified under ADR 0008; Phase 7 accepted and complete for the
-repository/development scope under ADRs 0009 and 0010, with production review still pending
+repository/development scope under ADRs 0009 and 0010, with production review still pending;
+Phase 8 is accepted and complete for the repository/development scope under ADR 0011 as of
+2026-09-06. Its local encrypted-storage and local-vector topology is not approved for production.
 
 ## Purpose
 
@@ -57,6 +59,10 @@ Phase 6 gives only `OWNER` the cross-domain `jobs:read`/`jobs:replay` operations
 authenticated user receives only recipient-owned notification history and hints.
 Phase 7 gives `CUSTOMER` only `ai:customer:use`, gives `OWNER` only `ai:owner:use` and
 `ai:usage:read`, and gives `ADMIN` no AI permission. Owner inference also requires `reports:read`.
+Phase 8 gives `OWNER` and `ADMIN` `documents:read`/`documents:manage`, but only `OWNER`
+`documents:delete`. Document Q&A remains separate: customers can use only the customer assistant
+and `CUSTOMER`-audience sources after current document consent; owners can use the owner assistant
+for customer- or owner-audience sources; document-management permission never grants AI access.
 
 ### Future employees and managers
 
@@ -64,18 +70,18 @@ Employee and manager roles may be introduced with granular role-based access con
 
 ## Functional modules
 
-| Module | Core responsibility | Planned phase |
-|---|---|---:|
-| Platform foundation | Repository, frontend, API, database tooling, configuration, health checks | 1 |
-| Identity and access | Registration, login, users, roles, permissions, protected access | 2 |
-| Catalog and operations | Products, categories, inventory, customers/employees as authorized | 3 |
-| Commerce | Cart, order placement/tracking, payments | 4 |
-| Production backend | Hardening, support workflows, reporting foundations, audit concerns | 5 |
-| Asynchronous operations | Real-time notifications, queues, background jobs, supporting cache if justified | 6 |
-| AI service foundation | Python/FastAPI boundary and initial assistants | 7 |
-| Document intelligence | Upload pipeline, vector storage, retrieval-augmented generation | 8 |
-| Agentic AI workflows | LangGraph business analysis and AI-assisted support workflows | 9 |
-| Production readiness | Full testing, Docker, CI/CD, deployment preparation | 10 |
+| Module                  | Core responsibility                                                             | Planned phase |
+| ----------------------- | ------------------------------------------------------------------------------- | ------------: |
+| Platform foundation     | Repository, frontend, API, database tooling, configuration, health checks       |             1 |
+| Identity and access     | Registration, login, users, roles, permissions, protected access                |             2 |
+| Catalog and operations  | Products, categories, inventory, customers/employees as authorized              |             3 |
+| Commerce                | Cart, order placement/tracking, payments                                        |             4 |
+| Production backend      | Hardening, support workflows, reporting foundations, audit concerns             |             5 |
+| Asynchronous operations | Real-time notifications, queues, background jobs, supporting cache if justified |             6 |
+| AI service foundation   | Python/FastAPI boundary and initial assistants                                  |             7 |
+| Document intelligence   | Upload pipeline, vector storage, retrieval-augmented generation                 |             8 |
+| Agentic AI workflows    | LangGraph business analysis and AI-assisted support workflows                   |             9 |
+| Production readiness    | Full testing, Docker, CI/CD, deployment preparation                             |            10 |
 
 Module-to-phase boundaries may be refined during phase review, but moving a future capability earlier requires an explicit decision.
 
@@ -92,22 +98,24 @@ The eventual platform is expected to include:
 7. A separate Python/FastAPI AI service.
 8. AI-powered support workflows with controlled tools and human oversight where required.
 
-The bounded stateless AI foundation is implemented only in Phase 7. Document retrieval, personal or
-row-level context, tools, actions, LangChain, and LangGraph remain future work.
+The bounded stateless AI foundation is implemented in Phase 7. Phase 8 implements accepted and
+verified document-grounded Q&A over approved company documents with separate consent, lifecycle,
+and source authorization controls. Personal or row-level context, tools, actions, LangChain, and
+LangGraph remain future work.
 
 ## Technology direction
 
-| Layer | Direction | Status |
-|---|---|---|
-| Web client | React with JavaScript and React Router | Agreed |
-| Client state | Redux Toolkit only where shared complexity justifies it | Conditional |
-| UI system | Material UI or Tailwind CSS | **Decision Required** |
-| Main API | Node.js, Express, JavaScript | Agreed |
-| Relational data | MySQL with Prisma | Agreed |
-| AI service | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b` for Phase 7; LangChain/LangGraph only when later justified | Phase 7 accepted and complete for repository/development under ADRs 0009 and 0010; production review pending |
-| Retrieval | RAG plus a vector database | Vector technology **Decision Required** |
-| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints implemented; Redis/shared adapters and object storage future | Conditional |
-| Delivery | Docker, GitHub Actions, AWS | Future; detailed choices **Decision Required** |
+| Layer                     | Direction                                                                                                                                  | Status                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Web client                | React with JavaScript and React Router                                                                                                     | Agreed                                                                                                       |
+| Client state              | Redux Toolkit only where shared complexity justifies it                                                                                    | Conditional                                                                                                  |
+| UI system                 | Material UI or Tailwind CSS                                                                                                                | **Decision Required**                                                                                        |
+| Main API                  | Node.js, Express, JavaScript                                                                                                               | Agreed                                                                                                       |
+| Relational data           | MySQL with Prisma                                                                                                                          | Agreed                                                                                                       |
+| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b` for Phase 7; LangChain/LangGraph only when later justified | Phase 7 accepted and complete for repository/development under ADRs 0009 and 0010; production review pending |
+| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                    | Verified under ADR 0011; production vector topology remains **Decision Required**                            |
+| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development             | Local document storage is not approved for production; Redis/shared adapters remain conditional              |
+| Delivery                  | Docker, GitHub Actions, AWS                                                                                                                | Future; detailed choices **Decision Required**                                                               |
 
 The main frontend and backend must remain JavaScript. TypeScript migration is out of scope unless the project direction is explicitly changed.
 
@@ -137,8 +145,7 @@ and staff support workflows, authoritative overview reporting, HMAC-chained audi
 structured logging, request/rate hardening, representative-data performance evidence, and a
 sanitized backup/restore exercise all pass their repository gates. Its acceptance report records
 the retained production decisions and blockers. Its transition did not pre-authorize a queue,
-real-time transport, cache, worker, or new dependency; those choices were made separately in ADR
-0008.
+real-time transport, cache, worker, or new dependency; those choices were made separately in ADR 0008.
 
 Phase 6's complete baseline was approved on 2026-08-28 in ADR 0008. It uses a MySQL transactional
 job/outbox, a separate JavaScript worker, persistent recipient-owned notifications, and Socket.IO
@@ -157,6 +164,15 @@ adapter and provider-scoped contracts to Groq Chat Completions with fixed
 evaluation, and the signed live service path passed without exposing secrets or retaining content.
 The user explicitly enabled development inference and accepted Phase 7 on 2026-09-04. Production
 deployment remains unapproved pending the manual account/privacy/operations review.
+
+On 2026-09-05, the user accepted the Phase 8 baseline in ADR 0011, including its exact local
+Qdrant/FastEmbed dependencies and one-time approved MiniLM artifact cache. Repository/development
+implementation now adds strict text/Markdown document ingestion, encrypted private local objects,
+versioned audience/lifecycle metadata, MySQL-backed ingest/reindex/deletion jobs, signed retrieval,
+bounded grounded context, and citation handling. Final Phase 8 verification passed, and the user
+instructed that the completed phase be committed on 2026-09-06, recording explicit acceptance for
+the repository/development scope. Local filesystem/Qdrant operation is deliberately rejected in
+production.
 
 ## Overall system flow
 
@@ -189,8 +205,27 @@ deployment remains unapproved pending the manual account/privacy/operations revi
 5. Node.js records metadata-only outcome/cost evidence, rechecks authorization/consent, and returns
    plain text. Questions, answers, reasoning, and chat history are not stored.
 
-LangChain/LangGraph, RAG/documents, broader business tools, personal/row-level context, and actions
-remain later-phase direction only.
+### Phase 8 document-Q&A flow
+
+1. An authorized owner or administrator creates immutable document metadata and uploads only an
+   approved UTF-8 `.txt` or `.md` English version through the Node.js API; the API validates and
+   encrypts the normalized original in private local storage for repository/development use.
+2. MySQL records document/version/audience lifecycle metadata and atomically enqueues only a
+   registered UUID/index job descriptor; the separate JavaScript worker performs ingestion,
+   reindexing, and deletion work.
+3. The signed FastAPI boundary chunks approved text deterministically, embeds it with the pinned
+   local MiniLM model, and stores opaque vector/filter metadata in local Qdrant. It returns only
+   candidate IDs and scores for retrieval.
+4. Node reauthorizes every candidate against current MySQL lifecycle and audience metadata,
+   decrypts and checksum-verifies only approved byte ranges, then sends bounded source excerpts to
+   the AI service through the signed boundary.
+5. Groq receives the question and bounded authorized excerpts only after the separate
+   document-processing consent check. Node rechecks authorization after generation, persists
+   citation identifiers and metadata-only usage evidence, and returns a plain-text answer with
+   current authorized citations or an insufficient-evidence result.
+
+LangChain/LangGraph, broader business tools, personal/row-level context, and actions remain later
+phase direction only.
 
 The initial release is single-business per ADR 0003. Multi-tenancy and tenant isolation require a later explicit architectural decision and schema migration.
 

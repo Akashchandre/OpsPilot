@@ -1,14 +1,15 @@
 # Work Progress
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-06
 
 ## Current Phase
 
-Phase 7 — AI Foundation (accepted and complete; production deployment not approved)
+Phase 8 — RAG and Document Intelligence (accepted and complete for repository/development;
+production approval pending; Phase 9 not authorized)
 
 ## Status
 
-PHASE 7 ACCEPTED AND COMPLETE — PRODUCTION DEPLOYMENT NOT APPROVED
+PHASE 8 ACCEPTED AND COMPLETE FOR REPOSITORY/DEVELOPMENT — PRODUCTION APPROVAL PENDING
 
 ## Completed
 
@@ -238,9 +239,46 @@ PHASE 7 ACCEPTED AND COMPLETE — PRODUCTION DEPLOYMENT NOT APPROVED
 - On 2026-09-04, after the completion criteria and evidence passed, the user instructed that Phase
   7 be marked complete and committed. This records explicit Phase 7 acceptance for the
   repository/development scope. It does not approve production deployment or authorize Phase 8.
+- On 2026-09-05, the user accepted the complete Phase 8 proposal, permission matrix, threat model,
+  exact `qdrant-client==1.19.0` and `fastembed==0.8.0` pins, and one-time
+  `sentence-transformers/all-MiniLM-L6-v2` cache download by explicitly answering “yes”. ADR 0011
+  records the exact repository/development scope; no hosted vector/object account, PDF/OCR,
+  LangChain/LangGraph, autonomous action, or production rollout was authorized.
+- Three additive migrations implement logical documents, immutable versions/audiences,
+  generation-aware chunk/citation metadata, document consent, and idempotent mutation receipts.
+  All 14 migrations are current in development and test with no schema drift.
+- Owner/admin document management, strict raw text/Markdown validation, encrypted private object
+  storage, version/lifecycle/reindex/delete/recovery flows, idempotent worker jobs, and responsive
+  document/status UI are implemented. Document-storage and RAG cache/vector roots are rejected when
+  broad, repository-contained, repository-parent, or web-accessible; documents never use
+  user-controlled paths.
+- The isolated signed FastAPI retrieval boundary implements deterministic chunking, fixed cached
+  MiniLM embeddings, private local Qdrant, opaque candidate results, and strict document answer
+  contracts. Node remains the authority: it rechecks user/permission/consent/lifecycle/audience,
+  decrypts/checksums only bounded approved excerpts, and rechecks citations after inference.
+- The offline 50-case retrieval suite passes with 100% recall@5/MRR/no-evidence/audience/
+  superseded/deleted controls and 50.862 ms p95. The paced 54-case Groq document-answer gate passes
+  its 95% grounded-answer target at 97.5%, all 100% no-evidence/critical-safety/schema/citation
+  targets, 1,046 ms p95, and bounded cost without content or secret output. The signed five-case
+  Node-to-FastAPI-to-Groq sample also passes.
+- The Phase 8 repository gate passes 35 API files / 193 tests, 7 web files / 48 tests, 144 Python
+  tests with two explicit live skips, all configured coverage thresholds, lint/format/schema/build,
+  both migration/drift checks, audit verification, dependency checks, whitespace, and credential
+  hygiene. Architecture, persistence, API, permission, threat, implementation, operations,
+  evaluation, and review documentation are synchronized.
+- On 2026-09-06 the complete routine gate was rerun before handoff: 193 API tests, 48 web tests,
+  144 Python tests with two intentional live skips, all coverage thresholds, lint/format/schema,
+  Python dependency checks, production build, all 14 development/test migrations with no drift,
+  both audit verifiers, the deterministic signed boundary smoke, Git whitespace, and the 50-case
+  offline retrieval gate pass. The user instructed that Phase 8 be committed if complete; this
+  records explicit Phase 8 acceptance for the repository/development scope. No production rollout
+  or Phase 9 work is authorized by that instruction.
 
 ## In Progress
 
+- Phase 8 production storage/vector topology, privacy/retention, networking, monitoring, backup,
+  multi-instance operation, and rollout approval remain unresolved and separate from the accepted
+  repository/development scope.
 - The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain blocked on a
   completed hosted Test Mode payment plus copying the current temporary HTTPS webhook endpoint into
   the Test Mode dashboard, matching its separate secret, confirming automatic capture, and
@@ -252,11 +290,10 @@ PHASE 7 ACCEPTED AND COMPLETE — PRODUCTION DEPLOYMENT NOT APPROVED
 
 ## Next Task
 
-Phase 7 is complete; do not start Phase 8 without explicit authorization and a fresh phase gate.
-Continue monitoring the enabled development assistants' metadata-only usage and safe failures.
-The next unresolved existing-phase gate is the independent Phase 4 external Razorpay Test Mode
-delivery/recovery smoke and acceptance. Any production AI rollout separately requires the retained
-account/privacy/legal/operations review and explicit production approval.
+Run the optional Phase 8 manual UI walkthrough against the local development topology and continue
+monitoring the enabled assistants under the runbook. Decide separately whether to authorize Phase 9
+decision-definition work. Production AI/document approval and the independent Phase 4 Razorpay Test
+Mode delivery/recovery gate remain unresolved and separate.
 
 ## Accepted Decisions
 
@@ -462,6 +499,9 @@ Phase 5 is repository-complete and verified under ADR 0007 and its acceptance re
 repository-complete and verified under ADR 0008 and its acceptance report. Phase 7 is explicitly
 accepted and complete for the repository/development scope, live-verified, and enabled in local
 development under ADRs 0009 and 0010. Production remains blocked on the broader
-account/privacy/operations review and explicit rollout approval. Phase 8 has not been authorized.
-Redis, BullMQ, external channels, live payments, multi-instance deployment, and every unapproved
-later AI capability remain out of scope.
+account/privacy/operations review and explicit rollout approval. Phase 8's complete baseline was
+accepted under ADR 0011, its approved repository/development implementation and evaluation gates
+pass, and explicit phase acceptance was recorded on 2026-09-06. Production is separately blocked
+on approved storage/vector topology, privacy/retention, networking, operations, and rollout. Redis,
+BullMQ, external channels, live payments, multi-instance deployment, Phase 9 workflows, and every
+other unapproved later capability remain out of scope.

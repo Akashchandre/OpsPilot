@@ -134,6 +134,40 @@ def test_preflight_and_success_use_exact_groq_policy_and_calculate_cost() -> Non
         assert forbidden not in body
 
 
+def test_document_prompt_uses_the_citation_schema_and_validates_labels() -> None:
+    payload = response_payload()
+    payload["choices"][0]["message"]["content"] = json.dumps(
+        {
+            "answer": "Returns are accepted within 30 days.",
+            "outcome": "ANSWER",
+            "citations": ["S1"],
+            "notices": [],
+        }
+    )
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=models_payload() if len(requests) == 1 else payload)
+
+    async def exercise():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = GroqChatCompletionsProvider(provider_settings(), client=client)
+            await provider.preflight()
+            return await provider.generate(
+                RenderedPrompt("customer-documents-v1", "system", "sources", True)
+            )
+
+    result = run(exercise())
+    schema = json.loads(requests[1].content)["response_format"]["json_schema"]["schema"]
+    assert schema["required"] == ["answer", "outcome", "citations", "notices"]
+    assert schema["properties"]["answer"]["type"] == "string"
+    assert "Non-empty plain text" in schema["properties"]["answer"]["description"]
+    assert set(schema["properties"]["citations"]) == {"type", "items", "description"}
+    assert set(schema["properties"]["notices"]) == {"type", "items"}
+    assert result.output.citations == ["S1"]
+
+
 @pytest.mark.parametrize(
     "payload",
     [

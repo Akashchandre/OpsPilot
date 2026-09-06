@@ -40,6 +40,15 @@ export const JOB_PAYLOAD_SCHEMAS = Object.freeze({
   }),
   [JOB_TYPES.ORDER_RESERVATION_EXPIRY_SWEEP]: z.strictObject({ bucket: minuteBucket }),
   [JOB_TYPES.AUDIT_CHAIN_VERIFY]: z.strictObject({ bucket: dayBucket }),
+  [JOB_TYPES.DOCUMENT_VERSION_INGEST]: z.strictObject({
+    documentVersionId: uuid,
+    indexVersion: z.number().int().min(1).max(2_147_483_647),
+  }),
+  [JOB_TYPES.DOCUMENT_VERSION_DELETE]: z.strictObject({ documentId: uuid }),
+  [JOB_TYPES.DOCUMENT_VERSION_REINDEX]: z.strictObject({
+    documentVersionId: uuid,
+    indexVersion: z.number().int().min(1).max(2_147_483_647),
+  }),
 });
 
 function canonicalize(value) {

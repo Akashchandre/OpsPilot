@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { overviewQuerySchema } from "../reports/reports.schemas.js";
-import { AI_ASSISTANTS, AI_NOTICE_VERSION, AI_SAFE_NOTICES } from "./ai.constants.js";
+import {
+  AI_ASSISTANTS,
+  AI_DOCUMENT_NOTICE_VERSION,
+  AI_NOTICE_VERSION,
+  AI_SAFE_NOTICES,
+} from "./ai.constants.js";
 
 const forbiddenControlCharacter = /\p{C}/u;
 
@@ -25,6 +30,16 @@ export const aiAssistantParamsSchema = z.strictObject({
 export const aiConsentBodySchema = z.strictObject({
   noticeVersion: z.literal(AI_NOTICE_VERSION),
 });
+
+export const aiDocumentConsentBodySchema = z.strictObject({
+  noticeVersion: z.literal(AI_DOCUMENT_NOTICE_VERSION),
+});
+
+export const documentAiResponseBodySchema = z.strictObject({
+  question: normalizedQuestionSchema,
+});
+
+export const aiDocumentCitationParamsSchema = z.strictObject({ citationId: z.uuid() });
 
 export const customerAiResponseBodySchema = z.strictObject({
   question: normalizedQuestionSchema,

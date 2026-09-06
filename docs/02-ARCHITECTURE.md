@@ -201,16 +201,57 @@ only the fixed Groq Chat Completions endpoint with `openai/gpt-oss-120b`, no too
 strict structured output, and explicitly operator-confirmed ZDR.
 
 Only stateless public-feature customer help and owner explanation of the existing aggregate
-overview are implemented. Questions, answers, reasoning, context, and chat history are not stored.
-Consent and metadata-only usage/cost evidence are stored in MySQL. Persistent
-chat, personal/row-level context, documents/RAG, LangChain/LangGraph, streaming, and AI actions
-remain deferred.
+overview are implemented by the Phase 7 assistant paths. Questions, answers, reasoning, context,
+and chat history are not stored. Consent and metadata-only usage/cost evidence are stored in MySQL.
+Persistent chat, personal/row-level context, LangChain/LangGraph, streaming, and AI actions remain
+deferred. Phase 8 adds a separate document-Q&A path below; it does not broaden the Phase 7
+assistant permissions or context.
 
 Global ZDR, the redacted application preflight, the paced metered synthetic evaluation, and the
 signed live path passed on 2026-09-04; the user explicitly enabled the development routes. The
 user subsequently accepted Phase 7 after its repository/development completion gate passed. The
 remaining manual privacy/account/operations review and explicit production approval are still
 required before production deployment.
+
+## Phase 8 document intelligence boundary
+
+ADR 0011 authorizes the repository/development implementation now verified. Node remains the
+only public API and authorization authority. The document path accepts only normalized UTF-8
+English `.txt` and `.md` content up to 256 KiB, keeps the original outside the web root in an
+AES-256-GCM encrypted filesystem store, and keeps authoritative lifecycle, audience, chunk, and
+citation metadata in MySQL. The local filesystem adapter is rejected by production configuration.
+
+```text
+React document management / document Q&A
+                 |
+                 v
+Node.js + Express public API
+  |-- session, RBAC, CSRF, idempotency, lifecycle, document consent
+  |-- encrypted private filesystem objects (repository/development only)
+  |-- MySQL documents / versions / audiences / chunks / citations / jobs
+  |                                      ^
+  |                                      | registered UUID/index descriptors
+  |                                      |
+  |                         separate JavaScript job worker
+  |
+  | HMAC-signed index, candidate, publication, deletion, and response calls
+  v
+FastAPI RAG boundary
+  |-- deterministic chunking + pinned local FastEmbed MiniLM model
+  |-- local Qdrant collection with opaque point/filter metadata
+  v
+candidate IDs/scores only ----> Node reauthorizes current MySQL state, decrypts and
+                                 checksum-checks bounded excerpts, then sends only that
+                                 bounded context for Groq generation
+```
+
+Qdrant is a candidate-ranking boundary, never an authorization source. Node derives the allowed
+audiences from the registered assistant, rechecks current `ACTIVE`/`READY`/active-version state
+before text is used, and repeats authorization/consent/source checks after generation. Groq has no
+tool or callback capability; the provider receives the question plus at most the bounded
+reauthorized excerpts. Staged publication, superseding, reindexing, deletion, and advisory orphan
+inventory are fail-closed repository/development paths. Final Phase 8 verification passes; explicit
+phase acceptance remains pending.
 
 ## Main application layering
 
@@ -240,7 +281,7 @@ required before production deployment.
 - Database constraints enforce invariants in addition to application validation.
 - Services use transactions and concurrency controls for workflows such as inventory and checkout.
 
-## Eventual architecture
+## Current Phase 8 and later architecture
 
 ```text
 Customers / Owners / Admins / Future Employees
@@ -250,42 +291,39 @@ Customers / Owners / Admins / Future Employees
                       |
                       v
           Node.js + Express public API
-             |        |         |
-             |        |         +--> Object storage (documents/files)
-             |        +------------> MySQL job worker + Socket.IO hints
-             |                       (implemented single-instance baseline)
-             v
-        Business services
-             |
-             +---------------------> MySQL via Prisma
+             |        |          |
+             |        |          +--> encrypted local document objects
+             |        |                (Phase 8 repository/development only)
+             |        +-------------> MySQL job worker + Socket.IO hints
+             |        |                (implemented single-instance baseline)
+             v        v
+        Business services --> MySQL via Prisma
              |
              v
        Python FastAPI AI service
-             |
+             |        |
+             |        +--> local Qdrant + local FastEmbed (implemented Phase 8 RAG)
              v
-        LangChain / LangGraph
-          |        |        |
-          v        v        v
-         RAG   business   support
-               data tools  tools
-          |
-          v
-    Vector database + approved model provider
+        Groq document generation
+
+       LangChain / LangGraph / business and support tools (later Phase 9 direction)
 ```
 
-This is a target direction, not an instruction to deploy every component. Each supporting component is added only when its owning phase demonstrates the need.
+The local Phase 8 object/vector/embedding topology is deliberately a single-process
+repository/development boundary, not a production deployment design. Later components remain
+direction only until their own phase approves them.
 
 ## Future supporting infrastructure
 
-| Component | Intended responsibility | Earliest planned phase | Unresolved choice |
-|---|---|---:|---|
-| Redis/shared adapters | Future cache or multi-instance queue/socket/rate coordination if justified | After 6 | Need, topology, ownership, failure behavior |
-| Object storage | Durable private document/file storage | 8 unless earlier justified | Provider, access model, scanning, retention |
-| Python/FastAPI | Isolated AI provider/prompt boundary | 7 | HMAC/loopback and provider/live development gates pass; production mTLS/network topology remains unresolved |
-| Vector database | Permission-aware document retrieval | 8 | Technology, metadata/filter model, tenancy |
-| Docker | Reproducible packaging and local/production topology | 10 | Images, registry, orchestration |
-| GitHub Actions | Automated quality and delivery gates | 10 | Workflows and environments |
-| AWS | Potential hosting platform | 10 | Services, regions, network and cost model |
+| Component               | Intended responsibility                                                                | Earliest planned phase | Unresolved choice                                                                                                               |
+| ----------------------- | -------------------------------------------------------------------------------------- | ---------------------: | ------------------------------------------------------------------------------------------------------------------------------- |
+| Redis/shared adapters   | Future cache or multi-instance queue/socket/rate coordination if justified             |                After 6 | Need, topology, ownership, failure behavior                                                                                     |
+| Document object storage | AES-256-GCM private filesystem objects for strict text/Markdown originals              |                      8 | Verified locally under ADR 0011; production provider, IAM/KMS, scanning, retention, backups, and recovery remain unresolved     |
+| Python/FastAPI          | Isolated provider/prompt and signed document-index boundary                            |                      7 | Phase 7 provider/live development gates pass; Phase 8 adds local RAG; production mTLS/network topology remains unresolved       |
+| Vector database         | Local Qdrant candidate index with FastEmbed MiniLM vectors and opaque payload metadata |                      8 | Verified locally under ADR 0011; production topology, tenancy, network controls, backups, and capacity remain unresolved        |
+| Docker                  | Reproducible packaging and local/production topology                                   |                     10 | Images, registry, orchestration                                                                                                 |
+| GitHub Actions          | Automated quality and delivery gates                                                   |                     10 | Workflows and environments                                                                                                      |
+| AWS                     | Potential hosting platform                                                             |                     10 | Services, regions, network and cost model                                                                                       |
 
 ## Request and trust boundaries
 
@@ -296,9 +334,13 @@ This is a target direction, not an instruction to deploy every component. Each s
    currency-checked evidence may affect local payment state; provider responses are never trusted
    as arbitrary application input.
 5. Workers revalidate permissions or operate from immutable authorized job context; they do not trust arbitrary queued payloads.
-6. The AI service is internal and receives only the minimum data for an authorized request; Phase 7
-   gives it no tool or callback capability.
-7. LLM output cannot authorize actions, bypass business services, or serve as an authoritative source for financial/operational state.
+6. The AI service is internal and receives only the minimum data for an authorized request. For
+   Phase 8, it receives opaque candidate requests or bounded reauthorized source excerpts, never
+   browser authority or database credentials; it has no tool or callback capability.
+7. Qdrant/local embedding storage may rank candidates but cannot authorize them. Node must verify
+   current MySQL lifecycle, audience, integrity, permission, and consent before and after provider
+   work.
+8. LLM output cannot authorize actions, bypass business services, or serve as an authoritative source for financial/operational state.
 
 ## Cross-cutting concerns
 
@@ -319,7 +361,8 @@ This is a target direction, not an instruction to deploy every component. Each s
 - A future change to the accepted catalog model: variants, media, hierarchy, multi-currency,
   tax/discount rules, multiple warehouses, or employee onboarding.
 - Notification channels and delivery guarantees.
-- Phase 7 production provider/account/privacy review and production service topology;
-  file storage, vector database, embedding provider, and later AI governance remain unresolved in
-  their owning phases.
+- Phase 7 provider/account/privacy review and the production service topology; Phase 8 production
+  object storage, KMS/key rotation, vector service/networking, model/cache ownership, parser/
+  malware policy, retention/legal-hold, deletion propagation, and later AI governance remain
+  unresolved in their owning phases.
 - Hosting, network boundaries, environments, observability, backup, and recovery targets.

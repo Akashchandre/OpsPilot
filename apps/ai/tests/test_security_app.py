@@ -1,10 +1,12 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from opspilot_ai.app import create_app
+from opspilot_ai.contracts import DocumentStructuredProviderOutput
 from opspilot_ai.errors import AiServiceError
 from opspilot_ai.security import SIGNATURE_HEADER
 
@@ -20,6 +22,19 @@ def compact_json(value: object) -> bytes:
     return json.dumps(value, separators=(",", ":")).encode("utf-8")
 
 
+def document_request() -> dict[str, object]:
+    return {
+        "contractVersion": 1,
+        "subjectId": str(uuid4()),
+        "assistant": "CUSTOMER",
+        "intent": "CUSTOMER_DOCUMENT_QA",
+        "question": "What is the return period?",
+        "context": {
+            "sources": [{"label": "S1", "excerpt": "Returns are accepted within 30 days."}]
+        },
+    }
+
+
 def test_signed_health_reports_disabled_without_exposing_configuration(settings) -> None:
     app = create_app(settings)
     headers = signed_headers()
@@ -32,6 +47,8 @@ def test_signed_health_reports_disabled_without_exposing_configuration(settings)
         "service": "opspilot-ai",
         "status": "ready",
         "provider": "disabled",
+        "embedding": "disabled",
+        "vectorIndex": "disabled",
     }
     assert "model" not in response.text
     assert "key" not in response.text.lower()
@@ -239,6 +256,7 @@ def test_response_route_uses_reviewed_prompt_and_projects_narrow_result(settings
         "answer": "Open Support, then choose the option to create a new ticket.",
         "outcome": "ANSWER",
         "notices": ["USE_STANDARD_SUPPORT"],
+        "citations": [],
         "promptVersion": "customer-help-v1",
         "model": "openai/gpt-oss-120b",
         "providerRequestId": "resp_phase7_test",
@@ -251,6 +269,54 @@ def test_response_route_uses_reviewed_prompt_and_projects_narrow_result(settings
         "durationMs": response.json()["data"]["durationMs"],
         "zeroDataRetention": True,
     }
+
+
+def test_document_response_route_projects_only_valid_source_labels(settings) -> None:
+    provider = FakeProvider()
+    provider.result = replace(
+        provider.result,
+        output=DocumentStructuredProviderOutput(
+            answer="The return period is 30 days.",
+            outcome="ANSWER",
+            citations=["S1"],
+            notices=[],
+        ),
+    )
+    app = create_app(settings, provider=provider)
+    payload = document_request()
+    body = compact_json(payload)
+    headers = signed_headers(body=body, method="POST", path="/internal/v1/responses")
+
+    with TestClient(app) as client:
+        response = client.post("/internal/v1/responses", content=body, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["data"]["citations"] == ["S1"]
+    assert response.json()["data"]["promptVersion"] == "customer-documents-v1"
+    assert provider.prompts[0].document_response is True
+
+
+def test_document_response_rejects_a_citation_not_present_in_context(settings) -> None:
+    provider = FakeProvider()
+    provider.result = replace(
+        provider.result,
+        output=DocumentStructuredProviderOutput(
+            answer="Unsupported source selection.",
+            outcome="ANSWER",
+            citations=["S2"],
+            notices=[],
+        ),
+    )
+    app = create_app(settings, provider=provider)
+    payload = document_request()
+    body = compact_json(payload)
+    headers = signed_headers(body=body, method="POST", path="/internal/v1/responses")
+
+    with TestClient(app) as client:
+        response = client.post("/internal/v1/responses", content=body, headers=headers)
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "PROVIDER_RESPONSE_INVALID"
 
 
 def test_invalid_scope_never_calls_provider(settings) -> None:

@@ -2,8 +2,9 @@
 
 ## Status
 
-This document records accepted Phase 1/2 behavior, implemented Phase 3/4 contracts, and plans for
-later public APIs. Every endpoint is prefixed with `/api/v1` unless explicitly documented as
+This document records accepted Phase 1/2 behavior, implemented Phase 3–7 contracts, and the
+Phase 8 repository/development contracts are implemented and verified. Explicit Phase 8 acceptance
+remains pending. Every public endpoint is prefixed with `/api/v1` unless explicitly documented as
 infrastructure-only.
 
 ## Contract conventions
@@ -275,8 +276,9 @@ multi-instance topology remain undecided and unimplemented.
 
 ### `/api/v1/ai`
 
-The ADR 0009 implementation is stateless. The repository contract is verified; real provider use
-and phase acceptance remain disabled pending the external gates.
+The Phase 7 implementation is stateless and was accepted for the repository/development scope.
+Its development provider gates passed; production rollout remains pending the separate
+account/privacy/operations review.
 
 | Method | Path | Access | Behavior |
 |---|---|---|---|
@@ -310,15 +312,71 @@ AI-specific safe public errors include `AI_DISABLED`, `AI_CONSENT_REQUIRED`,
 `AI_RESULT_RECORDING_FAILED`, and `AI_CONTEXT_UNAVAILABLE`. Provider bodies/messages are never
 forwarded. Existing common validation/authentication/authorization/rate errors remain unchanged.
 
-Internal operations are `GET /internal/v1/health` and `POST /internal/v1/responses`; both require
-the versioned HMAC/key-ID/timestamp/UUID-nonce/request-ID/body-digest contract. They are not public
-`/api/v1` routes. FastAPI returns only typed health or answer/outcome/notices plus prompt/model,
+The Phase 7 internal operations are `GET /internal/v1/health` and `POST /internal/v1/responses`;
+both require the versioned HMAC/key-ID/timestamp/UUID-nonce/request-ID/body-digest contract. They
+are not public `/api/v1` routes. FastAPI returns only typed health or answer/outcome/notices plus
+prompt/model,
 safe provider ID, integer usage/exact cost, duration, and required ZDR evidence. Exact limits and
 state rules are in `docs/phase-7/PHASE-07-IMPLEMENTATION-GUIDE.md`.
 
 ## Phase 8 — RAG and Document Intelligence
 
-Planned authorized document operations may use `/api/v1/documents` or an administrative subset of `/api/v1/ai`; the final resource boundary is a **Decision Required**. Operations may include upload, list, retrieve metadata, process/reprocess, replace/version, and remove under retention rules. AI answers can use only documents allowed for the requesting identity and business scope.
+Phase 8 implements the public document resource boundary at `/api/v1/documents` and keeps
+document Q&A under `/api/v1/ai`. The table below describes the verified repository/development
+contract accepted on 2026-09-06; production approval remains separate.
+
+| Method | Path | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/v1/documents` | `documents:read` | Return bounded, safe document/version metadata with strict `page`, `limit`, and lifecycle-status query values |
+| POST | `/api/v1/documents` | `documents:manage` + CSRF + UUID idempotency key | Create a logical document and its first awaiting-upload immutable version from validated metadata |
+| GET | `/api/v1/documents/recovery/orphans` | `documents:delete` | Return an owner-only, aggregate-only advisory inventory of storage/vector anomalies; it never repairs or deletes data |
+| GET | `/api/v1/documents/:documentId` | `documents:read` | Return safe logical-document and version metadata |
+| POST | `/api/v1/documents/:documentId/versions` | `documents:manage` + CSRF + UUID idempotency key | Create the next immutable version after an optimistic document-version check |
+| PUT | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:manage` + CSRF + UUID idempotency key | Accept the approved raw text body, encrypt it through the private store, and enqueue ingestion; request JSON is not accepted here |
+| GET | `/api/v1/documents/:documentId/versions/:versionId/content` | `documents:read` | Read an authorized original through the protected API; no storage path is exposed |
+| PATCH | `/api/v1/documents/:documentId/status` | `documents:manage` + CSRF + UUID idempotency key | Archive or restore an eligible document using its optimistic version |
+| POST | `/api/v1/documents/:documentId/versions/:versionId/reindex` | `documents:manage` + CSRF + UUID idempotency key | Request an eligible version's registered reindex job |
+| DELETE | `/api/v1/documents/:documentId` | owner-only `documents:delete` + CSRF + UUID idempotency key | Mark the document deleting and enqueue fail-closed asynchronous vector/object/chunk cleanup |
+
+Document metadata uses strict JSON objects. Creation includes an NFC-normalized title; a version
+permits only an NFC-normalized filename, `text/plain` or `text/markdown`, matching `.txt` or `.md`,
+English language, and one or both immutable `CUSTOMER`/`OWNER` audiences. The content endpoint
+accepts only strict UTF-8
+text/Markdown, normalized and limited to 256 KiB. PDFs, office files, archives, images, HTML, OCR,
+and browser-selected storage/vector identifiers are not contract options.
+
+All document mutations require an active session, trusted browser origin, session-bound CSRF token,
+and UUID `Idempotency-Key`. Reusing a document idempotency key for a different normalized operation
+returns a stable conflict. `OWNER` and `ADMIN` receive read/manage; only `OWNER` receives
+delete. A customer cannot list, upload, download, or select a source through this resource.
+
+Document-Q&A uses a separate versioned processing-consent family and never accepts a document,
+version, chunk, point, audience, model, or vector-filter value from the browser:
+
+| Method | Path | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/v1/ai/document-consents/:assistant` | Active session | Read the caller's matching server-owned document-processing consent state |
+| PUT | `/api/v1/ai/document-consents/:assistant` | Matching assistant-use permission + CSRF | Accept the exact server-owned `groq-zdr-documents-v1` notice |
+| DELETE | `/api/v1/ai/document-consents/:assistant` | Active session + CSRF | Revoke the caller's matching document-processing consent |
+| POST | `/api/v1/ai/customer/document-responses` | `ai:customer:use` + current customer document consent + CSRF + UUID at-most-once key/quota | Answer from only current `CUSTOMER`-audience sources |
+| POST | `/api/v1/ai/owner/document-responses` | `ai:owner:use` + current owner document consent + CSRF + UUID at-most-once key/quota | Answer from only current `CUSTOMER` or `OWNER` sources |
+| GET | `/api/v1/ai/document-citations/:citationId` | Active caller with the completed request's same assistant permission, current consent, and current source authorization | Return one current authorized citation excerpt; it is not a general document lookup |
+
+Node derives audiences from the registered assistant, reauthorizes every FastAPI candidate against
+current MySQL lifecycle/audience/integrity data before source text is sent to Groq, and repeats the
+checks after generation. A successful document response returns a plain-text `response` with its
+outcome/notices and only authorized citation metadata; answer content, source excerpts, and vector
+identifiers are not stored in usage/audit records. Safe document-specific failures include
+`DOCUMENTS_DISABLED`, `DOCUMENT_STATE_CONFLICT`, `DOCUMENT_CONTENT_*`,
+`DOCUMENT_STORAGE_UNAVAILABLE`, `DOCUMENT_RECOVERY_UNAVAILABLE`,
+`AI_DOCUMENTS_DISABLED`, `AI_CONTEXT_UNAVAILABLE`, and
+`AI_DOCUMENT_CITATION_NOT_FOUND`.
+
+FastAPI document operations remain internal, HMAC-signed, replay-protected routes, not public API
+endpoints: `POST /internal/v1/documents/index`, `publication`, `candidates`, and `delete`,
+plus `GET /internal/v1/documents/inventory`. They accept registered strict contracts and return
+only index descriptors, publication/deletion confirmation, opaque candidate IDs/scores, or
+aggregate inventory data.
 
 ## Phase 9 — LangGraph Business AI and AI Support
 
@@ -341,6 +399,7 @@ Planned AI operations expand to permission-aware business analysis and support w
 - Authentication credentials are never passed in query strings.
 - Authorization checks include action, role/permission, ownership, business scope, and object state where applicable.
 - Payment webhooks verify provider authenticity against the raw payload requirements and deduplicate events.
-- Upload endpoints restrict size/type and use protected storage and malware controls.
+- Document upload endpoints restrict size/type and use protected encrypted storage; Phase 8 admits
+  only inert text/Markdown so PDF/office parsing and malware-scanning integration remain deferred.
 - AI endpoints apply rate/cost limits, content/prompt safeguards, retrieval access filtering, and tool allowlists.
 - List endpoints must not leak records across users or businesses through filters, counts, errors, caches, or real-time channels.

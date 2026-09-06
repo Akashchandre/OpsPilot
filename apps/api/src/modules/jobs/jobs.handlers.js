@@ -1,4 +1,5 @@
 import { createAuditService } from "../audit/audit.service.js";
+import { createDocumentJobHandler } from "../documents/document.jobs.js";
 import { createNotificationMaterializer } from "../notifications/notifications.materializer.js";
 import { expireDueOrders } from "../orders/reservation.service.js";
 import { JOB_ERROR_CODES, JOB_TYPES } from "./jobs.constants.js";
@@ -16,13 +17,15 @@ const notificationJobTypes = new Set([
   JOB_TYPES.NOTIFICATION_INVENTORY_LOW,
 ]);
 
-export function createJobHandlers(database, config) {
+export function createJobHandlers(database, config, dependencies = {}) {
   const notifications = createNotificationMaterializer(database);
   const audit = createAuditService(database, config);
+  const documents = createDocumentJobHandler(database, config, dependencies);
 
   return Object.freeze({
     async execute(job) {
       if (notificationJobTypes.has(job.type)) return notifications.materialize(job);
+      if (documents.handles(job.type)) return documents.execute(job);
 
       if (job.type === JOB_TYPES.ORDER_RESERVATION_EXPIRY_SWEEP) {
         let total = 0;

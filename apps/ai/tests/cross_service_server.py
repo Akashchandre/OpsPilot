@@ -3,7 +3,7 @@ import base64
 from opspilot_ai.app import create_app
 from opspilot_ai.config import AiSettings
 from opspilot_ai.constants import GROQ_MODEL, Outcome, SafeNotice
-from opspilot_ai.contracts import StructuredProviderOutput
+from opspilot_ai.contracts import DocumentStructuredProviderOutput, StructuredProviderOutput
 from opspilot_ai.prompts import RenderedPrompt
 from opspilot_ai.providers import ProviderReadiness, ProviderResult, ProviderUsage
 
@@ -15,13 +15,22 @@ class CrossServiceMockProvider:
         return None
 
     async def generate(self, prompt: RenderedPrompt) -> ProviderResult:
-        del prompt
-        return ProviderResult(
-            output=StructuredProviderOutput(
+        output = (
+            DocumentStructuredProviderOutput(
+                answer="Returns are accepted within 30 days.",
+                outcome=Outcome.ANSWER,
+                citations=["S1"],
+                notices=[],
+            )
+            if prompt.document_response
+            else StructuredProviderOutput(
                 answer="Open Support, then create a new ticket.",
                 outcome=Outcome.ANSWER,
                 notices=[SafeNotice.USE_STANDARD_SUPPORT],
-            ),
+            )
+        )
+        return ProviderResult(
+            output=output,
             model=GROQ_MODEL,
             request_id="resp_cross_service_mock",
             usage=ProviderUsage(

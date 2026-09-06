@@ -8,6 +8,22 @@ export function aiDisabled() {
   });
 }
 
+export function aiDocumentsDisabled() {
+  return new AppError({
+    statusCode: 503,
+    code: "AI_DOCUMENTS_DISABLED",
+    message: "AI document answers are currently disabled",
+  });
+}
+
+export function aiDocumentCitationNotFound() {
+  return new AppError({
+    statusCode: 404,
+    code: "AI_DOCUMENT_CITATION_NOT_FOUND",
+    message: "The document citation was not found",
+  });
+}
+
 export function aiConsentRequired() {
   return new AppError({
     statusCode: 409,
@@ -94,6 +110,6 @@ export function aiContextUnavailable() {
   return new AppError({
     statusCode: 503,
     code: "AI_CONTEXT_UNAVAILABLE",
-    message: "The authoritative overview could not be prepared",
+    message: "The authorized AI context could not be prepared",
   });
 }

@@ -4,6 +4,12 @@ import { JOB_ERROR_CODES, JOB_TYPES } from "./jobs.constants.js";
 import { JobDescriptorError, JobExecutionError } from "./jobs.errors.js";
 import { createJobQueue } from "./jobs.queue.js";
 
+const documentJobTypes = new Set([
+  JOB_TYPES.DOCUMENT_VERSION_INGEST,
+  JOB_TYPES.DOCUMENT_VERSION_DELETE,
+  JOB_TYPES.DOCUMENT_VERSION_REINDEX,
+]);
+
 function delay(milliseconds) {
   return new Promise((resolve) => {
     const timer = setTimeout(resolve, milliseconds);
@@ -41,6 +47,13 @@ function withTimeout(promise, milliseconds) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+function handlerTimeoutMilliseconds(job, config) {
+  const leaseMilliseconds = config.jobs.leaseSeconds * 1000;
+  if (!documentJobTypes.has(job.type)) return leaseMilliseconds;
+  const documentRequestMilliseconds = config.ai?.documentTimeoutMs ?? 120000;
+  return Math.max(leaseMilliseconds, documentRequestMilliseconds * 4 + leaseMilliseconds);
+}
+
 export function createBackgroundWorker({ database, config, handlers, logger, dependencies = {} }) {
   const queue = dependencies.jobQueue ?? createJobQueue(database, config, dependencies.queue);
   const schedule = dependencies.enqueueScheduledJobs ?? enqueueScheduledJobs;
@@ -68,7 +81,7 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
         }
         throw error;
       }
-      await withTimeout(handlers.execute(job), config.jobs.leaseSeconds * 1000);
+      await withTimeout(handlers.execute(job), handlerTimeoutMilliseconds(job, config));
       const completed = await queue.complete(job, workerId);
       logger.log(completed ? "info" : "warn", "job.completed", {
         workerId,

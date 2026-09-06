@@ -14,12 +14,13 @@ import { createPaymentsRouter } from "../modules/payments/payments.routes.js";
 import { createReportsRouter } from "../modules/reports/reports.routes.js";
 import { createSupportRouter } from "../modules/support/support.routes.js";
 import { createUsersRouter } from "../modules/users/users.routes.js";
+import { createDocumentRouter } from "../modules/documents/document.routes.js";
 
-export function createApiRouter(database, config, paymentProvider, aiClient) {
+export function createApiRouter(database, config, paymentProvider, aiClient, documentStore) {
   const router = Router();
 
-  router.use("/health", createHealthRouter(database, config, aiClient));
-  router.use("/ai", createAiRouter(database, config, aiClient));
+  router.use("/health", createHealthRouter(database, config, aiClient, documentStore));
+  router.use("/ai", createAiRouter(database, config, aiClient, documentStore));
   router.use("/audit-events", createAuditRouter(database, config));
   router.use("/auth", createAuthRouter(database, config));
   router.use("/users", createUsersRouter(database, config));
@@ -32,6 +33,7 @@ export function createApiRouter(database, config, paymentProvider, aiClient) {
   router.use("/inventory", createInventoryRouter(database, config));
   router.use("/jobs", createJobsRouter(database, config));
   router.use("/notifications", createNotificationsRouter(database, config));
+  router.use("/documents", createDocumentRouter(database, config, documentStore, aiClient));
   router.use(createAuthorizationRouter(database, config));
 
   return router;

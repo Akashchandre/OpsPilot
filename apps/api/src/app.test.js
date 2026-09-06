@@ -52,9 +52,44 @@ describe("OpsPilot API foundation", () => {
         status: "ok",
         service: "opspilot-api",
         database: "reachable",
+        documents: {
+          storage: "disabled",
+          embedding: "disabled",
+          vectorIndex: "disabled",
+        },
       },
     });
     expect(response.headers["x-request-id"]).toBeTruthy();
+  });
+
+  it("reports coarse document dependency health without configuration details", async () => {
+    const database = { $queryRawUnsafe: vi.fn().mockResolvedValue([{ result: 1 }]) };
+    const aiClient = {
+      health: vi.fn().mockResolvedValue({
+        status: "ready",
+        provider: "ready",
+        embedding: "ready",
+        vectorIndex: "ready",
+      }),
+    };
+    const documentStore = { health: vi.fn().mockResolvedValue("ready") };
+    const enabled = {
+      ...config,
+      ai: { enabled: true },
+      documents: { enabled: true },
+    };
+
+    const response = await request(
+      createApp({ config: enabled, database, aiClient, documentStore }),
+    ).get("/api/v1/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      ai: "ready",
+      documents: { storage: "ready", embedding: "ready", vectorIndex: "ready" },
+    });
+    expect(JSON.stringify(response.body)).not.toContain("root");
+    expect(JSON.stringify(response.body)).not.toContain("model");
   });
 
   it("returns a safe unavailable response when the database fails", async () => {

@@ -219,13 +219,23 @@ const backgroundJobReplayMetadataSchema = z.strictObject({
 });
 const aiProviderSchema = z.literal("GROQ");
 const aiAssistantSchema = z.enum(["CUSTOMER", "OWNER"]);
-const aiIntentSchema = z.enum(["CUSTOMER_HELP", "OWNER_OVERVIEW_EXPLAIN"]);
-const aiPromptVersionSchema = z.enum(["customer-help-v1", "owner-overview-v1"]);
+const aiIntentSchema = z.enum([
+  "CUSTOMER_HELP",
+  "OWNER_OVERVIEW_EXPLAIN",
+  "CUSTOMER_DOCUMENT_QA",
+  "OWNER_DOCUMENT_QA",
+]);
+const aiPromptVersionSchema = z.enum([
+  "customer-help-v1",
+  "owner-overview-v1",
+  "customer-documents-v1",
+  "owner-documents-v1",
+]);
 const aiModelSchema = z.literal("openai/gpt-oss-120b");
 const aiConsentMetadataSchema = z.strictObject({
   provider: aiProviderSchema,
   assistant: aiAssistantSchema,
-  noticeVersion: z.literal("groq-zdr-v1"),
+  noticeVersion: z.enum(["groq-zdr-v1", "groq-zdr-documents-v1"]),
 });
 const aiRequestIdentityShape = {
   provider: aiProviderSchema,
@@ -242,7 +252,7 @@ const aiRequestStartedMetadataSchema = z.strictObject({
 const aiRequestCompletedMetadataSchema = z.strictObject({
   ...aiRequestIdentityShape,
   status: z.literal("SUCCEEDED"),
-  outcome: z.enum(["ANSWER", "REFUSAL", "ESCALATE"]),
+  outcome: z.enum(["ANSWER", "INSUFFICIENT_EVIDENCE", "REFUSAL", "ESCALATE"]),
   inputTokens: z.number().int().min(0).max(100000),
   outputTokens: z.number().int().min(0).max(500),
   totalTokens: z.number().int().min(0).max(100500),
@@ -260,6 +270,60 @@ const aiUsageReadMetadataSchema = z.strictObject({
   from: z.iso.datetime({ offset: false }),
   to: z.iso.datetime({ offset: false }),
   requestCount: z.number().int().min(0),
+});
+const documentAudienceSchema = z.enum(["CUSTOMER", "OWNER"]);
+const documentVersionMetadataSchema = z.strictObject({
+  versionNumber: z.number().int().min(1),
+  audiences: z.array(documentAudienceSchema).min(1).max(2),
+  mediaType: z.enum(["text/plain", "text/markdown"]),
+  language: z.literal("en"),
+});
+const documentContentMetadataSchema = z.strictObject({
+  versionNumber: z.number().int().min(1),
+  byteLength: z.number().int().min(1).max(262144),
+  jobCreated: z.boolean(),
+});
+const documentContentReadMetadataSchema = z.strictObject({
+  versionNumber: z.number().int().min(1),
+  byteLength: z.number().int().min(1).max(262144),
+});
+const documentStatusMetadataSchema = z.strictObject({
+  fromStatus: z.enum(["ACTIVE", "ARCHIVED"]),
+  toStatus: z.enum(["ACTIVE", "ARCHIVED"]),
+});
+const documentDeleteMetadataSchema = z.strictObject({
+  versionCount: z.number().int().min(1),
+  jobCreated: z.boolean(),
+});
+const documentReindexMetadataSchema = z.strictObject({
+  fromIndexVersion: z.number().int().min(1),
+  toIndexVersion: z.number().int().min(2),
+  jobCreated: z.boolean(),
+});
+const documentIngestionCompletedMetadataSchema = z.strictObject({
+  indexVersion: z.number().int().min(1),
+  chunkCount: z.number().int().min(1),
+});
+const documentIngestionFailedMetadataSchema = z.strictObject({
+  indexVersion: z.number().int().min(1),
+  safeErrorCode: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
+});
+const documentDeletionCompletedMetadataSchema = z.strictObject({
+  deletedVersionCount: z.number().int().min(1),
+});
+const documentRecoveryMetadataSchema = z.strictObject({
+  clean: z.boolean(),
+  orphanObjectCount: z.number().int().min(0),
+  missingObjectCount: z.number().int().min(0),
+  unexpectedStorageEntryCount: z.number().int().min(0),
+  orphanVectorVersionCount: z.number().int().min(0),
+  orphanVectorPointCount: z.number().int().min(0),
+  missingVectorVersionCount: z.number().int().min(0),
+  vectorPointCountMismatchVersionCount: z.number().int().min(0),
+});
+const aiDocumentCitationReadMetadataSchema = z.strictObject({
+  assistant: aiAssistantSchema,
+  sourceLabel: z.string().regex(/^S[1-5]$/),
 });
 
 export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
@@ -427,6 +491,66 @@ export const AUDIT_ACTION_DEFINITIONS = Object.freeze({
     targetType: AUDIT_TARGET_TYPES.AI_USAGE_STREAM,
     targetIdRequired: false,
     metadataSchema: aiUsageReadMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_CREATED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT,
+    targetIdRequired: true,
+    metadataSchema: documentVersionMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_VERSION_CREATED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentVersionMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_CONTENT_UPLOADED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentContentMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_CONTENT_READ]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentContentReadMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_STATUS_CHANGED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT,
+    targetIdRequired: true,
+    metadataSchema: documentStatusMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_DELETE_REQUESTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT,
+    targetIdRequired: true,
+    metadataSchema: documentDeleteMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_REINDEX_REQUESTED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentReindexMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_INGESTION_COMPLETED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentIngestionCompletedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_INGESTION_FAILED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT_VERSION,
+    targetIdRequired: true,
+    metadataSchema: documentIngestionFailedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_DELETION_COMPLETED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.COMPANY_DOCUMENT,
+    targetIdRequired: true,
+    metadataSchema: documentDeletionCompletedMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.DOCUMENT_RECOVERY_SCANNED]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.DOCUMENT_RECOVERY,
+    targetIdRequired: false,
+    metadataSchema: documentRecoveryMetadataSchema,
+  }),
+  [AUDIT_ACTIONS.AI_DOCUMENT_CITATION_READ]: Object.freeze({
+    targetType: AUDIT_TARGET_TYPES.AI_DOCUMENT_CITATION,
+    targetIdRequired: true,
+    metadataSchema: aiDocumentCitationReadMetadataSchema,
   }),
 });
 

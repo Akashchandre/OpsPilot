@@ -2,10 +2,11 @@
 
 ## Status and design principles
 
-This document records the accepted Phase 2 identity schema and implemented Phase 3–7 business,
-commerce, support/audit, asynchronous, and AI-foundation persistence, plus conceptual planning for
-later phases. Later feature behavior, tenancy, deletion rules, and production retention remain
-decisions for their owning phases.
+This document records the accepted Phase 2 identity schema and implemented Phase 3–8 business,
+commerce, support/audit, asynchronous, AI-foundation, and document-intelligence persistence, plus
+conceptual planning for later phases. Phase 8 repository/development implementation and verification
+pass and were explicitly accepted on 2026-09-06. Production retention and production storage/vector
+topology remain separate decisions for their owning phases.
 
 - Use MySQL as the source of truth and Prisma for schema/migrations.
 - Phase 2 uses generated UUID strings stored as `CHAR(36)`; later entities should review consistency before choosing another identifier form.
@@ -141,10 +142,32 @@ the unique submission key. The existing serialized audit-chain append also seria
 confirmed-cost plus pending/unknown-hold check. `PENDING` may become `SUCCEEDED`, `FAILED`, or
 `UNKNOWN`; ambiguous work retains its pessimistic cost hold and is never automatically replayed.
 
-Development and test have all 10 migrations applied with no schema difference. Conversation
-tables were deliberately not created.
+Phase 7's 10-migration base remains intact. Conversation tables were deliberately not created.
 
-## Expected entities
+## Implemented Phase 8 document persistence
+
+ADR 0011 adds three Phase 8 migrations:
+`20260905090000_phase_8_rag_documents`,
+`20260905110000_phase_8_chunk_index_generations`, and
+`20260905123000_phase_8_document_idempotency`. They seed the separate document permissions and
+registered document job/AI intent values, and add the following relational source-of-truth records.
+
+| Table | Purpose | Important constraints |
+|---|---|---|
+| `company_documents` | Logical document title, lifecycle, active version, optimistic version, and actor/tombstone metadata | `ACTIVE`/`ARCHIVED`/`DELETING`/`DELETED` lifecycle check; composite active-version foreign key ensures a referenced version belongs to the document; restrictive actors |
+| `company_document_versions` | Immutable upload/version, content-integrity, model/index, processing, and deletion state | Unique document/version number and opaque storage key; strict `.txt`/`.md`, English, 1–262,144-byte normalized-content, model/dimension, timestamp, and lifecycle checks; restrictive document/uploader links |
+| `company_document_version_audiences` | Immutable version visibility | Composite primary key on version/audience; only `CUSTOMER` and `OWNER`; indexed audience lookup |
+| `company_document_chunks` | Opaque deterministic vector-point and byte-range descriptors for each index generation | Unique point ID and `(version, indexVersion, ordinal)`; SHA-256/range checks; no chunk text is stored in MySQL |
+| `ai_document_citations` | Safe link from a completed AI usage event to an opaque source label and document version | Unique usage/label and usage/chunk pairs; labels limited to `S1`–`S5`; retains the version relationship after chunk-descriptor erasure so historical citation evidence is not orphaned |
+| `document_mutation_receipts` | UUID idempotency receipts for document mutations | Unique actor/key and normalized request digest; deliberately no foreign keys to mutable/deletable document rows, so lifecycle cleanup does not invalidate the receipt ledger |
+
+The document-version row records checksums, storage key ID, embedding model/revision/dimension,
+collection, index generation, and status, but never document plaintext. Local encrypted object
+bytes and Qdrant vectors remain outside MySQL. Publishing, superseding, reindexing, and deletion
+are coordinated through the existing registered MySQL job/outbox boundary; a document becomes
+non-retrievable before asynchronous physical cleanup begins.
+
+## Implemented and expected entities
 
 | Entity | Purpose | Key relationships | Planned phase |
 |---|---|---|---:|
@@ -180,9 +203,14 @@ tables were deliberately not created.
 | `notifications` | In-app/delivery notification state | Recipient; related resource | 6 |
 | `ai_provider_consents` | Assistant-scoped, versioned provider-processing consent/revocation without conversation content | User | 7 |
 | `ai_usage_events` | Metadata-only AI request/submission/token/confirmed-cost/reserved-exposure/outcome evidence | User; audit request context | 7 |
-| `documents` | Company document metadata and processing state | Uploader; chunks/index records later | 8 |
+| `company_documents` | Logical document metadata and lifecycle | Creator/updater; immutable versions; current active version | 8 |
+| `company_document_versions` | Immutable source/version processing state | Logical document, uploader, audiences, chunk descriptors | 8 |
+| `company_document_version_audiences` | Immutable customer/owner source visibility | One version; composite unique audience membership | 8 |
+| `company_document_chunks` | Opaque point/range/checksum descriptors | One document version and index generation | 8 |
+| `ai_document_citations` | Metadata-only completed-answer source evidence | AI usage event and document version; opaque chunk ID/label | 8 |
+| `document_mutation_receipts` | Document-operation idempotency evidence | Actor-scoped UUID key and safe target identifiers | 8 |
 
-Employee records, reusable addresses, product images/variants, ticket comments, document chunks,
+Employee records, reusable addresses, product images/variants, ticket comments,
 password reset/verification tokens, notification deliveries, and AI tool executions may need
 separate entities. Persistent `chat_sessions`/`chat_messages` are deliberately absent from the
 implemented stateless Phase 7 baseline and require a later retention/privacy decision. Their need and
@@ -211,14 +239,22 @@ shape are a **Decision Required** in their owning phases.
   submission key, safe lifecycle/outcome, prompt version/model, integer tokens, reserved and
   nullable exact cost ticks, latency, and safe provider/error identifiers. It stores no question,
   answer, reasoning, prompt, or report JSON.
-- A document belongs to the relevant business scope and tracks upload/processing lifecycle; chunks and vector records must preserve document/version/access metadata.
+- A logical document has immutable versions. Only an `ACTIVE` document whose current active version
+  is `READY` can be retrieval context; an audience membership belongs to the version, not to a
+  mutable document-level ACL.
+- A document version has one or more index generations of opaque chunks. Each chunk describes a
+  point ID, byte range, hash, and generation; text remains in encrypted object storage and vectors
+  remain outside MySQL.
+- A document answer may retain source-label/version/chunk identifiers through `ai_document_citations`
+  without retaining a question, answer, excerpt, or raw chunk text. A citation is still subject to
+  current source authorization before it can be read.
 - Audit events form one globally sequenced previous-hash chain rooted in the singleton chain head;
   each event records actor kind, action, outcome, target, request context, safe metadata, key ID,
   and HMAC hash. Registered sensitive mutations append inside their local transaction.
 
 ## Candidate columns and constraints
 
-Implemented Phase 2–7 rows are recorded alongside planning hints for future entities.
+Implemented Phase 2–8 rows are recorded alongside planning hints for future entities.
 
 | Entity | Candidate constraints and important data |
 |---|---|
@@ -247,7 +283,12 @@ Implemented Phase 2–7 rows are recorded alongside planning hints for future en
 | `notifications` | Recipient; monotonic sequence; registered type; safe metadata; exactly one valid linked resource shape; read timestamp; unique dedupe |
 | `ai_provider_consents` | User/provider/assistant/notice-version uniqueness; consent/revocation timestamps; no prompt, answer, or arbitrary policy payload |
 | `ai_usage_events` | User/UUID-submission uniqueness; registered assistant/intent/status/prompt/model; safe provider/error ID; nonnegative integer tokens/reserved and nullable exact cost ticks/latency; consistent pending/completed timestamps; no content |
-| `documents` | Owner/uploader; storage key, display name, MIME/size, checksum/version, processing status; never public raw storage path |
+| `company_documents` | Bounded title; logical lifecycle/tombstone; optimistic version; restrictive creator/updater; active version must belong to the document |
+| `company_document_versions` | Immutable number, allowlisted filename/media type/language, normalized byte length/checksum, opaque encrypted-storage key/key ID, model/index fields, bounded lifecycle, and restrictive document/uploader links; never plaintext or a public path |
+| `company_document_version_audiences` | Composite version/audience membership; only immutable `CUSTOMER` and `OWNER` values |
+| `company_document_chunks` | Opaque UUID point ID, ordinal, byte range, SHA-256, and index generation; unique point and per-generation ordinal; no text |
+| `ai_document_citations` | Usage/version/chunk opaque IDs and source label `S1` through `S5`; unique per usage label and per usage chunk; no excerpt or answer |
+| `document_mutation_receipts` | Actor-scoped UUID idempotency key, request digest, safe document/version/job IDs, and optional index generation; no content and no lifecycle-blocking foreign keys |
 | `audit_chain_heads` / `audit_events` | Singleton sequence/hash head; unique positive event sequence/hash; actor/action/outcome/target/request; previous hash; key ID; redacted metadata |
 
 ## Important indexes
@@ -269,7 +310,9 @@ Indexes must align with chosen tenancy and query patterns. Implemented and futur
 - Notification recipient/sequence and recipient/read/sequence plus linked-resource lookup.
 - AI consent user/provider/version and active/revoked state; AI usage user/UTC creation,
   user/idempotency, status/creation, assistant/intent/creation, and bounded owner usage range.
-- Document business scope/status/creation time/checksum.
+- Document status/update, creator/update actor/time, version status/update, uploader/time, audience/
+  version, opaque storage-key uniqueness, chunk point/range, citation version/chunk, and
+  actor/idempotency-receipt lookup.
 - Audit unique sequence/hash, target/time, actor/time, action/time, and correlation ID.
 - Report covering indexes over captured attempt status/currency/creation/amount and processed refund
   status/currency/update/amount.
@@ -292,7 +335,9 @@ Do not add broad indexes blindly: write amplification, cardinality, prefix limit
   by token and owner; appending attempt outcomes; materializing deduped notifications.
 - Reserving an AI usage event after permission/consent/quota checks; serializing confirmed cost plus
   pending/unknown holds; and recording completion/failure with audit evidence.
-- Publishing a new document version and replacing its searchable index safely.
+- Creating/versioning/uploading a document with its idempotency receipt and registered ingest job;
+  staged index publication/unpublication, replacement, reindex, and deletion with current lifecycle
+  locks and audit evidence.
 
 Payment providers and external queues cannot join database transactions. Phase 4 therefore commits
 local checkout state first, calls Razorpay through an adapter, recovers ambiguous order creation by
@@ -305,8 +350,11 @@ external Razorpay call part of a MySQL transaction.
 
 Phases 4–7 expose no deletion for orders, financial evidence, support history, audit evidence,
 jobs/attempts, notifications, or AI usage evidence and use restrictive foreign keys for historical
-integrity. AI consent is revocable but its evidence row is not deleted. No automatic purge is
-implemented.
+integrity. AI consent is revocable but its evidence row is not deleted. Phase 8 adds a distinct
+fail-closed document lifecycle: a delete request first removes the document from eligible retrieval,
+then the registered job deletes vector points and encrypted objects, erases chunk descriptors, and
+marks document/version tombstones. The owner-only recovery inventory is advisory and does not
+repair or delete data automatically. No general automatic purge is implemented.
 Indefinite development/test retention is temporary behavior, not an approved production policy.
 The final duration remains unresolved: orders, payments, audit events, documents, tickets,
 personal information, jobs/attempts, notifications, AI consent/usage metadata, and future

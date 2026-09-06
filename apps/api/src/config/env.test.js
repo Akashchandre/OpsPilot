@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ConfigurationError, loadEnvironment } from "./env.js";
 
@@ -8,6 +9,7 @@ const validEnvironment = {
   CORS_ORIGIN: "http://127.0.0.1:5173",
   DATABASE_URL: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
 };
+const documentStorageRoot = path.resolve("tmp", "opspilot-documents-test");
 
 describe("loadEnvironment", () => {
   it("normalizes valid configuration", () => {
@@ -55,6 +57,7 @@ describe("loadEnvironment", () => {
         signingKey: undefined,
         signingKeyId: undefined,
         timeoutMs: 22000,
+        documentTimeoutMs: 120000,
         maximumConcurrency: 4,
         customer: {
           burstWindowMinutes: 15,
@@ -68,6 +71,12 @@ describe("loadEnvironment", () => {
         },
         globalDailyCostLimitUsdCents: 200,
         maximumRequestCostUsdCents: 2,
+      },
+      documents: {
+        enabled: false,
+        storage: { adapter: "filesystem", root: undefined },
+        encryption: { key: undefined, keyId: undefined },
+        maximumUploadBytes: 262144,
       },
       payments: {
         reservationTtlMinutes: 15,
@@ -262,5 +271,72 @@ describe("loadEnvironment", () => {
     expect(error).toBeInstanceOf(ConfigurationError);
     expect(error.message).toContain("AUDIT_INTEGRITY_KEY");
     expect(error.message).not.toContain(canary);
+  });
+
+  it("requires complete private document storage configuration when enabled", () => {
+    expect(() => loadEnvironment({ ...validEnvironment, DOCUMENTS_ENABLED: "true" })).toThrow(
+      ConfigurationError,
+    );
+
+    const configured = loadEnvironment({
+      ...validEnvironment,
+      DOCUMENTS_ENABLED: "true",
+      DOCUMENT_STORAGE_ROOT: documentStorageRoot,
+      DOCUMENT_ENCRYPTION_KEY: Buffer.alloc(32, 0x44).toString("base64"),
+      DOCUMENT_ENCRYPTION_KEY_ID: "documents-test-v1",
+    });
+
+    expect(configured.documents).toEqual({
+      enabled: true,
+      storage: { adapter: "filesystem", root: documentStorageRoot },
+      encryption: {
+        key: Buffer.alloc(32, 0x44).toString("base64"),
+        keyId: "documents-test-v1",
+      },
+      maximumUploadBytes: 262144,
+    });
+  });
+
+  it("rejects unsafe document storage configuration without exposing key material", () => {
+    const canary = "canary-document-key";
+    let error;
+
+    try {
+      loadEnvironment({
+        ...validEnvironment,
+        DOCUMENTS_ENABLED: "true",
+        DOCUMENT_STORAGE_ROOT: "relative-documents",
+        DOCUMENT_ENCRYPTION_KEY: canary,
+        DOCUMENT_ENCRYPTION_KEY_ID: "documents-test-v1",
+      });
+    } catch (caughtError) {
+      error = caughtError;
+    }
+
+    expect(error).toBeInstanceOf(ConfigurationError);
+    expect(error.fields).toEqual(
+      expect.arrayContaining(["DOCUMENT_STORAGE_ROOT", "DOCUMENT_ENCRYPTION_KEY"]),
+    );
+    expect(error.message).not.toContain(canary);
+  });
+
+  it("rejects the development filesystem document adapter in production", () => {
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        NODE_ENV: "production",
+        AUTH_COOKIE_SECURE: "true",
+        RAZORPAY_ENABLED: "true",
+        RAZORPAY_KEY_ID: "rzp_test_unitidentifier",
+        RAZORPAY_KEY_SECRET: "safe-test-key-secret",
+        RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
+        AUDIT_INTEGRITY_KEY: Buffer.alloc(32, 0x41).toString("base64"),
+        AUDIT_INTEGRITY_KEY_ID: "production-test-v1",
+        DOCUMENTS_ENABLED: "true",
+        DOCUMENT_STORAGE_ROOT: documentStorageRoot,
+        DOCUMENT_ENCRYPTION_KEY: Buffer.alloc(32, 0x44).toString("base64"),
+        DOCUMENT_ENCRYPTION_KEY_ID: "documents-test-v1",
+      }),
+    ).toThrow(ConfigurationError);
   });
 });

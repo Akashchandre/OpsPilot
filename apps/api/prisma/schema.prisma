@@ -168,6 +168,9 @@ enum BackgroundJobType {
   NOTIFICATION_INVENTORY_LOW
   ORDER_RESERVATION_EXPIRY_SWEEP
   AUDIT_CHAIN_VERIFY
+  DOCUMENT_VERSION_INGEST
+  DOCUMENT_VERSION_DELETE
+  DOCUMENT_VERSION_REINDEX
 }
 
 enum BackgroundJobStatus {
@@ -217,6 +220,8 @@ enum AiAssistant {
 enum AiIntent {
   CUSTOMER_HELP
   OWNER_OVERVIEW_EXPLAIN
+  CUSTOMER_DOCUMENT_QA
+  OWNER_DOCUMENT_QA
 }
 
 enum AiUsageStatus {
@@ -228,40 +233,68 @@ enum AiUsageStatus {
 
 enum AiOutcome {
   ANSWER
+  INSUFFICIENT_EVIDENCE
   REFUSAL
   ESCALATE
 }
 
+enum CompanyDocumentStatus {
+  ACTIVE
+  ARCHIVED
+  DELETING
+  DELETED
+}
+
+enum CompanyDocumentVersionStatus {
+  AWAITING_UPLOAD
+  QUEUED
+  PROCESSING
+  STAGED
+  READY
+  FAILED
+  SUPERSEDED
+  DELETING
+  DELETED
+}
+
+enum CompanyDocumentAudience {
+  CUSTOMER
+  OWNER
+}
+
 model User {
-  id                   String                 @id @default(uuid()) @db.Char(36)
-  email                String                 @unique @db.VarChar(254)
-  passwordHash         String                 @map("password_hash") @db.VarChar(255)
-  displayName          String                 @map("display_name") @db.VarChar(100)
-  status               UserStatus             @default(ACTIVE)
-  failedLoginAttempts  Int                    @default(0) @map("failed_login_attempts")
-  lockedUntil          DateTime?              @map("locked_until") @db.DateTime(3)
-  passwordChangedAt    DateTime               @default(now()) @map("password_changed_at") @db.DateTime(3)
-  createdAt            DateTime               @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt            DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
-  roles                UserRole[]             @relation("UserRoleUser")
-  roleAssignments      UserRole[]             @relation("UserRoleAssigner")
-  sessions             AuthSession[]
-  actorSecurityEvents  SecurityEvent[]        @relation("SecurityEventActor")
-  targetSecurityEvents SecurityEvent[]        @relation("SecurityEventTarget")
-  inventoryAdjustments InventoryAdjustment[]  @relation("InventoryAdjustmentActor")
-  cart                 Cart?
-  orders               Order[]                @relation("OrderCustomer")
-  orderStatusEvents    OrderStatusEvent[]     @relation("OrderStatusEventActor")
-  initiatedRefunds     Refund[]               @relation("RefundActor")
-  requestedTickets     SupportTicket[]        @relation("SupportTicketRequester")
-  assignedTickets      SupportTicket[]        @relation("SupportTicketAssignee")
-  supportMessages      SupportTicketMessage[] @relation("SupportTicketMessageAuthor")
-  supportTicketEvents  SupportTicketEvent[]   @relation("SupportTicketEventActor")
-  auditEvents          AuditEvent[]           @relation("AuditEventActor")
-  sourceJobs           BackgroundJob[]        @relation("BackgroundJobSourceActor")
-  notifications        Notification[]         @relation("NotificationRecipient")
-  aiProviderConsents   AiProviderConsent[]    @relation("AiProviderConsentUser")
-  aiUsageEvents        AiUsageEvent[]         @relation("AiUsageEventUser")
+  id                       String                   @id @default(uuid()) @db.Char(36)
+  email                    String                   @unique @db.VarChar(254)
+  passwordHash             String                   @map("password_hash") @db.VarChar(255)
+  displayName              String                   @map("display_name") @db.VarChar(100)
+  status                   UserStatus               @default(ACTIVE)
+  failedLoginAttempts      Int                      @default(0) @map("failed_login_attempts")
+  lockedUntil              DateTime?                @map("locked_until") @db.DateTime(3)
+  passwordChangedAt        DateTime                 @default(now()) @map("password_changed_at") @db.DateTime(3)
+  createdAt                DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  roles                    UserRole[]               @relation("UserRoleUser")
+  roleAssignments          UserRole[]               @relation("UserRoleAssigner")
+  sessions                 AuthSession[]
+  actorSecurityEvents      SecurityEvent[]          @relation("SecurityEventActor")
+  targetSecurityEvents     SecurityEvent[]          @relation("SecurityEventTarget")
+  inventoryAdjustments     InventoryAdjustment[]    @relation("InventoryAdjustmentActor")
+  cart                     Cart?
+  orders                   Order[]                  @relation("OrderCustomer")
+  orderStatusEvents        OrderStatusEvent[]       @relation("OrderStatusEventActor")
+  initiatedRefunds         Refund[]                 @relation("RefundActor")
+  requestedTickets         SupportTicket[]          @relation("SupportTicketRequester")
+  assignedTickets          SupportTicket[]          @relation("SupportTicketAssignee")
+  supportMessages          SupportTicketMessage[]   @relation("SupportTicketMessageAuthor")
+  supportTicketEvents      SupportTicketEvent[]     @relation("SupportTicketEventActor")
+  auditEvents              AuditEvent[]             @relation("AuditEventActor")
+  sourceJobs               BackgroundJob[]          @relation("BackgroundJobSourceActor")
+  notifications            Notification[]           @relation("NotificationRecipient")
+  aiProviderConsents       AiProviderConsent[]      @relation("AiProviderConsentUser")
+  aiUsageEvents            AiUsageEvent[]           @relation("AiUsageEventUser")
+  createdDocuments         CompanyDocument[]        @relation("CompanyDocumentCreator")
+  updatedDocuments         CompanyDocument[]        @relation("CompanyDocumentUpdater")
+  uploadedDocumentVersions CompanyDocumentVersion[] @relation("CompanyDocumentVersionUploader")
 
   @@index([status])
   @@index([createdAt])
@@ -904,29 +937,30 @@ model AiProviderConsent {
 }
 
 model AiUsageEvent {
-  id                String        @id @default(uuid()) @db.Char(36)
-  userId            String        @map("user_id") @db.Char(36)
-  submissionKey     String        @map("submission_key") @db.Char(36)
+  id                String               @id @default(uuid()) @db.Char(36)
+  userId            String               @map("user_id") @db.Char(36)
+  submissionKey     String               @map("submission_key") @db.Char(36)
   provider          AiProvider
   assistant         AiAssistant
   intent            AiIntent
-  status            AiUsageStatus @default(PENDING)
-  promptVersion     String        @map("prompt_version") @db.VarChar(64)
-  model             String        @db.VarChar(64)
-  providerRequestId String?       @map("provider_request_id") @db.VarChar(128)
-  safeErrorCode     String?       @map("safe_error_code") @db.VarChar(64)
+  status            AiUsageStatus        @default(PENDING)
+  promptVersion     String               @map("prompt_version") @db.VarChar(64)
+  model             String               @db.VarChar(64)
+  providerRequestId String?              @map("provider_request_id") @db.VarChar(128)
+  safeErrorCode     String?              @map("safe_error_code") @db.VarChar(64)
   outcome           AiOutcome?
-  reservedCostTicks BigInt        @map("reserved_cost_ticks") @db.UnsignedBigInt
-  exactCostTicks    BigInt?       @map("exact_cost_ticks") @db.UnsignedBigInt
-  inputTokens       Int?          @map("input_tokens") @db.UnsignedInt
-  outputTokens      Int?          @map("output_tokens") @db.UnsignedInt
-  totalTokens       Int?          @map("total_tokens") @db.UnsignedInt
-  durationMs        Int?          @map("duration_ms") @db.UnsignedInt
-  startedAt         DateTime      @default(now()) @map("started_at") @db.DateTime(3)
-  completedAt       DateTime?     @map("completed_at") @db.DateTime(3)
-  createdAt         DateTime      @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt         DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
-  user              User          @relation("AiUsageEventUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reservedCostTicks BigInt               @map("reserved_cost_ticks") @db.UnsignedBigInt
+  exactCostTicks    BigInt?              @map("exact_cost_ticks") @db.UnsignedBigInt
+  inputTokens       Int?                 @map("input_tokens") @db.UnsignedInt
+  outputTokens      Int?                 @map("output_tokens") @db.UnsignedInt
+  totalTokens       Int?                 @map("total_tokens") @db.UnsignedInt
+  durationMs        Int?                 @map("duration_ms") @db.UnsignedInt
+  startedAt         DateTime             @default(now()) @map("started_at") @db.DateTime(3)
+  completedAt       DateTime?            @map("completed_at") @db.DateTime(3)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.DateTime(3)
+  user              User                 @relation("AiUsageEventUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  documentCitations AiDocumentCitation[]
 
   @@unique([userId, submissionKey], map: "ai_usage_user_submission_key")
   @@index([userId, assistant, createdAt], map: "ai_usage_user_assistant_created_idx")
@@ -934,4 +968,132 @@ model AiUsageEvent {
   @@index([assistant, createdAt], map: "ai_usage_assistant_created_idx")
   @@index([provider, createdAt], map: "ai_usage_provider_created_idx")
   @@map("ai_usage_events")
+}
+
+model CompanyDocument {
+  id              String                   @id @default(uuid()) @db.Char(36)
+  title           String                   @db.VarChar(160)
+  status          CompanyDocumentStatus    @default(ACTIVE)
+  activeVersionId String?                  @map("active_version_id") @db.Char(36)
+  version         Int                      @default(0) @db.UnsignedInt
+  createdById     String                   @map("created_by_id") @db.Char(36)
+  updatedById     String                   @map("updated_by_id") @db.Char(36)
+  deletedAt       DateTime?                @map("deleted_at") @db.DateTime(3)
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy       User                     @relation("CompanyDocumentCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy       User                     @relation("CompanyDocumentUpdater", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions        CompanyDocumentVersion[] @relation("CompanyDocumentVersions")
+  activeVersion   CompanyDocumentVersion?  @relation("CompanyDocumentActiveVersion", fields: [id, activeVersionId], references: [documentId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([id, activeVersionId], map: "company_documents_active_version_key")
+  @@index([status, updatedAt])
+  @@index([createdById, createdAt])
+  @@index([updatedById, updatedAt])
+  @@map("company_documents")
+}
+
+model CompanyDocumentVersion {
+  id                     String                           @id @default(uuid()) @db.Char(36)
+  documentId             String                           @map("document_id") @db.Char(36)
+  versionNumber          Int                              @map("version_number") @db.UnsignedInt
+  status                 CompanyDocumentVersionStatus     @default(AWAITING_UPLOAD)
+  originalFilename       String                           @map("original_filename") @db.VarChar(255)
+  mediaType              String                           @map("media_type") @db.VarChar(64)
+  language               String                           @db.VarChar(8)
+  normalizedByteLength   Int?                             @map("normalized_byte_length") @db.UnsignedInt
+  contentSha256          String?                          @map("content_sha256") @db.Char(64)
+  storageObjectKey       String?                          @unique @map("storage_object_key") @db.VarChar(128)
+  storageKeyId           String?                          @map("storage_key_id") @db.VarChar(64)
+  embeddingModel         String?                          @map("embedding_model") @db.VarChar(128)
+  embeddingModelRevision String?                          @map("embedding_model_revision") @db.VarChar(128)
+  embeddingDimension     Int?                             @map("embedding_dimension") @db.UnsignedInt
+  vectorCollection       String?                          @map("vector_collection") @db.VarChar(64)
+  indexVersion           Int                              @default(1) @map("index_version") @db.UnsignedInt
+  chunkCount             Int?                             @map("chunk_count") @db.UnsignedInt
+  failureCode            String?                          @map("failure_code") @db.VarChar(64)
+  uploadedById           String                           @map("uploaded_by_id") @db.Char(36)
+  uploadedAt             DateTime?                        @map("uploaded_at") @db.DateTime(3)
+  processingStartedAt    DateTime?                        @map("processing_started_at") @db.DateTime(3)
+  readyAt                DateTime?                        @map("ready_at") @db.DateTime(3)
+  supersededAt           DateTime?                        @map("superseded_at") @db.DateTime(3)
+  deletedAt              DateTime?                        @map("deleted_at") @db.DateTime(3)
+  version                Int                              @default(0) @db.UnsignedInt
+  createdAt              DateTime                         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt              DateTime                         @updatedAt @map("updated_at") @db.DateTime(3)
+  document               CompanyDocument                  @relation("CompanyDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  activeForDocument      CompanyDocument?                 @relation("CompanyDocumentActiveVersion")
+  uploadedBy             User                             @relation("CompanyDocumentVersionUploader", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  audiences              CompanyDocumentVersionAudience[]
+  chunks                 CompanyDocumentChunk[]
+  citations              AiDocumentCitation[]
+
+  @@unique([documentId, versionNumber], map: "company_document_versions_number_key")
+  @@unique([documentId, id], map: "company_document_versions_document_id_id_key")
+  @@index([status, updatedAt])
+  @@index([uploadedById, createdAt])
+  @@map("company_document_versions")
+}
+
+model CompanyDocumentVersionAudience {
+  documentVersionId String                  @map("document_version_id") @db.Char(36)
+  audience          CompanyDocumentAudience
+  createdAt         DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  documentVersion   CompanyDocumentVersion  @relation(fields: [documentVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([documentVersionId, audience])
+  @@index([audience, documentVersionId], map: "doc_version_audience_lookup_idx")
+  @@map("company_document_version_audiences")
+}
+
+model CompanyDocumentChunk {
+  id                String                 @id @default(uuid()) @db.Char(36)
+  documentVersionId String                 @map("document_version_id") @db.Char(36)
+  pointId           String                 @unique @map("point_id") @db.Char(36)
+  ordinal           Int                    @db.UnsignedInt
+  byteStart         Int                    @map("byte_start") @db.UnsignedInt
+  byteEnd           Int                    @map("byte_end") @db.UnsignedInt
+  contentSha256     String                 @map("content_sha256") @db.Char(64)
+  indexVersion      Int                    @map("index_version") @db.UnsignedInt
+  createdAt         DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  documentVersion   CompanyDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([documentVersionId, indexVersion, ordinal], map: "company_document_chunks_index_ordinal_key")
+  @@unique([documentVersionId, id], map: "company_document_chunks_version_id_id_key")
+  @@index([documentVersionId, byteStart, byteEnd], map: "doc_chunk_byte_range_idx")
+  @@map("company_document_chunks")
+}
+
+model AiDocumentCitation {
+  id                String                 @id @default(uuid()) @db.Char(36)
+  usageEventId      String                 @map("usage_event_id") @db.Char(36)
+  documentVersionId String                 @map("document_version_id") @db.Char(36)
+  chunkId           String                 @map("chunk_id") @db.Char(36)
+  sourceLabel       String                 @map("source_label") @db.VarChar(16)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  usageEvent        AiUsageEvent           @relation(fields: [usageEventId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  documentVersion   CompanyDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([usageEventId, sourceLabel], map: "ai_document_citations_source_label_key")
+  @@unique([usageEventId, chunkId], map: "ai_document_citations_chunk_key")
+  @@index([documentVersionId, chunkId])
+  @@map("ai_document_citations")
+}
+
+model DocumentMutationReceipt {
+  id                 String   @id @default(uuid()) @db.Char(36)
+  actorUserId        String   @map("actor_user_id") @db.Char(36)
+  idempotencyKey     String   @map("idempotency_key") @db.Char(36)
+  operation          String   @db.VarChar(64)
+  requestHash        String   @map("request_hash") @db.Char(64)
+  documentId         String?  @map("document_id") @db.Char(36)
+  documentVersionId  String?  @map("document_version_id") @db.Char(36)
+  jobId              String?  @map("job_id") @db.Char(36)
+  targetIndexVersion Int?     @map("target_index_version") @db.UnsignedInt
+  createdAt          DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@unique([actorUserId, idempotencyKey], map: "document_mutation_actor_idempotency_key")
+  @@index([documentId, createdAt], map: "document_mutation_document_created_idx")
+  @@index([documentVersionId, createdAt], map: "document_mutation_version_created_idx")
+  @@map("document_mutation_receipts")
 }

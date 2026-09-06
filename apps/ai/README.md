@@ -1,8 +1,8 @@
 # OpsPilot AI Service
 
-Internal-only Python/FastAPI policy and Groq provider boundary for Phase 7. The browser never
-calls this service, it has no CORS or database credential, and provider access is disabled by
-default.
+Internal-only Python/FastAPI policy, Groq provider, and Phase 8 local retrieval boundary. The
+browser never calls this service, it has no CORS or database/object-store credential, and provider
+and RAG access are disabled by default.
 
 ## Local environment
 
@@ -93,5 +93,40 @@ $env:OPSPILOT_NODE_BINARY=(Get-Command node).Source
 & .\.venv\Scripts\python.exe -m pytest tests\test_cross_service.py -q
 ```
 
-See `docs/phase-7/PHASE-07-OPERATIONS-RUNBOOK.md` for startup, rotation, outage, unknown-outcome,
-and rollback guidance. Phase 7 is not production deployment approval.
+## Phase 8 local retrieval
+
+The accepted development adapter uses the exact cached
+`sentence-transformers/all-MiniLM-L6-v2` revision recorded in configuration and a private local
+Qdrant directory. Set `AI_RAG_MODEL_CACHE_DIR` and `AI_RAG_QDRANT_PATH` to absolute, distinct paths
+outside the repository. Keep `AI_RAG_ENABLED=false` until the approved model is fully cached. Local
+Qdrant mode is single-process and rejected in production.
+
+Run the offline 50-case retrieval/isolation/deletion benchmark only against the approved cache:
+
+```powershell
+$env:OPSPILOT_RAG_EVAL='true'
+$env:AI_RAG_MODEL_CACHE_DIR='C:\private\approved-minilm-cache'
+& .\.venv\Scripts\python.exe -m evaluation.run_rag_evaluation
+```
+
+The explicit metered document-answer gate makes 54 fixed synthetic Groq calls, paced by eight
+seconds. It emits safe case IDs, outcome/schema/rubric status, timing, tokens, cost, and aggregates;
+it never emits questions, answers, source passages, provider bodies, or secrets:
+
+```powershell
+$env:OPSPILOT_LIVE_RAG_ANSWER_EVAL='true'
+& .\.venv\Scripts\python.exe -m evaluation.run_document_answer_evaluation
+```
+
+Run the separate signed Node-to-FastAPI-to-Groq five-case live sample only with explicit metered
+opt-in:
+
+```powershell
+$env:OPSPILOT_RUN_LIVE_RAG_CROSS_SERVICE='true'
+$env:OPSPILOT_NODE_BINARY=(Get-Command node).Source
+& .\.venv\Scripts\python.exe -m pytest tests\test_cross_service.py -q -s -k live_node_to_fastapi
+```
+
+See the Phase 7 and Phase 8 operations runbooks for startup, rotation, outage, unknown-outcome,
+document recovery, and rollback guidance. Repository/development completion is not production
+deployment approval.

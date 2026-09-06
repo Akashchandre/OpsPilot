@@ -5,7 +5,14 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**", "**/src/generated/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/.venv/**",
+      "**/__pycache__/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "**/src/generated/**",
+    ],
   },
   eslint.configs.recommended,
   {

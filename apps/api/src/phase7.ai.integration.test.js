@@ -29,6 +29,7 @@ function providerResult(payload, overrides = {}) {
     answer: "Use the Orders page to review the latest status.",
     outcome: "ANSWER",
     notices: ["VERIFY_AUTHORITATIVE_DATA"],
+    citations: [],
     promptVersion:
       payload.assistant === AI_ASSISTANTS.CUSTOMER
         ? AI_PROMPT_VERSIONS.CUSTOMER

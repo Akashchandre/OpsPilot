@@ -40,4 +40,32 @@ describe("background-job descriptors", () => {
     expect(minuteScheduleBucket(time)).toBe("2026-08-28T12:34:00.000Z");
     expect(dayScheduleBucket(time)).toBe("2026-08-28");
   });
+
+  it("accepts ID-only document lifecycle payloads and rejects content", () => {
+    const documentVersionId = "30000000-0000-4000-8000-000000000001";
+    expect(
+      validateJobPayload(JOB_TYPES.DOCUMENT_VERSION_INGEST, 1, {
+        documentVersionId,
+        indexVersion: 1,
+      }),
+    ).toEqual({ documentVersionId, indexVersion: 1 });
+    expect(
+      validateJobPayload(JOB_TYPES.DOCUMENT_VERSION_REINDEX, 1, {
+        documentVersionId,
+        indexVersion: 2,
+      }),
+    ).toEqual({ documentVersionId, indexVersion: 2 });
+    expect(
+      validateJobPayload(JOB_TYPES.DOCUMENT_VERSION_DELETE, 1, {
+        documentId: "30000000-0000-4000-8000-000000000002",
+      }),
+    ).toEqual({ documentId: "30000000-0000-4000-8000-000000000002" });
+    expect(() =>
+      validateJobPayload(JOB_TYPES.DOCUMENT_VERSION_INGEST, 1, {
+        documentVersionId,
+        indexVersion: 1,
+        content: "must never enter the job table",
+      }),
+    ).toThrow(expect.objectContaining({ code: JOB_ERROR_CODES.PAYLOAD_INVALID }));
+  });
 });

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from ..contracts import StructuredProviderOutput
+from ..contracts import DocumentStructuredProviderOutput, StructuredProviderOutput
 from ..errors import AiServiceError
 from ..prompts import RenderedPrompt
 
@@ -24,7 +24,7 @@ class ProviderUsage:
 
 @dataclass(frozen=True, slots=True)
 class ProviderResult:
-    output: StructuredProviderOutput
+    output: StructuredProviderOutput | DocumentStructuredProviderOutput
     model: str
     request_id: str
     usage: ProviderUsage

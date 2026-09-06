@@ -5,11 +5,13 @@ import { loadEnvironment } from "./config/env.js";
 import { createDatabase } from "./db/prisma.js";
 import { createJsonLogger } from "./logging/logger.js";
 import { attachNotificationGateway } from "./realtime/notifications.gateway.js";
+import { createConfiguredDocumentStore } from "./modules/documents/document.store.factory.js";
 
 const config = loadEnvironment();
 const database = createDatabase(config.databaseUrl);
 const logger = createJsonLogger(config);
-const app = createApp({ config, database, logger });
+const documentStore = await createConfiguredDocumentStore(config);
+const app = createApp({ config, database, documentStore, logger });
 const server = createServer(app);
 const realtime = await attachNotificationGateway({ httpServer: server, database, config, logger });
 

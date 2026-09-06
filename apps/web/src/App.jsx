@@ -9,6 +9,11 @@ import { CatalogAdminPage } from "./pages/CatalogAdminPage.jsx";
 import { CheckoutPage } from "./pages/CheckoutPage.jsx";
 import { CustomerAssistantPage } from "./pages/CustomerAssistantPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
+import {
+  CustomerDocumentAssistantPage,
+  OwnerDocumentAssistantPage,
+} from "./pages/DocumentAssistantPage.jsx";
+import { DocumentsPage } from "./pages/DocumentsPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { InventoryPage } from "./pages/InventoryPage.jsx";
 import { JobsPage } from "./pages/JobsPage.jsx";
@@ -111,6 +116,16 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="assistant/documents"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="ai:customer:use">
+                <CustomerDocumentAssistantPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="admin/catalog"
           element={
             <ProtectedRoute>
@@ -176,6 +191,26 @@ export function AppRoutes() {
             <ProtectedRoute>
               <PermissionRoute permission="jobs:read">
                 <JobsPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/documents"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="documents:read">
+                <DocumentsPage />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/document-assistant"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission="ai:owner:use">
+                <OwnerDocumentAssistantPage />
               </PermissionRoute>
             </ProtectedRoute>
           }

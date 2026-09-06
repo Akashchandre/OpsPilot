@@ -160,13 +160,45 @@ class OwnerOverviewContext(StrictContract):
     overview: OwnerOverview
 
 
+class DocumentSource(StrictContract):
+    label: StrictStr = Field(pattern=r"^S[1-5]$")
+    excerpt: StrictStr = Field(min_length=1, max_length=1_200)
+
+    @field_validator("excerpt")
+    @classmethod
+    def require_safe_excerpt(cls, value: str) -> str:
+        if unicodedata.normalize("NFC", value) != value or value.strip() != value:
+            raise ValueError("document excerpt must be normalized")
+        for character in value:
+            if character in {"\n", "\t"}:
+                continue
+            if unicodedata.category(character).startswith("C"):
+                raise ValueError("document excerpt contains disallowed characters")
+        return value
+
+
+class DocumentContext(StrictContract):
+    sources: list[DocumentSource] = Field(max_length=5)
+
+    @field_validator("sources")
+    @classmethod
+    def require_ordered_bounded_sources(cls, value: list[DocumentSource]) -> list[DocumentSource]:
+        expected_labels = [f"S{index}" for index in range(1, len(value) + 1)]
+        if [source.label for source in value] != expected_labels:
+            raise ValueError("document sources must use ordered unique labels")
+        total_bytes = sum(len(source.excerpt.encode("utf-8")) for source in value)
+        if total_bytes > 8_000:
+            raise ValueError("document context exceeds the approved byte limit")
+        return value
+
+
 class InternalResponseRequest(StrictContract):
     contract_version: Literal[INTERNAL_CONTRACT_VERSION] = Field(alias="contractVersion")
     subject_id: UUID = Field(alias="subjectId")
     assistant: AssistantKind
     intent: AssistantIntent
     question: StrictStr = Field(min_length=1, max_length=2_000)
-    context: OwnerOverviewContext | None = None
+    context: OwnerOverviewContext | DocumentContext | None = None
 
     @field_validator("question")
     @classmethod
@@ -181,11 +213,21 @@ class InternalResponseRequest(StrictContract):
 
     @model_validator(mode="after")
     def require_registered_scope(self) -> "InternalResponseRequest":
-        if self.assistant == AssistantKind.CUSTOMER:
-            if self.intent != AssistantIntent.CUSTOMER_HELP or self.context is not None:
+        if self.intent == AssistantIntent.CUSTOMER_HELP:
+            if self.assistant != AssistantKind.CUSTOMER or self.context is not None:
                 raise ValueError("customer assistant scope is invalid")
-        elif self.intent != AssistantIntent.OWNER_OVERVIEW_EXPLAIN or self.context is None:
-            raise ValueError("owner assistant scope is invalid")
+        elif self.intent == AssistantIntent.OWNER_OVERVIEW_EXPLAIN:
+            if self.assistant != AssistantKind.OWNER or not isinstance(
+                self.context, OwnerOverviewContext
+            ):
+                raise ValueError("owner assistant scope is invalid")
+        elif self.intent == AssistantIntent.CUSTOMER_DOCUMENT_QA:
+            if self.assistant != AssistantKind.CUSTOMER or not isinstance(
+                self.context, DocumentContext
+            ):
+                raise ValueError("customer document scope is invalid")
+        elif self.assistant != AssistantKind.OWNER or not isinstance(self.context, DocumentContext):
+            raise ValueError("owner document scope is invalid")
         return self
 
 
@@ -223,6 +265,46 @@ class StructuredProviderOutput(StrictContract):
             raise ValueError("notices must be unique")
         return value
 
+    @model_validator(mode="after")
+    def reject_document_only_outcome(self) -> "StructuredProviderOutput":
+        if self.outcome == Outcome.INSUFFICIENT_EVIDENCE:
+            raise ValueError("the standard assistant cannot use a document-only outcome")
+        return self
+
+
+class DocumentStructuredProviderOutput(StrictContract):
+    answer: StrictStr = Field(min_length=1, max_length=MAX_ANSWER_CHARACTERS)
+    outcome: Outcome
+    citations: list[StrictStr] = Field(max_length=5)
+    notices: list[SafeNotice] = Field(max_length=3)
+
+    @field_validator("answer")
+    @classmethod
+    def require_plain_text_answer(cls, value: str) -> str:
+        return StructuredProviderOutput.require_plain_text_answer(value)
+
+    @field_validator("citations")
+    @classmethod
+    def require_unique_source_labels(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)) or any(
+            re.fullmatch(r"S[1-5]", label) is None for label in value
+        ):
+            raise ValueError("citations must use unique bounded source labels")
+        return value
+
+    @field_validator("notices")
+    @classmethod
+    def require_unique_notices(cls, value: list[SafeNotice]) -> list[SafeNotice]:
+        return StructuredProviderOutput.require_unique_notices(value)
+
+    @model_validator(mode="after")
+    def require_citations_for_answers_only(self) -> "DocumentStructuredProviderOutput":
+        if self.outcome == Outcome.ANSWER and not self.citations:
+            raise ValueError("a document answer requires a citation")
+        if self.outcome != Outcome.ANSWER and self.citations:
+            raise ValueError("a non-answer cannot cite a document source")
+        return self
+
 
 PROVIDER_OUTPUT_JSON_SCHEMA = {
     "type": "object",
@@ -232,7 +314,11 @@ PROVIDER_OUTPUT_JSON_SCHEMA = {
         },
         "outcome": {
             "type": "string",
-            "enum": [outcome.value for outcome in Outcome],
+            "enum": [
+                Outcome.ANSWER.value,
+                Outcome.REFUSAL.value,
+                Outcome.ESCALATE.value,
+            ],
         },
         "notices": {
             "type": "array",
@@ -243,5 +329,36 @@ PROVIDER_OUTPUT_JSON_SCHEMA = {
         },
     },
     "required": ["answer", "outcome", "notices"],
+    "additionalProperties": False,
+}
+
+DOCUMENT_PROVIDER_OUTPUT_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {
+            "type": "string",
+            "description": (
+                "Non-empty plain text. For INSUFFICIENT_EVIDENCE use the exact fallback sentence "
+                "specified by the system instructions."
+            ),
+        },
+        "outcome": {
+            "type": "string",
+            "enum": [outcome.value for outcome in Outcome],
+        },
+        "citations": {
+            "type": "array",
+            "items": {"type": "string", "enum": [f"S{index}" for index in range(1, 6)]},
+            "description": "Use source labels only for ANSWER; use an empty array otherwise.",
+        },
+        "notices": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [notice.value for notice in SafeNotice],
+            },
+        },
+    },
+    "required": ["answer", "outcome", "citations", "notices"],
     "additionalProperties": False,
 }

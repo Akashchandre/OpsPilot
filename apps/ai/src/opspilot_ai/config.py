@@ -9,6 +9,32 @@ from pydantic import AliasChoices, Field, SecretStr, field_validator, model_vali
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AI_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = AI_ROOT.parents[1]
+WEB_ROOT = REPOSITORY_ROOT / "apps" / "web"
+WEB_PUBLIC_ROOT = WEB_ROOT / "public"
+WEB_BUILD_ROOT = WEB_ROOT / "dist"
+RAG_RESTRICTED_PATH_ROOTS = (
+    REPOSITORY_ROOT,
+    WEB_ROOT,
+    WEB_PUBLIC_ROOT,
+    WEB_BUILD_ROOT,
+)
+RAG_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+RAG_EMBEDDING_MODEL_REVISION = "5f1b8cd78bc4fb444dd171e59b18f3a3af89a079"
+
+
+def _is_same_or_nested_path(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _paths_overlap(path: Path, restricted_root: Path) -> bool:
+    return _is_same_or_nested_path(path, restricted_root) or _is_same_or_nested_path(
+        restricted_root, path
+    )
 
 
 class AiSettings(BaseSettings):
@@ -70,6 +96,17 @@ class AiSettings(BaseSettings):
         le=4,
         alias="AI_MAX_CONCURRENCY",
     )
+    rag_enabled: bool = Field(default=False, alias="AI_RAG_ENABLED")
+    rag_model_cache_dir: Path | None = Field(default=None, alias="AI_RAG_MODEL_CACHE_DIR")
+    rag_qdrant_path: Path | None = Field(default=None, alias="AI_RAG_QDRANT_PATH")
+    rag_collection_name: str = Field(
+        default="opspilot_documents_v1",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z][a-z0-9_]{0,63}$",
+        alias="AI_RAG_COLLECTION_NAME",
+    )
+    rag_embedding_threads: int = Field(default=1, ge=1, le=1, alias="AI_RAG_EMBEDDING_THREADS")
 
     @field_validator("host")
     @classmethod
@@ -115,7 +152,32 @@ class AiSettings(BaseSettings):
                 raise ValueError(
                     "GROQ_ZERO_DATA_RETENTION_CONFIRMED must be true when AI_PROVIDER_ENABLED=true"
                 )
+        if self.rag_enabled:
+            if self.environment == "production":
+                raise ValueError("Local Phase 8 RAG persistence is not approved for production")
+            for field_name in ("rag_model_cache_dir", "rag_qdrant_path"):
+                configured_path = getattr(self, field_name)
+                if configured_path is None:
+                    raise ValueError(f"{field_name} is required when AI_RAG_ENABLED=true")
+                if not configured_path.is_absolute():
+                    raise ValueError(f"{field_name} must be an absolute path")
+                resolved_path = configured_path.resolve()
+                if any(
+                    _paths_overlap(resolved_path, restricted_root.resolve())
+                    for restricted_root in RAG_RESTRICTED_PATH_ROOTS
+                ):
+                    raise ValueError(f"{field_name} must be outside repository and public roots")
+            if self.rag_model_cache_dir == self.rag_qdrant_path:
+                raise ValueError("AI_RAG_MODEL_CACHE_DIR and AI_RAG_QDRANT_PATH must be different")
         return self
+
+    @property
+    def rag_embedding_model(self) -> str:
+        return RAG_EMBEDDING_MODEL
+
+    @property
+    def rag_embedding_model_revision(self) -> str:
+        return RAG_EMBEDDING_MODEL_REVISION
 
     def signing_key_bytes(self) -> bytes:
         return base64.b64decode(self.signing_key.get_secret_value(), validate=True)

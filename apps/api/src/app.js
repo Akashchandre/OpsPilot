@@ -21,6 +21,7 @@ export function createApp({
   database,
   paymentProvider = createRazorpayAdapter(config),
   aiClient,
+  documentStore = null,
   logger = createJsonLogger(config),
 }) {
   const app = express();
@@ -51,7 +52,10 @@ export function createApp({
   app.use("/api/v1", createApiRateLimiter(config));
   app.use(requireTrustedOrigin(config.corsOrigin));
 
-  app.use("/api/v1", createApiRouter(database, config, paymentProvider, selectedAiClient));
+  app.use(
+    "/api/v1",
+    createApiRouter(database, config, paymentProvider, selectedAiClient, documentStore),
+  );
 
   app.use(notFound);
   app.use(errorHandler);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { acceptAiConsent, getAiConsent, revokeAiConsent } from "../api/ai.js";
 
-export function useAiConsent(assistant) {
+export function useAiConsent(assistant, { documents = false } = {}) {
   const [state, setState] = useState({
     status: "loading",
     consent: null,
@@ -12,7 +12,7 @@ export function useAiConsent(assistant) {
     async ({ signal } = {}) => {
       setState((current) => ({ ...current, status: "loading", error: "" }));
       try {
-        const consent = await getAiConsent(assistant, { signal });
+        const consent = await getAiConsent(assistant, { signal, documents });
         setState({ status: "ready", consent, error: "" });
         return consent;
       } catch (error) {
@@ -22,7 +22,7 @@ export function useAiConsent(assistant) {
         return null;
       }
     },
-    [assistant],
+    [assistant, documents],
   );
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function useAiConsent(assistant) {
   async function accept() {
     setState((current) => ({ ...current, status: "saving", error: "" }));
     try {
-      const consent = await acceptAiConsent(assistant);
+      const consent = await acceptAiConsent(assistant, { documents });
       setState({ status: "ready", consent, error: "" });
       return consent;
     } catch (error) {
@@ -46,7 +46,7 @@ export function useAiConsent(assistant) {
   async function revoke() {
     setState((current) => ({ ...current, status: "saving", error: "" }));
     try {
-      const consent = await revokeAiConsent(assistant);
+      const consent = await revokeAiConsent(assistant, { documents });
       setState({ status: "ready", consent, error: "" });
       return consent;
     } catch (error) {

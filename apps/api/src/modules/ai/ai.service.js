@@ -10,14 +10,15 @@ import {
 } from "../audit/audit.constants.js";
 import { createAuditService } from "../audit/audit.service.js";
 import { createReportsService } from "../reports/reports.service.js";
+import { createDocumentRetrievalService } from "../documents/document.retrieval.js";
 import {
   AI_ASSISTANTS,
   AI_COST_TICKS_PER_USD_CENT,
   AI_INTERNAL_CONTRACT_VERSION,
   AI_MODEL,
-  AI_NOTICE_VERSION,
   AI_PROVIDER,
   AI_USAGE_STATUSES,
+  documentPolicyForAssistant,
   policyForAssistant,
 } from "./ai.constants.js";
 import {
@@ -28,6 +29,8 @@ import {
   aiCostCeilingReached,
   aiDailyQuotaReached,
   aiDisabled,
+  aiDocumentCitationNotFound,
+  aiDocumentsDisabled,
   aiProviderUnavailable,
   aiRecordingFailed,
   aiRequestInFlight,
@@ -73,14 +76,14 @@ async function currentUser(transaction, userId) {
   });
 }
 
-async function hasCurrentConsent(transaction, userId, assistant) {
+async function hasCurrentConsent(transaction, userId, assistant, noticeVersion) {
   const consent = await transaction.aiProviderConsent.findUnique({
     where: {
       userId_provider_assistant_noticeVersion: {
         userId,
         provider: AI_PROVIDER,
         assistant,
-        noticeVersion: AI_NOTICE_VERSION,
+        noticeVersion,
       },
     },
     select: { revokedAt: true },
@@ -122,6 +125,15 @@ function formatUsdTicks(value) {
 export function createAiService(database, config, internalClient, dependencies = {}) {
   const audit = createAuditService(database, config);
   const reports = dependencies.reports ?? createReportsService(database, config);
+  const documentRetrieval =
+    dependencies.documentRetrieval ??
+    createDocumentRetrievalService(
+      database,
+      config,
+      dependencies.documentStore ?? null,
+      internalClient,
+      dependencies.documentRetrievalDependencies,
+    );
   const now = dependencies.now ?? (() => new Date());
   const idFactory = dependencies.idFactory ?? randomUUID;
   const gate = dependencies.gate ?? new InFlightGate(config.ai?.maximumConcurrency ?? 4);
@@ -168,8 +180,7 @@ export function createAiService(database, config, internalClient, dependencies =
     }
   }
 
-  async function reserve({ userId, assistant, submissionKey, requestId }) {
-    const policy = policyForAssistant(assistant);
+  async function reserve({ userId, assistant, submissionKey, requestId, policy }) {
     const timestamp = now();
     const dayStart = startOfUtcDay(timestamp);
     const reservedCostTicks =
@@ -191,7 +202,7 @@ export function createAiService(database, config, internalClient, dependencies =
           select: { id: true },
         });
         if (existing) throw aiSubmissionConsumed();
-        if (!(await hasCurrentConsent(transaction, userId, assistant))) {
+        if (!(await hasCurrentConsent(transaction, userId, assistant, policy.noticeVersion))) {
           throw aiConsentRequired();
         }
 
@@ -306,9 +317,8 @@ export function createAiService(database, config, internalClient, dependencies =
     );
   }
 
-  async function finalizeSuccess(event, providerResult, durationMs, requestId) {
+  async function finalizeSuccess(event, providerResult, durationMs, requestId, policy, sources) {
     const completedAt = now();
-    const policy = policyForAssistant(event.assistant);
     return database.$transaction(
       async (transaction) => {
         await lockUser(transaction, event.userId);
@@ -317,8 +327,22 @@ export function createAiService(database, config, internalClient, dependencies =
           throw new Error("AI usage event is not pending");
         }
         const user = await currentUser(transaction, event.userId);
-        const consentActive = await hasCurrentConsent(transaction, event.userId, event.assistant);
-        const authorizedToReturn = isAuthorized(user, policy) && consentActive;
+        const consentActive = await hasCurrentConsent(
+          transaction,
+          event.userId,
+          event.assistant,
+          policy.noticeVersion,
+        );
+        let authorizedToReturn = isAuthorized(user, policy) && consentActive;
+        let authorizedSources = null;
+        if (authorizedToReturn && policy.document) {
+          authorizedSources = await documentRetrieval.reauthorize(
+            transaction,
+            sources ?? [],
+            event.assistant,
+          );
+          authorizedToReturn = authorizedSources !== null;
+        }
         const usage = providerResult.usage;
 
         await audit.append(transaction, {
@@ -355,7 +379,32 @@ export function createAiService(database, config, internalClient, dependencies =
             completedAt,
           },
         });
-        return authorizedToReturn;
+        const citations = [];
+        if (authorizedToReturn && policy.document) {
+          const byLabel = new Map(authorizedSources.map((source) => [source.label, source]));
+          for (const sourceLabel of providerResult.citations) {
+            const source = byLabel.get(sourceLabel);
+            if (!source) throw new Error("AI citation source is not authorized");
+            const citation = await transaction.aiDocumentCitation.create({
+              data: {
+                usageEventId: event.id,
+                documentVersionId: source.documentVersionId,
+                chunkId: source.chunkId,
+                sourceLabel,
+              },
+              select: { id: true },
+            });
+            citations.push({
+              id: citation.id,
+              label: sourceLabel,
+              documentId: source.documentId,
+              title: source.title,
+              versionNumber: source.versionNumber,
+              excerpt: source.excerpt,
+            });
+          }
+        }
+        return { authorizedToReturn, citations };
       },
       { isolationLevel: "Serializable" },
     );
@@ -369,14 +418,27 @@ export function createAiService(database, config, internalClient, dependencies =
     }
   }
 
-  async function runAssistant({ userId, assistant, submissionKey, question, requestId, context }) {
+  async function runAssistant({
+    userId,
+    assistant,
+    submissionKey,
+    question,
+    requestId,
+    context,
+    policy = policyForAssistant(assistant),
+  }) {
     assertEnabled();
     return gate.run(async () => {
-      const event = await reserve({ userId, assistant, submissionKey, requestId });
+      const event = await reserve({ userId, assistant, submissionKey, requestId, policy });
       const callStartedAt = Date.now();
       let resolvedContext;
+      let sources = null;
       try {
         resolvedContext = context ? await context() : null;
+        if (resolvedContext?.internalContext) {
+          sources = resolvedContext.sources;
+          resolvedContext = resolvedContext.internalContext;
+        }
       } catch {
         const durationMs = durationSince(callStartedAt);
         await finalizeFailure(event, "AI_CONTEXT_UNAVAILABLE", "RELEASE", durationMs, requestId);
@@ -398,8 +460,20 @@ export function createAiService(database, config, internalClient, dependencies =
         );
         if (
           providerResult.promptVersion !== event.promptVersion ||
-          providerResult.model !== event.model
+          providerResult.model !== event.model ||
+          !Array.isArray(providerResult.citations)
         ) {
+          throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
+        }
+        const citations = providerResult.citations;
+        if (policy.document) {
+          const sourceLabels = new Set((sources ?? []).map((source) => source.label));
+          const citationsValid =
+            new Set(citations).size === citations.length &&
+            citations.every((label) => sourceLabels.has(label)) &&
+            (providerResult.outcome === "ANSWER" ? citations.length > 0 : citations.length === 0);
+          if (!citationsValid) throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
+        } else if (citations.length > 0 || providerResult.outcome === "INSUFFICIENT_EVIDENCE") {
           throw new AiInternalClientError("AI_SERVICE_INVALID_RESPONSE");
         }
       } catch (error) {
@@ -426,20 +500,28 @@ export function createAiService(database, config, internalClient, dependencies =
       const durationMs = durationSince(callStartedAt);
       const costPolicyExceeded =
         BigInt(providerResult.usage.costInUsdTicks) > event.reservedCostTicks;
-      let authorizedToReturn;
+      let finalized;
       try {
-        authorizedToReturn = await finalizeSuccess(event, providerResult, durationMs, requestId);
+        finalized = await finalizeSuccess(
+          event,
+          providerResult,
+          durationMs,
+          requestId,
+          policy,
+          sources,
+        );
       } catch {
         await bestEffortUnknown(event, durationMs, requestId);
         throw aiRecordingFailed();
       }
       if (costPolicyExceeded) throw aiCostPolicyExceeded();
-      if (!authorizedToReturn) throw aiAuthorizationChanged();
+      if (!finalized.authorizedToReturn) throw aiAuthorizationChanged();
 
       return {
         answer: providerResult.answer,
         outcome: providerResult.outcome,
         notices: providerResult.notices,
+        ...(policy.document ? { citations: finalized.citations } : {}),
       };
     });
   }
@@ -469,6 +551,91 @@ export function createAiService(database, config, internalClient, dependencies =
         },
       });
       return { overview, response };
+    },
+
+    async customerDocuments({ userId, submissionKey, question, requestId }) {
+      if (!config.documents?.enabled) throw aiDocumentsDisabled();
+      return runAssistant({
+        userId,
+        assistant: AI_ASSISTANTS.CUSTOMER,
+        submissionKey,
+        question,
+        requestId,
+        policy: documentPolicyForAssistant(AI_ASSISTANTS.CUSTOMER),
+        context: () => documentRetrieval.retrieve({ assistant: AI_ASSISTANTS.CUSTOMER, question }),
+      });
+    },
+
+    async ownerDocuments({ userId, submissionKey, question, requestId }) {
+      if (!config.documents?.enabled) throw aiDocumentsDisabled();
+      return runAssistant({
+        userId,
+        assistant: AI_ASSISTANTS.OWNER,
+        submissionKey,
+        question,
+        requestId,
+        policy: documentPolicyForAssistant(AI_ASSISTANTS.OWNER),
+        context: () => documentRetrieval.retrieve({ assistant: AI_ASSISTANTS.OWNER, question }),
+      });
+    },
+
+    async citation({ userId, citationId, requestId }) {
+      assertEnabled();
+      if (!config.documents?.enabled) throw aiDocumentsDisabled();
+      let resolved;
+      try {
+        resolved = await documentRetrieval.citationSource({ userId, citationId });
+      } catch {
+        throw aiContextUnavailable();
+      }
+      if (!resolved) throw aiDocumentCitationNotFound();
+      const policy = documentPolicyForAssistant(resolved.assistant);
+      return database.$transaction(
+        async (transaction) => {
+          await lockUser(transaction, userId);
+          const user = await currentUser(transaction, userId);
+          if (!isAuthorized(user, policy)) throw aiAuthorizationChanged();
+          if (
+            !(await hasCurrentConsent(
+              transaction,
+              userId,
+              resolved.assistant,
+              policy.noticeVersion,
+            ))
+          ) {
+            throw aiDocumentCitationNotFound();
+          }
+          const sources = await documentRetrieval.reauthorize(
+            transaction,
+            [resolved.source],
+            resolved.assistant,
+          );
+          if (!sources) throw aiDocumentCitationNotFound();
+          const [source] = sources;
+          await audit.append(transaction, {
+            action: AUDIT_ACTIONS.AI_DOCUMENT_CITATION_READ,
+            outcome: AUDIT_OUTCOMES.SUCCESS,
+            actorKind: AUDIT_ACTOR_KINDS.USER,
+            actorUserId: userId,
+            targetType: AUDIT_TARGET_TYPES.AI_DOCUMENT_CITATION,
+            targetId: citationId,
+            requestId,
+            metadata: {
+              assistant: resolved.assistant,
+              sourceLabel: source.label,
+            },
+          });
+          return {
+            id: citationId,
+            label: source.label,
+            documentId: source.documentId,
+            title: source.title,
+            versionNumber: source.versionNumber,
+            excerpt: source.excerpt,
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
     },
 
     async usage({ actor, range, requestId }) {

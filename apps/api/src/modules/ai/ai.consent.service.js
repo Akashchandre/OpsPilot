@@ -7,33 +7,41 @@ import {
 import { createAuditService } from "../audit/audit.service.js";
 import { AI_CONSENT_NOTICES, AI_NOTICE_VERSION, AI_PROVIDER } from "./ai.constants.js";
 
-function compoundConsentKey(userId, assistant) {
+function compoundConsentKey(userId, assistant, noticeVersion) {
   return {
     userId,
     provider: AI_PROVIDER,
     assistant,
-    noticeVersion: AI_NOTICE_VERSION,
+    noticeVersion,
   };
 }
 
-function presentConsent(consent, assistant) {
+function presentConsent(consent, assistant, noticeVersion, notices) {
   return {
     provider: AI_PROVIDER,
     assistant,
-    notice: AI_CONSENT_NOTICES[assistant],
+    notice: notices[assistant],
     active: Boolean(consent && !consent.revokedAt),
     consentedAt: consent?.consentedAt.toISOString() ?? null,
     revokedAt: consent?.revokedAt?.toISOString() ?? null,
   };
 }
 
-export function createAiConsentService(database, config, { now = () => new Date() } = {}) {
+export function createAiConsentService(
+  database,
+  config,
+  { now = () => new Date(), noticeVersion = AI_NOTICE_VERSION, notices = AI_CONSENT_NOTICES } = {},
+) {
   const audit = createAuditService(database, config);
 
   async function find(transaction, userId, assistant) {
     return transaction.aiProviderConsent.findUnique({
       where: {
-        userId_provider_assistant_noticeVersion: compoundConsentKey(userId, assistant),
+        userId_provider_assistant_noticeVersion: compoundConsentKey(
+          userId,
+          assistant,
+          noticeVersion,
+        ),
       },
     });
   }
@@ -62,7 +70,7 @@ export function createAiConsentService(database, config, { now = () => new Date(
   return Object.freeze({
     async get({ userId, assistant }) {
       const consent = await find(database, userId, assistant);
-      return presentConsent(consent, assistant);
+      return presentConsent(consent, assistant, noticeVersion, notices);
     },
 
     async accept({ userId, assistant, requestId }) {
@@ -83,7 +91,7 @@ export function createAiConsentService(database, config, { now = () => new Date(
                   userId,
                   provider: AI_PROVIDER,
                   assistant,
-                  noticeVersion: AI_NOTICE_VERSION,
+                  noticeVersion,
                   consentedAt: timestamp,
                 },
               });
@@ -98,7 +106,10 @@ export function createAiConsentService(database, config, { now = () => new Date(
         },
         { isolationLevel: "Serializable" },
       );
-      return { consent: presentConsent(result.consent, assistant), changed: result.changed };
+      return {
+        consent: presentConsent(result.consent, assistant, noticeVersion, notices),
+        changed: result.changed,
+      };
     },
 
     async revoke({ userId, assistant, requestId }) {
@@ -123,7 +134,10 @@ export function createAiConsentService(database, config, { now = () => new Date(
         },
         { isolationLevel: "Serializable" },
       );
-      return { consent: presentConsent(result.consent, assistant), changed: result.changed };
+      return {
+        consent: presentConsent(result.consent, assistant, noticeVersion, notices),
+        changed: result.changed,
+      };
     },
   });
 }

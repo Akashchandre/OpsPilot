@@ -11,8 +11,14 @@ Global ZDR was operator-confirmed, the redacted application preflight passed, an
 explicitly authorized development enablement and accepted Phase 7 on 2026-09-04. Production
 approval remains pending the broader account/privacy/operations review.
 
-Phase 8/9 capabilities in this document remain future direction only. Repository completion does
-not authorize production deployment, personal/row-level context, retrieval, tools, or actions.
+On 2026-09-05, ADR 0011 accepted the Phase 8 repository/development baseline and its exact local
+Qdrant/FastEmbed dependencies. The verified repository/development implementation adds strict
+text/Markdown ingestion, encrypted private local objects, version/audience lifecycle, signed
+retrieval, bounded grounded context, separate document consent, and citation handling. The user
+explicitly accepted the completed repository/development scope on 2026-09-06. Local
+filesystem/Qdrant/FastEmbed operation is not production approval. Phase 9 capabilities remain
+future direction only; no personal/row-level business data, tools, or actions are authorized by
+Phase 8.
 
 AI does not replace authentication, authorization, deterministic business rules, database constraints, payment logic, or human approval for consequential actions.
 
@@ -70,9 +76,9 @@ production rollout gate.
 ## Capability 1: Customer AI assistant
 
 Phase 7 implements only stateless help about a reviewed set of public OpsPilot features and
-navigation. It receives no account, order, payment, ticket, document, personal, or internal policy
-context and cannot take an action. Document-grounded policies and personal account/order help are
-future decisions.
+navigation. It receives no account, order, payment, ticket, personal, or internal policy context
+and cannot take an action. Phase 8 adds a separate document-Q&A endpoint and consent, rather than
+broadening this Phase 7 public-feature path. Personal account/order help remains a future decision.
 
 ## Capability 2: Business owner AI assistant
 
@@ -83,18 +89,38 @@ metrics, row-level analysis, tools, exports, forecasting, and actions remain fut
 
 ## Capability 3: RAG over company documents
 
-The RAG pipeline is expected to:
+The Phase 8 repository/development implementation uses a deliberately narrow, fail-closed RAG
+path:
 
-1. Accept authorized uploads through Node.js.
-2. Store the original document in protected object storage.
-3. Validate type/size, scan according to policy, extract text, and record version/checksum.
-4. Chunk and embed approved content through background processing.
-5. Store vectors with document, version, business, audience, and access metadata.
-6. Retrieve using server-established access filters.
-7. Build a bounded prompt from the query and retrieved content.
-8. Return an answer with provenance/citations and safe fallback when evidence is insufficient.
+1. Node accepts only NFC-normalized UTF-8 English `.txt` and `.md` documents up to 256 KiB after
+   permission, CSRF, idempotency, declared-type/filename, encoding, control-character, and
+   content checks. PDF, office, archive, image, HTML, OCR, and crawler input are rejected.
+2. Node stores normalized originals through a private AES-256-GCM filesystem adapter and records
+   opaque object/key/checksum metadata in MySQL. The local adapter is only for repository/
+   development use and production configuration rejects it.
+3. The existing MySQL worker processes registered UUID/index-only ingest, reindex, and deletion
+   jobs. It uses deterministic chunking, the pinned local FastEmbed
+   `sentence-transformers/all-MiniLM-L6-v2` model (384 dimensions), and persistent local Qdrant.
+   Qdrant stores vectors with opaque point/filter metadata, never source text, titles, questions,
+   or answers.
+4. The signed FastAPI service returns candidate point IDs/scores. Node derives the audience from
+   the registered customer or owner assistant, reauthorizes every candidate against current
+   `ACTIVE` document/current `READY` version/audience metadata, and decrypts plus checksum-checks
+   only selected byte ranges. At most five excerpts, 8,000 bytes, and an estimated 2,000 tokens
+   become context.
+5. A separate `groq-zdr-documents-v1` consent is required. Groq receives only the question and
+   bounded reauthorized excerpts. Its typed output may cite only supplied `S1` through `S5` labels
+   and must return insufficient evidence where sources do not support an answer.
+6. Node repeats permission, consent, lifecycle, audience, and citation/source checks after
+   generation. It records only usage/cost metadata and citation identifiers, renders plain text,
+   and suppresses output if authorization changed in flight.
 
-Supported formats, OCR, chunking, embedding model, vector database, ranking, citation format, document audiences, versioning, retention, and deletion propagation are **Decision Required**.
+Only `CUSTOMER` and `OWNER` source audiences exist. Customers may retrieve customer-audience
+sources through the customer assistant; owners may retrieve both; administrators retain document
+management but have no AI permission. Immutable version replacement is staged, and deletion first
+makes a source non-retrievable before vectors/objects/chunk descriptors are cleaned up. Explicit
+Phase 8 acceptance, production storage/vector design, parser/malware policy, retention, legal
+holds, backup erasure, and production rollout remain pending.
 
 ## Capability 4: AI-powered support
 
@@ -125,17 +151,22 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 
 ### Node.js API
 
-- Owns public authentication, authorization, user/business scope, rate limits, and API contracts.
+- Owns public authentication, authorization, assistant/document-consent scope, rate limits, and API contracts.
 - Fetches or exposes business capabilities through controlled application services.
-- Sends minimum necessary context to the AI service.
+- For Phase 8, owns encrypted-object access, MySQL lifecycle/audience/integrity reauthorization,
+  bounded source materialization, final source/citation rechecks, and document job coordination.
+- Sends only minimum necessary authorized context to the AI service; Qdrant candidates never grant access.
 - Enforces confirmation and records durable application/audit outcomes.
 
 ### Python/FastAPI AI service
 
 - In Phase 7, owns the fixed Groq provider adapter, immutable prompt templates, typed output policy,
   provider preflight, and synthetic evaluation harness.
-- Retrieval orchestration, graph workflows, and any safe tool-invocation protocol remain future
-  Phase 8/9 responsibilities and are not installed or implemented.
+- In Phase 8, owns signed index/publication/candidate/deletion contracts, deterministic chunking,
+  pinned local FastEmbed embedding, local Qdrant operations, document prompt construction, and
+  strict answer/citation contract validation. It returns candidates as opaque IDs/scores only.
+- Graph workflows and any safe tool-invocation protocol remain future Phase 9 responsibilities and
+  are not installed or implemented.
 - Accepts only authenticated internal calls.
 - Does not become a backdoor around Node.js authorization or database rules.
 
@@ -150,6 +181,12 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 - Treat user input, documents, retrieved text, tool results, and model output as untrusted.
 - Test prompt injection, indirect injection, tool manipulation, data exfiltration, cross-user/business retrieval, unsafe output rendering, and denial/cost abuse.
 - Enforce access filters before and during retrieval, not after generation alone.
+- Phase 8 treats Qdrant as an untrusted candidate index: Node reauthorizes lifecycle, audience,
+  source identity, decrypted-object checksum, and byte-range hash before use and repeats the
+  relevant checks after generation. A stale vector, revoked consent, archived source, or changed
+  permission suppresses the response rather than falling back to general knowledge.
+- Delimit retrieved excerpts as untrusted data; require source-only answers, supplied-label-only
+  citations, explicit insufficient evidence, no tools, and plain-text rendering.
 - Keep system prompts, credentials, provider keys, internal identifiers, and hidden tool details out of responses.
 - Require explicit confirmation for payments, refunds, destructive changes, permission changes, external messages, or other consequential actions if ever allowed.
 - Sanitize model output before rendering and do not execute generated code/HTML/SQL.
@@ -160,23 +197,29 @@ Workflow inventory, persistence/checkpoint store, interruption/recovery, approva
 Before production use, complete and approve:
 
 - Groq contractual ZDR, regions, data residency, training/data-use terms, DPA, and subprocessors;
-  embedding providers remain a Phase 8 decision.
+  the Phase 8 local embedding model/cache is accepted only for repository/development, while any
+  production embedding/vector provider and its privacy/security terms remain a separate decision.
 - Final consent/notice/legal basis, voluntary personal/sensitive input handling, and deletion.
 - Consent/usage/audit/backup retention; prompts, responses, reasoning, and chat are not stored in the
-  Phase 7 application baseline.
+  Phase 7 application baseline. Phase 8 similarly stores no question, answer, excerpt, or chunk
+  text in usage/audit records; it retains only scoped consent, safe usage/cost, and citation IDs.
 - Human oversight and complaint/correction pathways.
 - Model/version change control and rollback.
 - Cost budgets, quotas, availability fallback, and incident response.
 - Audit access and separation of operational telemetry from sensitive conversation content.
 
 These remain production decisions even though Phase 7's development/test data minimization and
-provider-processing notice are implemented.
+provider-processing notice, and Phase 8's separate document-processing consent and local
+repository/development safeguards, are implemented.
 
 ## Evaluation and acceptance direction
 
 Phase 7 includes a fixed 20-case synthetic set with allowed-intent, critical refusal, schema,
 unsupported-claim, latency, cost, and ZDR thresholds. Deterministic boundary/security tests and the
-paced live Groq run pass; broader production human review remains pending. Later retrieval/tool
-phases must add source-grounding, citation, retrieval-permission, and tool-correctness evaluation
-without production secrets. Model output is probabilistic, so phase completion depends on recorded
-thresholds and monitored failure modes, not anecdotal demos.
+paced live Groq run pass; broader production human review remains pending. Phase 8 adds a
+deterministic golden retrieval corpus and opt-in grounded-answer evaluator covering retrieval rank,
+no-evidence behavior, audience isolation, stale/deleted exclusion, injection, citation validity,
+latency, and provider cost without emitting document or answer content. Its final measured gate
+passes; explicit Phase 8 acceptance remains the completion condition. Model output is
+probabilistic, so phase completion depends on recorded thresholds and monitored failure modes, not
+anecdotal demos.
