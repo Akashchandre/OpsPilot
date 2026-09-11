@@ -19,6 +19,18 @@ path passed; the user explicitly enabled development inference and accepted Phas
 completion gate passed. Phase 7 is complete for the repository/development scope. Production
 rollout and the broader privacy/account/operations review remain pending.
 
+**Phase 8 — RAG and Document Intelligence** and **Phase 9 — LangGraph Business AI and AI Support**
+are accepted and complete for repository/development under ADRs 0011 and 0012. Their local
+filesystem/Qdrant/SQLite topology is not approved for production. **Phase 10 — Testing, Docker,
+CI/CD, and Production** began on 2026-09-07. ADR 0013 retains the production-readiness baseline;
+unresolved Node/AI/Prisma and CI-action findings continue to block that production release.
+For the separate personal-demo fast path, ADR 0014 accepts browser HTTPS through a generated
+CloudFront domain and the explicitly approved HTTP CloudFront-to-EC2 hop. Its single-EC2 Nginx,
+React, Node API/worker, MySQL, Compose, operator scripts, and manual runbook are implemented and
+locally verified. No AWS account was accessed and no cloud resource or deployment has been
+created. Production AI/data use, Razorpay Live Mode, real data, and finding acceptance remain out
+of scope.
+
 ## Source of truth
 
 Start with:
@@ -63,6 +75,17 @@ Start with:
 - [Phase 7 permission matrix](docs/permissions/PHASE-07-PERMISSION-MATRIX.md)
 - [Phase 7 threat model](docs/security/PHASE-07-THREAT-MODEL.md)
 - [Phase 7 Groq provider decision](docs/decisions/0010-phase-7-groq-provider.md)
+- [Phase 8 review and acceptance report](docs/phase-8/PHASE-08-REVIEW-REPORT.md)
+- [Phase 8 accepted decisions](docs/decisions/0011-phase-8-rag-document-baseline.md)
+- [Phase 9 review and acceptance report](docs/phase-9/PHASE-09-REVIEW-REPORT.md)
+- [Phase 9 accepted decisions](docs/decisions/0012-phase-9-langgraph-workflow-baseline.md)
+- [Phase 10 decision proposal](docs/phase-10/PHASE-10-DECISION-PROPOSAL.md)
+- [Phase 10 dependency and tool review](docs/phase-10/PHASE-10-DEPENDENCY-REVIEW.md)
+- [Phase 10 Batch 10C container evidence](docs/phase-10/PHASE-10-BATCH-10C-CONTAINER-EVIDENCE.md)
+- [Phase 10 single-EC2 demo deployment runbook](docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md)
+- [Phase 10 accepted threat model](docs/security/PHASE-10-THREAT-MODEL.md)
+- [Phase 10 accepted decisions](docs/decisions/0013-phase-10-production-readiness-baseline.md)
+- [Phase 10 personal-demo exception](docs/decisions/0014-single-ec2-cloudfront-personal-demo.md)
 - [Agent instructions](AGENTS.md)
 
 ## Technology direction
@@ -70,10 +93,13 @@ Start with:
 - Frontend: React, JavaScript, React Router, Redux Toolkit where justified, and a UI system still requiring a decision.
 - Main API: Node.js, Express, JavaScript.
 - Data: MySQL and Prisma.
-- AI service: the Phase 7 Python/FastAPI boundary and raw REST Groq adapter are implemented.
-  LangChain, LangGraph, RAG, and vector storage remain deferred until a later approved need.
+- AI service: the Phase 7 Python/FastAPI and Groq boundary, Phase 8 local Qdrant/FastEmbed RAG, and
+  Phase 9 fixed LangGraph workflows are implemented for repository/development. Their production
+  data/services remain separately gated.
 - Phase 6 runtime: MySQL-backed jobs, a separate JavaScript worker, and Socket.IO notification hints.
-- Future infrastructure only when explicitly justified: Redis/shared adapters, object storage, Docker, GitHub Actions, and AWS.
+- Phase 10 retains Docker, GitHub Actions, CloudFormation, and the managed AWS production design
+  under ADR 0013. ADR 0014 separately defines the locally verified single-EC2/CloudFront demo pack;
+  AWS provisioning still requires explicit approval.
 
 ## Local prerequisites
 
@@ -192,16 +218,14 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 
 ## Current phase
 
-Phase 7 — AI Foundation is **accepted and complete for the repository/development scope** under
-ADRs 0009 and 0010. On 2026-09-04 Global ZDR, the redacted preflight, paced 20-case live evaluation,
-and signed Node-to-FastAPI-to-Groq path passed; the user enabled development inference and
-explicitly accepted the phase. Production deployment remains unapproved pending the broader
-provider/privacy/account/operations review. Phase 6 remains repository-complete under ADR 0008.
-Phase 4 remains repository-complete but unaccepted because external Razorpay Test Mode smoke is
-deferred.
-See the [Phase 7 specification](docs/phases/PHASE-07-AI-FOUNDATION.md),
-[Phase 7 review and acceptance report](docs/phase-7/PHASE-07-REVIEW-REPORT.md), and
-[WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
+Phase 10 is in progress. The ADR 0014 single-EC2 CloudFront personal-demo deployment pack is ready
+and locally verified, but it has not been deployed. AWS access/provisioning needs a separate owner
+approval and must follow the exact manual runbook. The ADR 0013 production release remains blocked
+by its recorded zero-residual findings and strict origin-TLS requirements. Earlier accepted phase
+status is unchanged; Phase 4 remains repository-complete but unaccepted because its external
+Razorpay Test Mode smoke is deferred. See the
+[single-EC2 demo deployment runbook](docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md)
+and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
 ## Scope discipline
 

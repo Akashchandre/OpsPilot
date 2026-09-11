@@ -114,10 +114,34 @@ textarea:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.demo-payment-notice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px clamp(20px, 5vw, 72px);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.32);
+  color: #fde68a;
+  background: rgba(120, 53, 15, 0.45);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: center;
+}
+.demo-payment-notice strong {
+  letter-spacing: 0.04em;
+}
 .page-shell {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
   padding: clamp(42px, 7vw, 88px) 0;
+}
+
+@media (max-width: 640px) {
+  .demo-payment-notice {
+    gap: 2px;
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .button {

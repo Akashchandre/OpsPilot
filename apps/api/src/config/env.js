@@ -79,6 +79,8 @@ const environmentSchema = z
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
     CORS_ORIGIN: z.url(),
     DATABASE_URL: z.string().startsWith("mysql://"),
+    DATABASE_PROBE_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
+    DATABASE_FAILURE_EXIT_MS: z.coerce.number().int().min(5000).max(300000).default(30000),
     BUSINESS_CURRENCY: z
       .string()
       .trim()
@@ -210,6 +212,14 @@ const environmentSchema = z
         code: "custom",
         path: ["JOB_RETRY_MAX_MS"],
         message: "JOB_RETRY_MAX_MS must be at least JOB_RETRY_BASE_MS",
+      });
+    }
+
+    if (environment.DATABASE_FAILURE_EXIT_MS < environment.DATABASE_PROBE_INTERVAL_MS) {
+      context.addIssue({
+        code: "custom",
+        path: ["DATABASE_FAILURE_EXIT_MS"],
+        message: "DATABASE_FAILURE_EXIT_MS must be at least DATABASE_PROBE_INTERVAL_MS",
       });
     }
 
@@ -371,6 +381,10 @@ export function loadEnvironment(source = process.env) {
     proxy: Object.freeze({ trustProxyHops: result.data.TRUST_PROXY_HOPS }),
     corsOrigin: result.data.CORS_ORIGIN,
     databaseUrl: result.data.DATABASE_URL,
+    database: Object.freeze({
+      probeIntervalMs: result.data.DATABASE_PROBE_INTERVAL_MS,
+      failureExitMs: result.data.DATABASE_FAILURE_EXIT_MS,
+    }),
     business: Object.freeze({ currency: result.data.BUSINESS_CURRENCY }),
     auth: Object.freeze({
       sessionCookieName: result.data.AUTH_SESSION_COOKIE_NAME,

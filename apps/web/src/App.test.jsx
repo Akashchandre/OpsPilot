@@ -193,6 +193,11 @@ describe("OpsPilot web authentication", () => {
 
     render(<App />);
 
+    const demoPaymentNotice = screen.getByRole("note", { name: "Demo payment mode" });
+    expect(demoPaymentNotice).toHaveTextContent("PUBLIC DEMO — TEST MODE — NO REAL MONEY");
+    expect(demoPaymentNotice).toHaveTextContent(
+      "Use fictional information only. Razorpay payments are simulated and demo data may be deleted.",
+    );
     expect(screen.getByText("Checking the platform services…")).toBeInTheDocument();
     expect(await screen.findByText("Foundation ready")).toBeInTheDocument();
     expect(screen.getByText("Web, API, and MySQL are connected.")).toBeInTheDocument();

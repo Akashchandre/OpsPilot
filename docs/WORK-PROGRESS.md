@@ -1,15 +1,15 @@
 # Work Progress
 
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-11
 
 ## Current Phase
 
-Phase 9 — LangGraph Business AI and AI Support (accepted and complete for repository/development
-on 2026-09-06; production remains unapproved)
+Phase 10 — Testing, Docker, CI/CD, and Production (baseline accepted under ADR 0013; separate ADR
+0014 personal-demo pack locally ready; AWS not provisioned)
 
 ## Status
 
-PHASE 9 ACCEPTED AND COMPLETE — REPOSITORY/DEVELOPMENT SCOPE
+PHASE 10 BASELINE ACCEPTED — PERSONAL-DEMO PACK LOCALLY READY, DEPLOYMENT NOT AUTHORIZED
 
 ## Completed
 
@@ -322,18 +322,214 @@ PHASE 9 ACCEPTED AND COMPLETE — REPOSITORY/DEVELOPMENT SCOPE
   that the repository/development implementation be committed. This acceptance does not authorize
   production, metered workflow evaluation, non-synthetic support-data model processing, Phase 10,
   or any deferred workflow/tool/action.
+- On 2026-09-07 the user explicitly instructed OpsPilot to begin Phase 10 if Phase 9 was complete.
+  Phase 9 acceptance, review evidence, clean tracked commit state, and commit `ccfbd88` on
+  `main`/`origin/main` were verified; this authorizes Phase 10 decision-definition.
+- The current package/runtime/configuration/test boundaries were inventoried. There is no Docker,
+  Compose, GitHub Actions, infrastructure-as-code, browser E2E, hosted observability, or approved
+  production data topology. Existing production guards intentionally reject local Phase 8/9
+  storage and workflow persistence.
+- Current official Docker, GitHub Actions, AWS ECS/RDS/CloudFront/CloudWatch, LangGraph production
+  persistence, and Qdrant Cloud security/backup guidance was reviewed. A staged AWS personal-demo
+  architecture, CI/release/test gates, dependency/account/configuration catalog, and production
+  threat model are proposed in `docs/phase-10/PHASE-10-DECISION-PROPOSAL.md` and
+  `docs/security/PHASE-10-THREAT-MODEL.md`.
+- The user clarified that OpsPilot is a personal project and approved Razorpay Test Mode for the
+  deployed production-configured demo. This does not approve Live Mode or real payment acceptance;
+  the proposed UI/runbook/release contract requires `TEST MODE — NO REAL MONEY` labelling.
+- On 2026-09-07 the user explicitly answered `approved` to the complete Phase 10 baseline and
+  threat-model approval request. ADR 0013 accepts controlled repository implementation, the
+  personal-demo/AWS delivery design, synthetic-data/default-off AI profile, staged release gates,
+  and required production controls. New dependencies/tools, cloud changes, real data, production
+  AI, Live Mode, and deployment keep separate gates.
+- The web shell now persistently labels the personal project `TEST MODE — NO REAL MONEY` and
+  explains that Razorpay payments are simulated. This is implemented entirely with the existing
+  React/CSS/test stack and adds no dependency. The focused 21-test app suite and complete 53-test
+  web suite pass, along with lint, formatting/Prisma validation, and the 113-module production web
+  build. Web coverage remains above its gate at 80.62/71.79/80.60/82.81 percent for statements/
+  branches/functions/lines.
+- On 2026-09-08 the user explicitly approved Batch 10A. The official version-specific Docker
+  Desktop for Windows x86_64 `4.89.0` installer matched its published SHA-256 and a valid Docker
+  Inc Authenticode signature, then completed a per-user WSL 2 installation with exit code `0`.
+  Installed versions are Desktop `4.89.0.238018`, Docker CLI `29.7.2`, Compose `5.5.0`, and Buildx
+  `0.36.1-desktop.1`; no sign-in, Kubernetes, image pull, repository dependency, or cloud change
+  occurred.
+- On 2026-09-08 the user separately approved enabling Windows Subsystem for Linux and Virtual
+  Machine Platform and restarting Windows. Elevated DISM enabled both, returned restart-required
+  exit code `3010`, and both remained enabled after restart with `vmcompute` and `hns` running.
+- The user then separately approved Batch 10B Microsoft WSL `2.7.13.0`. The exact official x64 MSI
+  was 258,985,984 bytes, matched SHA-256
+  `a3505a50f4cc585551d11d9de824ba4375448d7a68f2e71d3fb315fa986fc754`, and had a valid Microsoft
+  Corporation Authenticode signature. Installation completed with exit code `0` and no restart
+  requirement. WSL now reports version `2.7.13.0`, kernel `6.18.33.2-2`, and default version `2`.
+- Restarting Docker Desktop cleared the stale pre-update backend. Docker Engine `29.7.2` now reports
+  healthy Linux/x86_64 operation with zero running containers and zero local images.
+- The user explicitly approved pulling and building the exact Batch 10C digests. Node
+  `24.19.0-bookworm-slim`, Python `3.13.15-slim-bookworm`, and local/CI MySQL `8.4.11` were pulled,
+  version-checked, and used without Docker sign-in or cloud changes. Dockerfiles pin the reviewed
+  bases and Dockerfile/SBOM helpers; the Linux/amd64 AI runtime lock preserves the same 69 approved
+  runtime versions and excludes development packages.
+- Hardened Node, migration, and AI images plus a safe local/CI Compose topology are implemented.
+  Stable-input repeat builds reproduce the runnable platform manifests. A fresh disposable stack
+  applies all 15 migrations, returns healthy API/database status, starts the worker, enforces
+  non-root/read-only/all-capabilities-dropped controls, exposes only the API on host loopback, and
+  shuts down cleanly. The isolated AI image health/filesystem/shutdown checks also pass. Complete
+  evidence is in `docs/phase-10/PHASE-10-BATCH-10C-CONTAINER-EVIDENCE.md`.
+- Runtime hardening reduced the Node image from about 182 MB to 115 MB and removed npm, npx, tsx,
+  and the Prisma CLI. The migration image uses a fresh 226 MB runtime without global npm/npx, but
+  still carries unrelated workspace dev modules. Docker Scout SPDX SBOM generation passes, while
+  scans report unresolved critical/high totals of Node `2/9`, migration `2/10`, AI `3/14`, and
+  MySQL `2/30`; no risk acceptance has been granted. Prisma's successful generation/migration
+  path also retains an OpenSSL detection warning because no OS package was approved.
+- The Batch 10C regression gate passes JavaScript lint, formatting/Prisma validation, the
+  113-module web build, 39 API files / 209 tests, 8 web files / 53 tests, Python dependency
+  consistency/Ruff, and 165 Python tests with 3 opt-in skips. The initial Windows lint/format and
+  pytest attempts exposed inaccessible generated cache/temp ACLs; source-tree cache exclusions and
+  a unique task-owned pytest temp base produced clean reruns without deleting user cache data.
+- The user approved only the six Batch 10D remediation changes and explicitly prohibited residual-
+  finding acceptance. Exact `mariadb@3.4.7`, `mysql2@3.23.1`, and `qs@6.16.0` overrides; a
+  dedicated migration lock; the Debian PCRE2 update/tool hardening; final AI pip removal; a
+  non-root minimized local/CI MySQL image; and a mandatory content/SBOM/scan gate are implemented.
+  Repeat builds reproduce all four runnable manifests. The migration image fell from 585 to 270
+  indexed packages; exact content, Prisma engine/linkage, fresh 15-migration MySQL, initial health,
+  controls, shutdown, and full JavaScript/Python regressions pass.
+- Batch 10D remains unaccepted. The 2026-09-09 automated scan gate fails at Node `2/8`, migration
+  `2/8`, AI `3/11`, and MySQL `2/20` critical/high totals; both npm production audits retain the
+  three-node Prisma `deepmerge-ts` high chain. Scout attributes MySQL's Go results to deleted
+  lower-layer gosu metadata despite runtime absence. A live MySQL restart also leaves API/worker
+  pools in persistent Prisma `P2039` timeouts until dependency-ordered container recreation. No
+  VEX, waiver, exception, or risk acceptance was created. See
+  `docs/phase-10/PHASE-10-BATCH-10D-REMEDIATION-EVIDENCE.md`.
+- On 2026-09-09 the user explicitly approved only Batch 10E changes 10E-1 through 10E-4, including
+  the two non-secret database timing settings and disposable tests, while prohibiting Trixie,
+  Prisma/MariaDB dependency changes, and residual acceptance. The exact approved final-filesystem
+  MySQL image, dependency-free API/worker database supervisor, Compose restart propagation,
+  authenticated MySQL healthcheck, and mandatory recovery/image gates are implemented. The
+  disposable stack passes startup fail-close, short recovery, explicit Compose restart, prolonged
+  supervised exit/recreation, concurrent read, mutation `503`, migration, persistence, AI ordering,
+  and graceful-shutdown checks.
+- Batch 10E resolves the MySQL lower-layer attribution and database-pool recovery blockers. MySQL's
+  strengthened content/SBOM scan indexes 141 packages with zero gosu/Go attribution and reports
+  `0C/0H`; repeat Node/MySQL builds reproduce runnable layers and configuration. Full gates pass at
+  40 API files / 221 tests, 8 web files / 53 tests, and 165 Python passes / 3 opt-in skips. Node and
+  migration remain `2C/8H`, AI remains `3C/11H`, and both npm audits retain the three-node Prisma
+  high chain, so Batch 10E and Phase 10 release/deployment remain blocked and unaccepted. See
+  `docs/phase-10/PHASE-10-BATCH-10E-REMEDIATION-EVIDENCE.md` and
+  `docs/phase-10/PHASE-10-CONTAINER-OPERATIONS-RUNBOOK.md`.
+- On 2026-09-09 the user authorized a proposal-only Batch 10F review of the next
+  upstream-compatible Node/Python image and Prisma remediation. Read-only official manifest,
+  registry scan, package metadata, advisory, issue, Debian tracker, lock, and runtime-linkage
+  review found no candidate that meets both compatibility and the zero-critical/high gate. No
+  image was pulled/built/tagged, no dependency changed, and no finding was accepted. See
+  `docs/phase-10/PHASE-10-BATCH-10F-UPSTREAM-REMEDIATION-PROPOSAL.md`.
+- The user selected public access, confirmed an AWS account, selected no custom domain and email
+  alerts, limited spend to Free Tier/credits, described traffic as demo-only, and confirmed a
+  public repository on GitHub Free. The public banner now also tells visitors to use fictional
+  information and warns that demo data may be deleted. On 2026-09-09 the owner selected
+  `us-east-1` and reported Free Plan status, USD 160 of free AWS credit with 67 days remaining,
+  MFA enabled, and billing alerts enabled. These are owner-supplied facts; no AWS account/API,
+  IAM, billing, or region access was performed to verify them.
+- Current official AWS guidance was rechecked: the new-customer Free Plan is limited to six months
+  or credit exhaustion, while Fargate and ALB are usage-priced and RDS eligibility depends on the
+  account program. No paid spend or silent plan upgrade is approved. The accepted topology must
+  stop before provisioning if unexpired credits/service eligibility cannot cover it.
+- The user authorized only a proposal for CI/CD and AWS infrastructure in `us-east-1` and explicitly
+  prohibited provisioning. The resulting
+  `docs/phase-10/PHASE-10-CI-CD-AWS-INFRASTRUCTURE-PROPOSAL.md` defines independent repository-CI,
+  GitHub-settings, repository-IaC, AWS-bootstrap, staging, and release gates. It inventories exact
+  candidate action commits but authorizes none. No workflow, setting, dependency, template, AWS
+  resource, credential, artifact, image, or deployment was created or changed.
+- That review found two additional release/provisioning blockers. With no custom domain, the
+  generated CloudFront viewer domain cannot supply the matching publicly trusted certificate
+  required for strict HTTPS to the ALB custom origin; private HTTP is not accepted as encrypted in
+  transit. Also, USD 160 over 67 days is only about USD 2.39/day, so the usage-priced topology is
+  proposed as one ephemeral dynamic environment at a time and must be re-priced immediately before
+  any later provisioning request.
+- On 2026-09-10 the owner approved the exact four-action Batch 10G-1 repository-only pull-request
+  quality CI scope. The required immediate official tag/advisory recheck found that approved
+  `actions/setup-node@v7.0.0` commit `820762786026740c76f36085b0efc47a31fe5020` bundles versions
+  affected by high-severity `GHSA-3jxr-9vmj-r5cp` and `GHSA-mh99-v99m-4gvg`. Upstream merged a
+  rebuilt patched bundle, but no patched `v7.x` tag exists; `v7` and `v7.0.0` still resolve to the
+  blocked commit. Implementation stopped before `.github` or a workflow was created. No finding
+  was accepted/suppressed and no alternate action/runtime path was substituted.
+- The owner then authorized proposal-only review of exact merged PR 1599 commit
+  `e51e5fe84fc33b4c73ebe40526b2694712b5b858`. Its publisher/signature, nine-file patch, cumulative
+  delta from `v7.0.0`, `node24` action metadata, MIT license, lock, and compiled bundles were
+  inspected without installing anything. Fresh no-install audits fail at `0C/2H/1M` for production
+  dependencies and `0C/3H/2M` for the complete lock because `brace-expansion@5.0.8` and other
+  current findings remain. The exact commit is rejected; no workflow, GitHub/AWS change,
+  deployment, suppression, or finding acceptance resulted. Evidence is in
+  `docs/phase-10/PHASE-10-BATCH-10G-1-SETUP-NODE-PATCH-REVIEW.md`.
+- On 2026-09-11 the owner authorized a proposal-only no-domain strict-HTTPS alternatives review for
+  `us-east-1`. No drop-in candidate passes the accepted Free Plan, private-origin, Socket.IO,
+  continuous-worker, cookie/CSRF, and no-residual gates. App Runner is a Paid Plan service in the
+  new AWS experience, and Lightsail requires advanced features; neither is approved. A
+  CloudFront/API Gateway/Lambda re-platform remains the only candidate for a separate detailed
+  proposal, not an accepted topology. No template, install, workflow, GitHub/AWS access or change,
+  provisioning, deployment, domain purchase, HTTP-origin exception, suppression, or finding
+  acceptance occurred. Evidence is in
+  `docs/phase-10/PHASE-10-NO-DOMAIN-STRICT-HTTPS-ALTERNATIVES.md`.
+- The owner then authorized a detailed proposal-only API Gateway/Lambda compatibility and threat-
+  model review for `us-east-1`. The least-incompatible candidate would adapt request-bounded REST
+  work to Lambda, replace Socket.IO with API Gateway native WebSocket plus durable connection and
+  revocation state, keep the continuous worker supervised on private compute, and evaluate RDS
+  Proxy. It remains no-go: all fifteen findings are open, including protocol/cookie-path, generated-
+  origin bypass, distributed controls, Prisma/database connection behavior, private egress/cost,
+  Lambda packaging, and existing release findings. No code, dependency, workflow, template,
+  GitHub/AWS access or change, provisioning, deployment, HTTP origin, suppression, or acceptance
+  resulted. Evidence is in
+  `docs/phase-10/PHASE-10-API-GATEWAY-LAMBDA-COMPATIBILITY-PROPOSAL.md` and
+  `docs/security/PHASE-10-API-GATEWAY-LAMBDA-THREAT-MODEL.md`.
+- The owner then separately approved implementation of a single-EC2 CloudFront personal-demo pack
+  and explicitly accepted HTTP only for the CloudFront-to-EC2 hop. ADR 0014 preserves ADR 0013 as
+  the production baseline while authorizing this narrower demo path. No AWS access or provisioning
+  was authorized.
+- The demo pack now includes an exact-digest unprivileged Nginx/React image, production-configured
+  Compose overlay for one EC2, ignored private environment template, Linux deploy/bootstrap/smoke
+  scripts, and the manual `us-east-1` AWS runbook. Socket.IO moved to `/api/v1/socket.io` so the
+  browser sends the existing `/api/v1`-scoped session cookie; its client, integration, proxy-source,
+  and UI coverage pass.
+- Local verification passes lint, formatting/Prisma validation, production build, 41 API files /
+  225 tests, 8 web files / 53 tests, Compose validation, fresh migration, non-root Nginx image and
+  syntax checks, Linux script syntax/placeholder checks, healthy MySQL/API/web containers, worker
+  jobs, SPA/API health, and authenticated WebSocket-through-Nginx smoke. The disposable stack uses
+  synthetic values only and is removed after verification. No finding was accepted or suppressed.
 
 ## In Progress
 
+- Phase 10's baseline and threat model are accepted. Batch 10A Docker Desktop and Batch 10B WSL are
+  installed and verified; WSL and Docker engine health pass. The separately approved Batch 10E
+  implementation is verified but not accepted: MySQL attribution and database-restart recovery are
+  resolved, while Node/migration/AI image findings, the Prisma npm finding, and the Prisma/OpenSSL
+  warning remain blocking with no residual accepted. The Batch 10F proposal-only review recommends
+  no image/Prisma implementation until an upstream trigger occurs. Batch 10G-1 is approved but
+  paused before workflow creation because both its exact tagged setup-node action and the separately
+  reviewed PR 1599 patch have current high findings. No patched release has passed review. Later CI,
+  E2E, accessibility, security pins, and any next remediation batch still require separate review
+  and approval before use.
+- The separate ADR 0014 personal-demo deployment pack is locally ready. It has not been tested
+  through CloudFront or Razorpay's dashboard because AWS access/provisioning and public deployment
+  were expressly excluded from this implementation approval. The next cloud action requires a
+  new explicit authorization and must follow the manual runbook.
+- The owner selected `us-east-1` and reports an AWS Free Plan with USD 160 of credit and 67 days
+  remaining, MFA enabled, and billing alerts enabled. Account/service eligibility, actual
+  balance/expiry, alert configuration/delivery, and exact costs still require independent
+  verification immediately before any cloud request. The proposal-only no-domain review found no
+  compatible drop-in strict-HTTPS origin. The detailed follow-up found the only retained material
+  CloudFront/API Gateway/Lambda candidate no-go with fifteen open findings. Strict origin TLS
+  remains unresolved for the ADR 0013 production design; ADR 0014 records only the accepted HTTP
+  origin exception for the personal demo. No cloud resource, provider purchase, paid spend, real
+  data use, production AI enablement, or deployment has been authorized.
 - Phase 9 has no remaining repository/development work. Production, metered workflow evaluation,
-  non-synthetic support-data model processing, and Phase 10 remain separately gated.
+  and non-synthetic support-data model processing remain separately gated inside Phase 10.
 - Phase 8 production storage/vector topology, privacy/retention, networking, monitoring, backup,
   multi-instance operation, and rollout approval remain unresolved and separate from the accepted
   repository/development scope.
 - The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain blocked on a
   completed hosted Test Mode payment plus copying the current temporary HTTPS webhook endpoint into
   the Test Mode dashboard, matching its separate secret, confirming automatic capture, and
-  subscribing only to the seven allowlisted events. Live Mode remains prohibited.
+  subscribing only to the seven allowlisted events. The personal deployed demo may use Test Mode
+  with explicit no-real-money labelling; Live Mode remains prohibited.
 - Phase 7 development AI prompts remain enabled after ZDR confirmation, redacted preflight,
   all-green live evaluation, signed live service smoke, and explicit phase acceptance. Broader
   account/privacy/legal/operations review and production rollout approval remain required before
@@ -341,9 +537,19 @@ PHASE 9 ACCEPTED AND COMPLETE — REPOSITORY/DEVELOPMENT SCOPE
 
 ## Next Task
 
-Await explicit authorization before beginning Phase 10, metered workflow evaluation,
-non-synthetic local support-data processing, or production AI/document/workflow rollout. The
-independent Phase 4 Razorpay Test Mode delivery/recovery gate also remains unresolved.
+The repository pack is ready. Before deployment, the owner must recheck the AWS console for the
+actual credit balance/expiry and expected EC2/EBS/public-IPv4/CloudFront charges, then give separate
+explicit authorization to provision the ADR 0014 resources in `us-east-1`. After that approval,
+follow `docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md`: create the EC2 and CloudFront
+resources, install Docker, clone the exact approved commit, create `demo.env` on EC2, start the
+stack, bootstrap the owner interactively, run public/browser smoke checks, and configure the seven
+Razorpay Test Mode webhook events. Do not use real data, Live Mode, production AI, or unapproved
+paid-plan changes.
+
+In parallel, keep Batch 10F proposal-only and Batch 10G-1 unimplemented until official patched
+upstream releases pass the existing immutable-pin/license/advisory/compatibility gates. The ADR
+0013 production blockers are not waived by the demo path, and no finding may be accepted or
+suppressed silently.
 
 ## Accepted Decisions
 
@@ -363,6 +569,19 @@ independent Phase 4 Razorpay Test Mode delivery/recovery gate also remains unres
   Phase 4 aggregate order-reservation model is implemented.
 - Verification, recovery, MFA, employee invitations, and account deletion remain deferred until reviewed.
 - Dependencies and services are reviewed before installation and are not added speculatively.
+- ADR 0013 accepts the Phase 10 personal-demo production-readiness baseline, AWS design target,
+  staged release controls, threat model, synthetic-data/default-off AI launch profile, and exact-
+  digest release gate. It does not approve dependency installation, cloud changes, production AI,
+  Live Mode, real data, or deployment.
+- ADR 0014 separately accepts the single-EC2 CloudFront personal-demo repository pack and the HTTP
+  CloudFront-to-EC2 hop explicitly approved by the owner. It does not replace ADR 0013, authorize
+  AWS access/provisioning, or accept any existing release finding.
+- The initial profile is a public, synthetic-data personal demo on AWS using the generated
+  CloudFront domain, email alerts, and a public GitHub Free repository. Only eligible Free Tier
+  credits may be consumed; paid spend and automatic paid-plan upgrades are not approved.
+- OpsPilot's initial deployed target is a personal production-configured demo. Razorpay Test Mode is
+  allowed there only for simulated payments with explicit `TEST MODE — NO REAL MONEY` labelling;
+  Live Mode and real payment acceptance remain prohibited.
 - Razorpay is selected as the Phase 4 payment provider; only a Test Mode credential is currently in
   scope. The complete Standard Checkout, automatic-capture, webhook/refund/reconciliation,
   inventory-reservation, permission, API/UI, and explicit-deferral baseline is accepted in ADR 0005.
@@ -442,12 +661,44 @@ independent Phase 4 Razorpay Test Mode delivery/recovery gate also remains unres
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- The 2026-09-06 `npm audit --omit=dev` reports seven transitive findings (two moderate and five
-  high): `deepmerge-ts` through Prisma configuration, MariaDB connector credential/TLS/escaping
-  advisories through `@prisma/adapter-mariadb`, `mysql2` authentication-downgrade/decompression
-  advisories through the Prisma CLI tree, and `qs` parsing/DoS advisories. npm proposes a breaking
-  Prisma downgrade for part of the tree, the adapter path has no complete fix, and the `qs` update
-  still requires a reviewed dependency/lock change. No unapproved dependency change was made.
+- The owner selected `us-east-1` and reports an AWS Free Plan, USD 160 of free credit with 67 days
+  remaining, MFA, and billing alerts. The account facts, service eligibility, alert delivery,
+  exact balance/expiry, and prices are unverified. ECS/Fargate, ALB, private networking, WAF, RDS,
+  logging, and related services cannot be assumed permanently free, so provisioning is blocked.
+- The accepted generated-CloudFront-domain topology has no currently approved path for strict
+  certificate-validated HTTPS from CloudFront to the ALB without an owned domain and matching
+  certificate. Private HTTP is not accepted as satisfying the encryption-in-transit gate. The
+  2026-09-11 no-domain review found no compatible drop-in replacement. The separately authorized
+  detailed API Gateway/Lambda review found its only retained material re-platform candidate no-go
+  with all fifteen compatibility/security findings open; it is not accepted or authorized for
+  implementation. ADR 0014 permits HTTP on that origin hop only for the separate personal demo;
+  the production requirement remains unchanged.
+- The ADR 0014 demo is deliberately one EC2 host with one local MySQL Docker volume, one API
+  process, one worker, and no HA or zero-downtime guarantee. Browser-to-CloudFront traffic is
+  HTTPS, but origin traffic is plaintext HTTP; only fictional, disposable data is permitted.
+- Approved `actions/setup-node@v7.0.0` bundles `brace-expansion@1.1.13`, `2.1.1`, and `5.0.6`, which
+  are affected by two high-severity denial-of-service advisories. Exact merged PR 1599 commit
+  `e51e5fe84fc33b4c73ebe40526b2694712b5b858` upgrades them to `5.0.8`, but that version is affected
+  by high-severity `GHSA-rgw5-rvv9-x895`; its production lock also retains moderate findings, and
+  its full lock has further high/moderate findings. No patched `v7.x` release has passed review.
+  Batch 10G-1 is therefore approved but unimplemented, with no waiver or alternate bootstrap path
+  accepted.
+- The 2026-09-09 root and migration `npm audit --omit=dev` runs each report three high nodes in the
+  one unresolved `prisma@7.9.1 -> @prisma/config@7.9.1 -> deepmerge-ts@7.1.5` chain. The approved
+  MariaDB, mysql2, and qs fixes cleared their findings. npm proposes a breaking Prisma downgrade;
+  stable Prisma `7.10.0` still includes `deepmerge-ts@7.1.5`, Prisma 8 is prerelease, the rejected
+  `deepmerge-ts@8` override remains unapplied, and no finding is accepted.
+- The Batch 10E image gate remains blocking at Node `2C/8H`, migration `2C/8H`, and AI `3C/11H`.
+  Bookworm Perl/OpenSSL/util-linux/zlib results remain, including `CVE-2026-57432`. The rebuilt
+  MySQL final filesystem now passes at `0C/0H` with zero gosu/Go SBOM attribution. Prisma's exact
+  migration engine remains unlinked from OpenSSL but still emits the known detection warning. No
+  VEX, exception, waiver, or risk acceptance exists. Batch 10F's Node `24.20.0` Bookworm/Alpine and
+  Python `3.13.15` Alpine reviews also fail the zero-critical/high gate; the AI lock is additionally
+  incompatible with musl without a broader dependency/platform change.
+- The prior API/worker `P2039` restart blocker is verified resolved for the local/CI topology.
+  Short interruptions recover without process replacement; prolonged failures fail closed and
+  exit non-zero, then explicit dependency-ordered Compose recreation restores fresh processes with
+  migrations and data intact. Production ECS/RDS supervision remains a separate unapproved design.
 - Phase 5 rate stores and Phase 6 connection/rate accounting are per process and need reviewed
   shared or edge policy before horizontal scaling.
 - The Razorpay Test Mode provider-delivery gate is not yet complete end to end: the rotated API
@@ -578,7 +829,11 @@ accepted under ADR 0011, its approved repository/development implementation and 
 pass, and explicit phase acceptance was recorded on 2026-09-06. Production is separately blocked
 on approved storage/vector topology, privacy/retention, networking, operations, and rollout. Phase 9
 baseline approval is recorded under ADR 0012, its complete repository/development implementation
-and automated gate pass, and explicit phase acceptance was recorded on 2026-09-06. Production,
-metered workflow evaluation, non-synthetic support-data model processing, Redis, BullMQ, external
-channels, live payments, multi-instance deployment, unapproved workflows/actions, Phase 10, and
-every later capability remain out of scope.
+and automated gate pass, and explicit phase acceptance was recorded on 2026-09-06. On 2026-09-07,
+the user explicitly authorized Phase 10 and accepted its production-readiness baseline and threat
+model under ADR 0013. Controlled repository implementation is active, starting with persistent
+Razorpay Test Mode/no-real-money labelling. Exact new tools, cloud resources, real data, production
+AI, deployment, and final release remain separately gated. Metered workflow evaluation,
+non-synthetic support-data model processing, Redis/Valkey, external channels, live payments,
+multi-instance deployment, unapproved workflows/actions, and every unaccepted production
+capability remain out of scope.

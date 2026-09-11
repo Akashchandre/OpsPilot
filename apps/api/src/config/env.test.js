@@ -32,6 +32,7 @@ describe("loadEnvironment", () => {
       proxy: { trustProxyHops: 0 },
       corsOrigin: "http://127.0.0.1:5173",
       databaseUrl: "mysql://user:secret@127.0.0.1:3306/opspilot_test",
+      database: { probeIntervalMs: 5000, failureExitMs: 30000 },
       business: { currency: "INR" },
       auth: {
         sessionCookieName: "opspilot_session",
@@ -171,6 +172,16 @@ describe("loadEnvironment", () => {
     ).toThrow(ConfigurationError);
     expect(() =>
       loadEnvironment({ ...validEnvironment, REALTIME_MAX_CONNECTIONS_PER_USER: "21" }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadEnvironment({ ...validEnvironment, DATABASE_PROBE_INTERVAL_MS: "999" }),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        DATABASE_PROBE_INTERVAL_MS: "6000",
+        DATABASE_FAILURE_EXIT_MS: "5000",
+      }),
     ).toThrow(ConfigurationError);
   });
 

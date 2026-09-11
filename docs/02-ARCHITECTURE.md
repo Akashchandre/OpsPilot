@@ -319,14 +319,86 @@ remain default-disabled. Later components remain direction only until their own 
 
 | Component               | Intended responsibility                                                                | Earliest planned phase | Unresolved choice                                                                                                           |
 | ----------------------- | -------------------------------------------------------------------------------------- | ---------------------: | --------------------------------------------------------------------------------------------------------------------------- |
-| Redis/shared adapters   | Future cache or multi-instance queue/socket/rate coordination if justified             |                After 6 | Need, topology, ownership, failure behavior                                                                                 |
-| Document object storage | AES-256-GCM private filesystem objects for strict text/Markdown originals              |                      8 | Verified locally under ADR 0011; production provider, IAM/KMS, scanning, retention, backups, and recovery remain unresolved |
+| Redis/shared adapters   | Future cache or multi-instance queue/socket/rate coordination if justified             |                After 6 | Phase 10 proposes managed TLS Valkey/Redis only for an HA profile; need and failure policy remain unapproved                |
+| Document object storage | AES-256-GCM private filesystem objects for strict text/Markdown originals              |                      8 | Phase 10 proposes an encrypted private S3 adapter; IAM/KMS, retention, backups, and recovery remain unapproved              |
 | Python/FastAPI          | Isolated provider/prompt and signed document-index boundary                            |                      7 | Phase 7 provider/live development gates pass; Phase 8 adds local RAG; production mTLS/network topology remains unresolved   |
-| Vector database         | Local Qdrant candidate index with FastEmbed MiniLM vectors and opaque payload metadata |                      8 | Verified locally under ADR 0011; production topology, tenancy, network controls, backups, and capacity remain unresolved    |
-| Workflow checkpointer   | Private metadata-only SQLite checkpoints for bounded LangGraph pause/resume            |                      9 | Verified locally under ADR 0012; production durable/encrypted multi-instance topology and recovery remain unresolved        |
-| Docker                  | Reproducible packaging and local/production topology                                   |                     10 | Images, registry, orchestration                                                                                             |
-| GitHub Actions          | Automated quality and delivery gates                                                   |                     10 | Workflows and environments                                                                                                  |
-| AWS                     | Potential hosting platform                                                             |                     10 | Services, regions, network and cost model                                                                                   |
+| Vector database         | Local Qdrant candidate index with FastEmbed MiniLM vectors and opaque payload metadata |                      8 | Phase 10 proposes Qdrant Managed Cloud; DPA, region, keys, backups, capacity, and cost remain unapproved                    |
+| Workflow checkpointer   | Private metadata-only SQLite checkpoints for bounded LangGraph pause/resume            |                      9 | Phase 10 proposes evaluation of an AWS DynamoDB checkpointer with Postgres fallback; no production backend is approved      |
+| Docker                  | Reproducible packaging and local/production topology                                   |                     10 | Batch 10E local recovery and the clean MySQL image pass; Node/migration/AI scans and Prisma/OpenSSL still block acceptance  |
+| GitHub Actions          | Automated quality and delivery gates                                                   |                     10 | 10G-1 approved but blocked by setup-node findings before workflow creation; settings/release/deploy remain gated            |
+| AWS                     | Hosting design target                                                                  |                     10 | `us-east-1` selected; owner reports Free Plan/USD 160/67 days; account verification, TLS, pricing, and changes remain gated |
+
+## Accepted Phase 10 delivery boundary
+
+Phase 10's baseline was accepted under ADR 0013 on 2026-09-07. The public demo uses the generated
+CloudFront HTTPS domain with a private S3 web origin and non-cached API/Socket.IO paths to an ALB.
+A private ECS Fargate application task co-locates the API, worker, and internal AI sidecar so the
+accepted loopback signing boundary remains intact. RDS MySQL remains authoritative; production documents,
+vectors, checkpoints, secrets, and observability use separately approved managed services.
+
+The initial target is a public personal production-configured demo, not a commercial HA service.
+Razorpay Test Mode may be used only with fictional-data and explicit `TEST MODE — NO REAL MONEY`
+labelling. A single-task/single-AZ demo can be considered after backup/recovery and AWS Free Plan/
+credit checks, but it carries no HA or permanently-free claim. Staging is ephemeral under the
+no-paid-spend constraint. Real payments, real-customer data, production AI/RAG/workflows, exact
+dependencies/tools, cloud resource changes, and deployment remain unapproved until their gates pass.
+
+The 2026-09-09 proposal-only infrastructure review identified a strict origin-TLS conflict in this
+accepted direction. The generated CloudFront domain secures the viewer connection, but without an
+owned domain and matching publicly trusted certificate CloudFront cannot establish the required
+certificate-validated HTTPS connection to the ALB custom origin. Private HTTP through a CloudFront
+VPC origin is not treated as satisfying the encryption-in-transit gate. The architecture remains a
+design target, not an implementable production topology, until a domain/certificate is separately
+approved or a compatible generated-HTTPS re-architecture is reviewed and accepted. The current
+proposal is `docs/phase-10/PHASE-10-CI-CD-AWS-INFRASTRUCTURE-PROPOSAL.md`.
+
+The 2026-09-11 no-domain review found no drop-in generated-HTTPS origin that also preserves the
+accepted Free Plan, private application plane, Socket.IO, continuous worker, cookie/CSRF, and
+no-residual requirements. A CloudFront/API Gateway/Lambda re-platform was the only candidate
+retained for a separate detailed proposal; it was not accepted because it replaces the realtime
+protocol and request/runtime/database-control boundaries. App Runner and Lightsail do not satisfy
+the reported Free Plan boundary. See
+`docs/phase-10/PHASE-10-NO-DOMAIN-STRICT-HTTPS-ALTERNATIVES.md`.
+
+The subsequent detailed API Gateway/Lambda compatibility and threat-model review did not accept
+that candidate. The least-incompatible shape would keep CloudFront/S3, adapt only request-bounded
+REST work to Lambda, replace Socket.IO with a durable native WebSocket design, keep the continuous
+worker on supervised private compute, and prove Prisma/RDS Proxy and outbound-network behavior.
+Fifteen findings remain open, so it is neither the production architecture nor authority to
+implement. See `docs/phase-10/PHASE-10-API-GATEWAY-LAMBDA-COMPATIBILITY-PROPOSAL.md` and
+`docs/security/PHASE-10-API-GATEWAY-LAMBDA-THREAT-MODEL.md`.
+
+### Separate single-EC2 personal-demo exception
+
+ADR 0014 does not replace the production design above. It defines a separately accepted personal-
+demo path: browsers use HTTPS/WSS to the generated CloudFront hostname; CloudFront uses the
+owner-accepted HTTP port 80 hop to one EC2 host; an unprivileged Nginx container serves React and
+proxies `/api/*` to one Node API container; the existing worker and MySQL volume run on the same
+host. The Socket.IO transport is `/api/v1/socket.io`, aligning it with the scoped session cookie.
+Only Nginx is exposed publicly; API port 4000 remains loopback-bound and MySQL remains internal.
+
+The profile is production-configured but explicitly non-HA and synthetic-data-only. It keeps
+Razorpay in Test Mode and disables AI, documents/RAG, and LangGraph workflows. The repository pack
+is locally verified, while AWS access and provisioning remain separately gated. The HTTP origin
+hop, one-host failure domain, locally managed MySQL volume, manual rollout, and existing release
+findings prohibit treating it as the ADR 0013 production release. See
+`docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md`.
+
+## Phase 10 local database-availability boundary
+
+The local/CI API and worker now share a dependency-free availability policy around their existing
+Prisma clients. One sequential connection/query probe proves startup and ongoing database
+availability. A failed probe makes API readiness and all requests fail closed with `503`, pauses new
+worker claims and maintenance work, and never replays the interrupted business operation. A later
+successful probe restores a short outage; a continuously failed dependency causes one supervised
+non-zero process exit after the configured bound. The existing transaction, idempotency, job lease,
+audit, and provider reconciliation boundaries remain authoritative.
+
+Compose propagates an explicit `docker compose restart mysql` through API, worker, and optional AI
+dependencies. Its local/CI `restart: "no"` policy intentionally requires dependency-ordered
+recreation after a prolonged raw interruption. MySQL health is an authenticated application query,
+not a TCP-only check. This is verified local/CI behavior, not approval of the later ECS/RDS
+supervision design. See `phase-10/PHASE-10-CONTAINER-OPERATIONS-RUNBOOK.md`.
 
 ## Request and trust boundaries
 

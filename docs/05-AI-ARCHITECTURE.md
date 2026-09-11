@@ -22,6 +22,18 @@ encrypted-artifact, and human-approval baseline was accepted under ADR 0012. The
 repository/development implementation and automated gate passed and were explicitly accepted on
 2026-09-06.
 
+On 2026-09-08 the approved Batch 10C Python 3.13.15 digest was used to build and verify the
+non-root AI container. It binds only task-local loopback, has a read-only root filesystem with
+bounded `/tmp`, defaults provider/RAG/workflows off, and passes isolated health and shutdown checks.
+Its Docker Scout result (`3` critical, `14` high) blocks container acceptance; this is packaging
+evidence, not production AI authorization.
+
+Batch 10D keeps the same pinned Python base, installs the exact PCRE2 security update, and removes
+runtime pip plus its nested SBOM-only `msgpack`/`setuptools` metadata. Imports, health, shutdown,
+Ruff, and 165 routine tests still pass. The 2026-09-09 local scan is reduced to `3` critical and
+`11` high findings (Perl, OpenSSL, util-linux, and zlib), so the AI image remains unaccepted and
+production AI remains disabled. No VEX or risk acceptance was created.
+
 AI does not replace authentication, authorization, deterministic business rules, database constraints, payment logic, or human approval for consequential actions.
 
 ## Conceptual flow
@@ -231,6 +243,14 @@ Before production use, complete and approve:
 These remain production decisions even though Phase 7's development/test data minimization and
 provider-processing notice, and Phase 8's separate document-processing consent and local
 repository/development safeguards, are implemented.
+
+Phase 10 now requires progressive production enablement rather than turning all AI features on at
+the first deployed demo. The stateless assistant would be reviewed first, followed by S3/Qdrant-
+backed document Q&A, the owner business brief, and finally the support reply workflow. The accepted
+production persistence evaluation candidates are Qdrant Managed Cloud for vectors and an AWS
+DynamoDB LangGraph checkpointer with an official Postgres fallback; neither is approved or
+installed for production. Non-synthetic support data, provider/legal terms, retention/deletion, key rotation,
+budgets, alerts, restore, and kill-switch exercises remain release gates.
 
 ## Evaluation and acceptance direction
 

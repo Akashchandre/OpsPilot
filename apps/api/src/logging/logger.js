@@ -3,6 +3,7 @@ const levelPriority = Object.freeze({ debug: 10, info: 20, warn: 30, error: 40 }
 const stringFields = Object.freeze({
   errorClass: 64,
   errorCode: 64,
+  databaseState: 16,
   host: 255,
   method: 16,
   jobId: 36,

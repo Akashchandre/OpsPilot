@@ -7,7 +7,10 @@ import { loadEnvironment } from "./config/env.js";
 import { createDatabase } from "./db/prisma.js";
 import { createJsonLogger } from "./logging/logger.js";
 import { createOpaqueToken, digestToken } from "./modules/auth/auth.tokens.js";
-import { attachNotificationGateway } from "./realtime/notifications.gateway.js";
+import {
+  attachNotificationGateway,
+  notificationTransportPath,
+} from "./realtime/notifications.gateway.js";
 
 dotenv.config({ path: ".env.test", override: true, quiet: true });
 
@@ -90,6 +93,7 @@ async function createTicket(userId, suffix) {
 
 function connect(token, origin = config.corsOrigin) {
   const socket = createSocketClient(`${baseUrl}/notifications`, {
+    path: notificationTransportPath,
     transports: ["websocket"],
     forceNew: true,
     reconnection: false,

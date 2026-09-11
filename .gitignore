@@ -16,6 +16,8 @@ npm-debug.log*
 .env.*
 !.env.example
 !.env.test.example
+compose.env
+demo.env
 
 apps/api/src/generated/prisma/
 .prisma/

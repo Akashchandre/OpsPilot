@@ -107,6 +107,31 @@ describe("OpsPilot API foundation", () => {
     expect(JSON.stringify(response.body)).not.toContain("secret db error");
   });
 
+  it("fails closed without starting a mutation while the database supervisor is unavailable", async () => {
+    let available = false;
+    const database = {
+      $queryRawUnsafe: vi.fn().mockResolvedValue([{ result: 1 }]),
+      authSession: { findUnique: vi.fn() },
+    };
+    const databaseAvailability = { isAvailable: () => available };
+    const app = createApp({ config, database, databaseAvailability });
+
+    const unavailable = await request(app)
+      .post("/api/v1/auth/login")
+      .set("Origin", config.corsOrigin)
+      .send({ email: "customer@example.com", password: "a-secure-password" });
+
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.body.error).toMatchObject({ code: "SERVICE_UNAVAILABLE" });
+    expect(database.authSession.findUnique).not.toHaveBeenCalled();
+    expect(database.$queryRawUnsafe).not.toHaveBeenCalled();
+
+    available = true;
+    const recovered = await request(app).get("/api/v1/health");
+    expect(recovered.status).toBe(200);
+    expect(database.$queryRawUnsafe).toHaveBeenCalledOnce();
+  });
+
   it("returns the consistent error envelope for unknown routes", async () => {
     const database = { $queryRawUnsafe: vi.fn() };
     const response = await request(createApp({ config, database })).get("/api/v1/unknown");

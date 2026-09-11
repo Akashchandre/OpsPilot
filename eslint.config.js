@@ -9,6 +9,8 @@ export default [
       "**/node_modules/**",
       "**/.venv/**",
       "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/.ruff_cache/**",
       "**/dist/**",
       "**/coverage/**",
       "**/src/generated/**",

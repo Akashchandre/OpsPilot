@@ -17,8 +17,8 @@
     "payments:razorpay:check": "npm run payments:razorpay:check --workspace @opspilot/api",
     "build": "npm run build --workspace @opspilot/web",
     "lint": "eslint apps",
-    "format": "prettier --write \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:format",
-    "format:check": "prettier --check \"apps/**/*.{js,jsx,json,css,html}\" \"*.{json,js}\" && npm run db:validate",
+    "format": "prettier --write \"apps/api/**/*.{js,json}\" \"apps/web/**/*.{js,jsx,json,css,html}\" \"apps/ai/evaluation/**/*.json\" \"*.{json,js}\" && npm run db:format",
+    "format:check": "prettier --check \"apps/api/**/*.{js,json}\" \"apps/web/**/*.{js,jsx,json,css,html}\" \"apps/ai/evaluation/**/*.json\" \"*.{json,js}\" && npm run db:validate",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "db:generate": "npm run db:generate --workspace @opspilot/api",
@@ -35,6 +35,15 @@
     "eslint-plugin-react-refresh": "0.5.4",
     "globals": "17.11.0",
     "prettier": "3.9.6"
+  },
+  "overrides": {
+    "@prisma/adapter-mariadb": {
+      "mariadb": "3.4.7"
+    },
+    "prisma": {
+      "mysql2": "3.23.1"
+    },
+    "qs": "6.16.0"
   },
   "allowScripts": {
     "@prisma/engines@7.9.1": true,

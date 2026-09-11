@@ -12,7 +12,31 @@ Phase 8 is accepted and complete for the repository/development scope under ADR 
 2026-09-06. Its local encrypted-storage and local-vector topology is not approved for production.
 Phase 9's workflow/dependency baseline was accepted under ADR 0012 on 2026-09-06. Its complete
 repository/development implementation and automated gate passed and were explicitly accepted that
-day; production and separately gated data/live-evaluation uses remain unapproved.
+day; production and separately gated data/live-evaluation uses remain unapproved. Phase 10's
+production-configured personal-demo baseline, Razorpay Test Mode/no-real-money contract, staged
+AWS/Docker/GitHub delivery direction, and progressive production AI gates were accepted under ADR
+0013 on 2026-09-07. Controlled repository implementation is active; exact dependencies/tools,
+cloud resources, production AI/data use, Live Mode, and deployment remain separately gated. The
+selected profile is public, uses an existing AWS account and generated CloudFront domain, permits
+eligible Free Tier credits but no paid spend, sends alerts by email, and uses public GitHub Free.
+On 2026-09-09 the owner selected `us-east-1` and reported an AWS Free Plan account with USD 160 of
+credit and 67 days remaining, MFA enabled, and billing alerts enabled. These are owner-supplied
+facts and were not verified through AWS. The proposal-only CI/CD and infrastructure review found
+that origin TLS, existing critical/high findings, and the finite credit window still block release
+and provisioning. On 2026-09-10 Batch 10G-1 repository quality CI was approved, but its required
+action recheck found two high-severity advisories in approved `actions/setup-node@v7.0.0` and no
+patched `v7.x` release, so no workflow was created. The separately authorized exact upstream-patch
+review also rejected merged commit `e51e5fe84fc33b4c73ebe40526b2694712b5b858` because current
+full and production audits still report high findings. No provisioning is authorized.
+
+On 2026-09-11 the owner separately approved implementation of a single-EC2 CloudFront personal-
+demo pack and explicitly accepted HTTP only for the CloudFront-to-EC2 hop. ADR 0014 records this
+narrow exception without changing ADR 0013's production baseline. The repository now contains a
+locally verified unprivileged Nginx/React edge, Node API and worker, MySQL Compose profile, exact
+Socket.IO `/api/v1` transport path, private environment example, deployment/bootstrap/smoke
+scripts, and manual `us-east-1` runbook. Browser traffic remains HTTPS, Razorpay remains Test Mode,
+and AI/documents/workflows remain disabled. No AWS account was accessed and no resource was
+provisioned or deployed.
 
 ## Purpose
 
@@ -109,17 +133,17 @@ Broader personal/row-level context, general agents, and deferred tools/actions r
 
 ## Technology direction
 
-| Layer                     | Direction                                                                                                                              | Status                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Web client                | React with JavaScript and React Router                                                                                                 | Agreed                                                                                                           |
-| Client state              | Redux Toolkit only where shared complexity justifies it                                                                                | Conditional                                                                                                      |
-| UI system                 | Material UI or Tailwind CSS                                                                                                            | **Decision Required**                                                                                            |
-| Main API                  | Node.js, Express, JavaScript                                                                                                           | Agreed                                                                                                           |
-| Relational data           | MySQL with Prisma                                                                                                                      | Agreed                                                                                                           |
-| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b`; LangGraph only for approved bounded Phase 9 workflows | Phases 7–9 accepted for repository/development; production unapproved                                               |
-| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                | Verified under ADR 0011; production vector topology remains **Decision Required**                                |
-| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development         | Local document storage is not approved for production; Redis/shared adapters remain conditional                  |
-| Delivery                  | Docker, GitHub Actions, AWS                                                                                                            | Future; detailed choices **Decision Required**                                                                   |
+| Layer                     | Direction                                                                                                                              | Status                                                                                          |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Web client                | React with JavaScript and React Router                                                                                                 | Agreed                                                                                          |
+| Client state              | Redux Toolkit only where shared complexity justifies it                                                                                | Conditional                                                                                     |
+| UI system                 | Material UI or Tailwind CSS                                                                                                            | **Decision Required**                                                                           |
+| Main API                  | Node.js, Express, JavaScript                                                                                                           | Agreed                                                                                          |
+| Relational data           | MySQL with Prisma                                                                                                                      | Agreed                                                                                          |
+| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b`; LangGraph only for approved bounded Phase 9 workflows | Phases 7–9 accepted for repository/development; production unapproved                           |
+| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                | Verified under ADR 0011; production vector topology remains **Decision Required**               |
+| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development         | Local document storage is not approved for production; Redis/shared adapters remain conditional |
+| Delivery                  | Accepted Docker, GitHub Actions, CloudFormation, and AWS ECS/RDS/S3/CloudFront design direction                                        | ADR 0013; exact tools, infrastructure changes, and deployment remain separately gated           |
 
 The main frontend and backend must remain JavaScript. TypeScript migration is out of scope unless the project direction is explicitly changed.
 
@@ -185,6 +209,49 @@ fixed graph-selected Node tools, metadata-only local checkpoints, short-lived en
 and mandatory human approval before one idempotent public reply. The permission/approval matrix,
 threat model, exact LangGraph dependency pins, and evaluation gates are accepted. The complete
 implementation and repository/development gate passed and were explicitly accepted on 2026-09-06.
+
+On 2026-09-07, the user verified that Phase 10 should start if Phase 9 was complete and clarified
+that OpsPilot is a personal project whose deployed demo may continue to use Razorpay Test Mode.
+The user then explicitly accepted the complete baseline and threat model under ADR 0013. Controlled
+repository implementation is active for a cost-aware production-configured demo with persistent
+public-demo/fictional-data/`TEST MODE — NO REAL MONEY` labelling, staged container/CI/cloud gates,
+synthetic/non-sensitive data, and progressive AI enablement. The user selected public AWS access,
+no custom domain, eligible Free Tier credits only, demo traffic, email alerts, and public GitHub
+Free. The owner later reported USD 160 of free credit and selected `us-east`, which still requires
+an exact `us-east-1` or `us-east-2` choice. On 2026-09-09 the owner resolved the region as
+`us-east-1` and reported 67 credit-days remaining, Free Plan status, MFA, and billing alerts.
+Those account facts remain owner-reported rather than independently verified. No new
+dependency/tool, provider account, cloud resource, paid
+spend, real data use, Live Mode payment, production AI enablement, or deployment is approved by
+that acceptance.
+
+On 2026-09-08 the user separately approved the exact Batch 10C Node/Python/MySQL image pull and
+build. Hardened local images, Compose, SBOM/provenance, fresh migrations, health, shutdown, and
+regression checks pass. Critical/high scan findings, migration-image dev content, and a
+Prisma/OpenSSL warning block Batch 10C acceptance; no cloud resource or deployment was authorized.
+
+The user then approved only the six Batch 10D remediation changes and prohibited residual-finding
+acceptance. Exact npm/PCRE2/MySQL fixes and migration/AI minimization are implemented and their
+regressions pass, but the image gate still reports critical/high findings and npm retains the
+Prisma `deepmerge-ts` chain. A live MySQL restart also leaves API/worker pools unrecovered until
+dependent containers are recreated. Batch 10C/10D, AWS work, release use, and deployment remain
+blocked; no residual finding was accepted.
+
+Batch 10E subsequently cleared the MySQL scan and database-pool recovery blockers without
+accepting the remaining Node/migration/AI or Prisma findings. The proposal-only Batch 10F upstream
+review then found no current official image or stable Prisma candidate that clears the required
+zero-critical/high compatibility gate. No Batch 10F implementation is recommended or authorized.
+
+The subsequent proposal-only CI/CD and `us-east-1` infrastructure review is recorded in
+`docs/phase-10/PHASE-10-CI-CD-AWS-INFRASTRUCTURE-PROPOSAL.md`. Repository-only quality CI is a
+viable separately gated next batch. The owner approved 10G-1 on 2026-09-10, but implementation
+stopped before workflow creation because its exact setup-node action bundles two high-severity
+findings and no patched release exists. The exact PR 1599 merge commit was then reviewed under a
+proposal-only authorization and rejected because `brace-expansion@5.0.8` is affected by a newer
+high-severity advisory. Release/provisioning remain blocked by the existing scan findings, an
+unresolved strict TLS path between CloudFront and ALB when no custom domain exists, and the need to
+re-price every usage-based resource against the expiring credit immediately before creation. No
+workflow, GitHub setting, CloudFormation template, AWS access, or resource change was made.
 
 ## Overall system flow
 

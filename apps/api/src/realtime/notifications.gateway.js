@@ -1,9 +1,23 @@
 import { Server } from "socket.io";
+import { isIP } from "node:net";
 import { resolveActiveSessionToken } from "../middleware/authenticate.js";
 import { USER_STATUSES } from "../modules/auth/auth.constants.js";
 
 const oneMinuteMilliseconds = 60_000;
 const maximumLimiterEntries = 10_000;
+export const notificationTransportPath = "/api/v1/socket.io";
+
+export function resolveNotificationSource(address, forwardedFor, trustedProxyHops) {
+  const directAddress = typeof address === "string" && isIP(address) ? address : "unknown";
+  if (!Number.isInteger(trustedProxyHops) || trustedProxyHops < 1) return directAddress;
+  if (typeof forwardedFor !== "string" || forwardedFor.length > 2048) return directAddress;
+
+  const forwardedAddresses = forwardedFor.split(",").map((entry) => entry.trim());
+  const selectedIndex = forwardedAddresses.length - trustedProxyHops;
+  if (selectedIndex < 0) return directAddress;
+  const selectedAddress = forwardedAddresses[selectedIndex];
+  return isIP(selectedAddress) ? selectedAddress : directAddress;
+}
 
 function cookieValue(header, name) {
   if (typeof header !== "string" || header.length > 8192) return null;
@@ -57,6 +71,7 @@ export async function attachNotificationGateway({
 }) {
   const now = dependencies.now ?? (() => new Date());
   const io = new Server(httpServer, {
+    path: notificationTransportPath,
     cors: {
       origin: config.corsOrigin,
       credentials: true,
@@ -91,7 +106,11 @@ export async function attachNotificationGateway({
   namespace.use(async (socket, next) => {
     try {
       const origin = socket.handshake.headers.origin;
-      const source = socket.handshake.address ?? "unknown";
+      const source = resolveNotificationSource(
+        socket.handshake.address,
+        socket.handshake.headers["x-forwarded-for"],
+        config.proxy.trustProxyHops,
+      );
       if (origin !== config.corsOrigin || !consumeHandshake(`source:${source}`)) {
         return next(connectionError("CONNECTION_NOT_ALLOWED"));
       }

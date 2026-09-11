@@ -1,4 +1,5 @@
 const defaultApiBaseUrl = "http://127.0.0.1:4000/api/v1";
+const realtimeTransportPath = "/api/v1/socket.io";
 
 function normalizeApiBaseUrl(value) {
   const apiBaseUrl = value || defaultApiBaseUrl;
@@ -28,5 +29,6 @@ const apiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 export const webConfig = Object.freeze({
   apiBaseUrl,
   realtimeBaseUrl: realtimeBaseUrl(apiBaseUrl),
+  realtimeTransportPath,
   csrfCookieName: normalizeCookieName(import.meta.env.VITE_CSRF_COOKIE_NAME),
 });

@@ -22,6 +22,7 @@ vi.mock("socket.io-client", () => ({
 }));
 
 import App from "./App.jsx";
+import { io as createSocket } from "socket.io-client";
 
 const user = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -139,6 +140,15 @@ describe("Phase 6 UI", () => {
     render(<App />);
 
     const trigger = await screen.findByRole("button", { name: /Notifications/ });
+    await waitFor(() =>
+      expect(createSocket).toHaveBeenCalledWith(
+        "http://127.0.0.1:4000/notifications",
+        expect.objectContaining({
+          path: "/api/v1/socket.io",
+          withCredentials: true,
+        }),
+      ),
+    );
     await browser.click(trigger);
     expect(await screen.findByText("Support status updated")).toBeInTheDocument();
 

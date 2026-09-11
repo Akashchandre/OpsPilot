@@ -12,7 +12,10 @@ import { createOpaqueToken, digestToken } from "../modules/auth/auth.tokens.js";
 import { JOB_TYPES } from "../modules/jobs/jobs.constants.js";
 import { createJobQueue, enqueueJob } from "../modules/jobs/jobs.queue.js";
 import { createNotificationMaterializer } from "../modules/notifications/notifications.materializer.js";
-import { attachNotificationGateway } from "../realtime/notifications.gateway.js";
+import {
+  attachNotificationGateway,
+  notificationTransportPath,
+} from "../realtime/notifications.gateway.js";
 
 dotenv.config({ path: ".env.test", override: true, quiet: true });
 
@@ -220,6 +223,7 @@ try {
   await new Promise((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
   const baseUrl = `http://127.0.0.1:${httpServer.address().port}`;
   socket = createSocketClient(`${baseUrl}/notifications`, {
+    path: notificationTransportPath,
     transports: ["websocket"],
     forceNew: true,
     reconnection: false,

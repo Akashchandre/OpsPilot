@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { createDatabaseAvailabilityGuard } from "./db/databaseAvailability.js";
 import { createJsonLogger } from "./logging/logger.js";
 import { resolveRateLimitIdentity } from "./middleware/authenticate.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -23,6 +24,7 @@ export function createApp({
   paymentProvider = createRazorpayAdapter(config),
   aiClient,
   documentStore = null,
+  databaseAvailability = null,
   logger = createJsonLogger(config),
 }) {
   const app = express();
@@ -40,6 +42,7 @@ export function createApp({
       allowedHeaders: ["Accept", "Content-Type", "Idempotency-Key", "X-CSRF-Token"],
     }),
   );
+  app.use(createDatabaseAvailabilityGuard(databaseAvailability));
   app.use(rejectUrlEncoded);
   app.post(
     "/api/v1/payments/webhooks/razorpay",

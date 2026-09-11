@@ -12,8 +12,7 @@ const documentJobTypes = new Set([
 
 function delay(milliseconds) {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, milliseconds);
-    timer.unref?.();
+    setTimeout(resolve, milliseconds);
   });
 }
 
@@ -71,11 +70,16 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
   const schedule = dependencies.enqueueScheduledJobs ?? enqueueScheduledJobs;
   const clock = dependencies.now ?? (() => new Date());
   const pause = dependencies.delay ?? delay;
+  const databaseAvailability = dependencies.databaseAvailability ?? {
+    isAvailable: () => true,
+  };
   const inFlight = new Set();
   let workerId = null;
+  let lifecycleReady = false;
   let stopping = false;
   let started = false;
   let stopPromise = null;
+  let stopSignal = "SIGTERM";
 
   async function execute(job) {
     const startedAt = clock();
@@ -105,7 +109,20 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
         queueAgeMs: Math.max(0, startedAt.getTime() - job.createdAt.getTime()),
       });
     } catch (error) {
-      await queue.fail(job, workerId, error);
+      try {
+        await queue.fail(job, workerId, error);
+      } catch (recordError) {
+        logger.log("error", "job.failure_record_failed", {
+          workerId,
+          jobId: job.id,
+          jobType: job.type,
+          jobStatus: "LEASE_RECOVERY_REQUIRED",
+          attempt: job.attemptCount,
+          errorClass: recordError?.constructor?.name ?? "Error",
+          errorCode:
+            typeof recordError?.code === "string" ? recordError.code : "JOB_FAILURE_RECORD_FAILED",
+        });
+      }
       logger.log("warn", "job.failed", {
         workerId,
         jobId: job.id,
@@ -126,11 +143,14 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
   }
 
   async function runOnce() {
+    if (!databaseAvailability.isAvailable()) return 0;
     await queue.heartbeat(workerId);
+    if (!databaseAvailability.isAvailable()) return 0;
     await schedule(database, config, clock());
+    if (!databaseAvailability.isAvailable()) return 0;
     await queue.reconcileExpiredLeases();
     const capacity = Math.max(0, config.jobs.concurrency - inFlight.size);
-    if (capacity === 0) return 0;
+    if (capacity === 0 || !databaseAvailability.isAvailable()) return 0;
     const jobs = await queue.claim(workerId, capacity);
     for (const job of jobs) track(job);
     return jobs.length;
@@ -139,8 +159,14 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
   async function start() {
     if (started) throw new Error("Background worker has already started");
     started = true;
+    if (stopping) return;
     workerId = await queue.registerWorker();
     await queue.activateWorker(workerId);
+    lifecycleReady = true;
+    if (stopping) {
+      await stop(stopSignal);
+      return;
+    }
     logger.log("info", "worker.started", { workerId });
     while (!stopping) {
       try {
@@ -159,15 +185,32 @@ export function createBackgroundWorker({ database, config, handlers, logger, dep
   }
 
   function stop(signal = "SIGTERM") {
-    if (!started) return Promise.resolve();
-    if (stopPromise) return stopPromise;
+    stopSignal = signal;
     stopping = true;
+    if (!started || !lifecycleReady) return Promise.resolve();
+    if (stopPromise) return stopPromise;
     stopPromise = (async () => {
       logger.log("warn", "worker.shutdown_requested", { workerId, signal });
-      await queue.beginWorkerStop(workerId);
+      try {
+        await queue.beginWorkerStop(workerId);
+      } catch (error) {
+        logger.log("warn", "worker.stop_begin_failed", {
+          workerId,
+          errorClass: error?.constructor?.name ?? "Error",
+          errorCode: typeof error?.code === "string" ? error.code : "WORKER_STOP_BEGIN_FAILED",
+        });
+      }
       const grace = delay(config.jobs.shutdownGraceSeconds * 1000);
       await Promise.race([Promise.allSettled(inFlight), grace]);
-      await queue.stopWorker(workerId);
+      try {
+        await queue.stopWorker(workerId);
+      } catch (error) {
+        logger.log("warn", "worker.stop_record_failed", {
+          workerId,
+          errorClass: error?.constructor?.name ?? "Error",
+          errorCode: typeof error?.code === "string" ? error.code : "WORKER_STOP_RECORD_FAILED",
+        });
+      }
       logger.log("info", "worker.stopped", { workerId });
     })();
     return stopPromise;

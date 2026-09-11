@@ -113,6 +113,7 @@ export function NotificationCenter() {
     void synchronize(true);
 
     const socket = createSocket(`${webConfig.realtimeBaseUrl}/notifications`, {
+      path: webConfig.realtimeTransportPath,
       withCredentials: true,
       autoConnect: true,
     });
