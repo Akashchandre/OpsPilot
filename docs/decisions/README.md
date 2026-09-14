@@ -33,3 +33,4 @@ Do not create a decision record merely to disguise an unresolved choice. Until r
 - `0013-phase-10-production-readiness-baseline.md` — accepted the Phase 10 personal-project production-readiness, AWS delivery, staged rollout, fictional-data, Test Mode, security, and explicit-gate baseline.
 - `0014-single-ec2-cloudfront-personal-demo.md` — accepted the separate single-EC2 CloudFront personal-demo pack and narrow HTTP origin-hop exception.
 - `0015-static-catalog-imagery-and-public-labelling.md` — accepted bundled static catalog photography, safe SKU-based presentation, removal of visible demo naming, and the shortened persistent Test Mode/fictional-data label.
+- `0016-application-shell-and-action-feedback.md` — accepted the responsive application-shell refinement, grouped navigation, reusable notices, and centralized accessible Toastify mutation feedback.

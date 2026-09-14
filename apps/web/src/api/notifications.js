@@ -16,6 +16,7 @@ export async function markNotificationRead(notificationId) {
   const response = await apiRequest(`/notifications/${notificationId}/read`, {
     method: "PATCH",
     requiresCsrf: true,
+    feedback: false,
   });
   return response.data.notification;
 }

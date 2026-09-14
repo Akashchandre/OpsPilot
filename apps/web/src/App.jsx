@@ -31,6 +31,7 @@ import { ReportsPage } from "./pages/ReportsPage.jsx";
 import { SupportPage } from "./pages/SupportPage.jsx";
 import { SupportTicketPage } from "./pages/SupportTicketPage.jsx";
 import { UsersPage } from "./pages/UsersPage.jsx";
+import "react-toastify/dist/ReactToastify.css";
 import "./styles.css";
 
 export function AppRoutes() {

@@ -233,6 +233,9 @@ describe("OpsPilot web authentication", () => {
 
     expect(await screen.findByRole("heading", { name: "Welcome, Customer." })).toBeInTheDocument();
     expect(screen.getByText("CUSTOMER")).toBeInTheDocument();
+    expect(screen.getByLabelText("Action completed")).toHaveTextContent(
+      "Welcome back. You are signed in.",
+    );
   });
 
   it("shows an authorization state when a customer opens the user administration route", async () => {

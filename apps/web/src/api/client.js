@@ -1,4 +1,9 @@
 import { webConfig } from "../config.js";
+import {
+  isMutationMethod,
+  notifyActionError,
+  notifyActionSuccess,
+} from "../feedback/actionFeedback.js";
 
 export class ApiError extends Error {
   constructor({ status, code, message, details }) {
@@ -29,8 +34,19 @@ export async function apiRequest(
     requiresCsrf = false,
     idempotencyKey,
     signal,
+    feedback,
   } = {},
 ) {
+  const normalizedMethod = method.toUpperCase();
+  const shouldNotify = feedback !== false && isMutationMethod(normalizedMethod);
+  const successMessage = typeof feedback === "object" ? feedback.success : undefined;
+  const errorMessage = typeof feedback === "object" ? feedback.error : undefined;
+
+  function fail(error) {
+    if (shouldNotify) notifyActionError(path, normalizedMethod, error, errorMessage);
+    throw error;
+  }
+
   const headers = { Accept: "application/json" };
   if (body !== undefined) {
     headers["Content-Type"] = rawBody ? contentType : "application/json";
@@ -39,11 +55,13 @@ export async function apiRequest(
   if (requiresCsrf) {
     const csrfToken = readCookie(webConfig.csrfCookieName);
     if (!csrfToken) {
-      throw new ApiError({
-        status: 403,
-        code: "CSRF_TOKEN_MISSING",
-        message: "Your security token is unavailable. Refresh the page and try again.",
-      });
+      fail(
+        new ApiError({
+          status: 403,
+          code: "CSRF_TOKEN_MISSING",
+          message: "Your security token is unavailable. Refresh the page and try again.",
+        }),
+      );
     }
     headers["X-CSRF-Token"] = csrfToken;
   }
@@ -59,33 +77,42 @@ export async function apiRequest(
     });
   } catch (error) {
     if (error.name === "AbortError") throw error;
-    throw new ApiError({
-      status: 0,
-      code: "NETWORK_ERROR",
-      message: "The OpsPilot API is unavailable.",
-    });
+    fail(
+      new ApiError({
+        status: 0,
+        code: "NETWORK_ERROR",
+        message: "The OpsPilot API is unavailable.",
+      }),
+    );
   }
 
   let payload;
   try {
     payload = await response.json();
   } catch {
-    throw new ApiError({
-      status: response.status,
-      code: "INVALID_API_RESPONSE",
-      message: "The OpsPilot API returned an unexpected response.",
-    });
+    fail(
+      new ApiError({
+        status: response.status,
+        code: "INVALID_API_RESPONSE",
+        message: "The OpsPilot API returned an unexpected response.",
+      }),
+    );
   }
 
   if (!response.ok || payload?.success !== true) {
-    throw new ApiError({
-      status: response.status,
-      code: payload?.error?.code ?? "API_ERROR",
-      message: payload?.error?.message ?? "The request could not be completed.",
-      details: payload?.error?.details,
-    });
+    fail(
+      new ApiError({
+        status: response.status,
+        code: payload?.error?.code ?? "API_ERROR",
+        message: payload?.error?.message ?? "The request could not be completed.",
+        details: payload?.error?.details,
+      }),
+    );
   }
 
+  if (shouldNotify && successMessage !== false) {
+    notifyActionSuccess(path, normalizedMethod, successMessage);
+  }
   return payload;
 }
 

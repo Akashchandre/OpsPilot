@@ -1,4 +1,5 @@
 import { useAuth } from "../auth/auth-context.js";
+import { Link } from "react-router-dom";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -11,6 +12,33 @@ export function DashboardPage() {
         <p className="muted">
           Your account and access are resolved from the API on every protected request.
         </p>
+      </div>
+      <div className="panel dashboard-actions">
+        <div className="panel-heading-row">
+          <div>
+            <p className="eyebrow">QUICK ACCESS</p>
+            <h2>Continue your work</h2>
+          </div>
+          <span className="badge badge--active">READY</span>
+        </div>
+        <div className="quick-link-grid">
+          <Link to="/products">
+            <strong>Products</strong>
+            <span>Browse the active catalog →</span>
+          </Link>
+          <Link to="/orders">
+            <strong>Orders</strong>
+            <span>Review order history →</span>
+          </Link>
+          <Link to="/support">
+            <strong>Support</strong>
+            <span>Manage your requests →</span>
+          </Link>
+          <Link to="/cart">
+            <strong>Cart</strong>
+            <span>Continue checkout →</span>
+          </Link>
+        </div>
       </div>
       <div className="panel">
         <h2>Identity</h2>

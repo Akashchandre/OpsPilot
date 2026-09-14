@@ -138,7 +138,13 @@ export function ProductsPage() {
       <div className="product-grid">
         {state.products.map((product) => (
           <article className="product-card" key={product.id}>
-            <ProductVisual product={product} className="product-card__visual" />
+            <Link
+              className="product-card__media"
+              to={`/products/${product.id}`}
+              aria-label={`View ${product.name}`}
+            >
+              <ProductVisual product={product} className="product-card__visual" />
+            </Link>
             <div className="product-card__content">
               <div className="product-card__topline">
                 <span className="sku">{formatPublicSku(product.sku)}</span>
@@ -146,8 +152,12 @@ export function ProductsPage() {
                   {product.availability.inStock ? "In stock" : "Out of stock"}
                 </span>
               </div>
-              <h2>{product.name}</h2>
-              <p className="product-card__description">{product.description}</p>
+              <h2>
+                <Link to={`/products/${product.id}`}>{product.name}</Link>
+              </h2>
+              <p className="product-card__description">
+                {product.description || "A carefully selected product for your workspace."}
+              </p>
               <div className="category-chips">
                 {product.categories.map((category) => (
                   <span key={category.id}>{category.name}</span>
@@ -157,8 +167,11 @@ export function ProductsPage() {
                 <strong className="price">
                   <Money amount={product.price} currency={product.currency} />
                 </strong>
-                <Link className="button button--quiet" to={`/products/${product.id}`}>
-                  View details
+                <Link
+                  className="button button--secondary button--compact"
+                  to={`/products/${product.id}`}
+                >
+                  View details <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </div>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { confirmPayment, createOrder, getCart, getPaymentSession } from "../api/commerce.js";
 import { Money } from "../components/Money.jsx";
+import { Notice } from "../components/Notice.jsx";
+import { notifyWarning } from "../feedback/actionFeedback.js";
 import { openRazorpayCheckout } from "../payments/razorpayCheckout.js";
 
 function newIdempotencyKey() {
@@ -71,6 +73,10 @@ export function CheckoutPage() {
           }
         },
         onDismiss() {
+          notifyWarning(
+            "Checkout was closed. Your Test Mode order remains payable while its reservation is active.",
+            "checkout-dismissed",
+          );
           setPaymentState((current) => ({
             ...current,
             status: "pending",
@@ -78,6 +84,10 @@ export function CheckoutPage() {
           }));
         },
         onFailure() {
+          notifyWarning(
+            "The Test Mode payment was not completed. You can safely retry.",
+            "checkout-failed",
+          );
           setPaymentState((current) => ({
             ...current,
             status: "pending",
@@ -87,7 +97,9 @@ export function CheckoutPage() {
       });
       setPaymentState((current) => ({ ...current, status: "checkout-open" }));
     } catch (error) {
-      setPaymentState((current) => ({ ...current, status: "pending", error: error.message }));
+      const message = error?.message ?? "Test Mode checkout is temporarily unavailable.";
+      notifyWarning(message, "checkout-unavailable");
+      setPaymentState((current) => ({ ...current, status: "pending", error: message }));
     }
   }
 
@@ -157,6 +169,10 @@ export function CheckoutPage() {
           <Money amount={cart.subtotal} currency={cart.currency} />
         </strong>
       </div>
+      <Notice title="Test payment environment" className="checkout-warning">
+        No real money is processed. Use fictional shipping details and Razorpay Test Mode payment
+        information only.
+      </Notice>
       {paymentState.error ? (
         <p className="global-alert" role="alert">
           {paymentState.error}

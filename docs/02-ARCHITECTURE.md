@@ -267,6 +267,9 @@ explicit repository/development acceptance was recorded on 2026-09-06.
 - Pages coordinate feature-level presentation.
 - Reusable components provide consistent accessible UI.
 - A centralized API client handles base URL, serialization, safe credentials, and normalized errors.
+- The application shell owns responsive navigation, persistent Test Mode warnings, and one
+  accessible Toastify container. The centralized API client emits deduplicated feedback for
+  deliberate mutations while pages retain authoritative inline state and errors.
 - Local component state is preferred; Redux Toolkit is used only where shared state or workflows justify it.
 - Client route protection supports user experience but is never the security boundary.
 
