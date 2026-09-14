@@ -8,7 +8,7 @@ describe("ProductVisual", () => {
     render(<ProductVisual product={product} className="product-card__visual" />);
 
     const image = screen.getByRole("img", { name: "Office Desk" });
-    expect(image).toHaveAttribute("src", "/products/office-desk.jpg");
+    expect(image).toHaveAttribute("src", "/catalog-images/office-desk.jpg");
     expect(image).toHaveAttribute("loading", "lazy");
 
     fireEvent.error(image);

@@ -385,7 +385,7 @@ describe("OpsPilot web authentication", () => {
     expect(await screen.findByRole("heading", { name: "Ergonomic Chair" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Ergonomic Chair" })).toHaveAttribute(
       "src",
-      "/products/wooden-chair.jpg",
+      "/catalog-images/wooden-chair.jpg",
     );
     expect(screen.getByText("In stock", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText(/₹|INR/)).toBeInTheDocument();
@@ -475,7 +475,7 @@ describe("OpsPilot web authentication", () => {
     expect(await screen.findByRole("heading", { name: catalogProduct.name })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: catalogProduct.name })).toHaveAttribute(
       "src",
-      "/products/wooden-chair.jpg",
+      "/catalog-images/wooden-chair.jpg",
     );
     expect(screen.getAllByRole("link", { name: "Log in" })).toHaveLength(2);
 

@@ -8,7 +8,7 @@ describe("catalog product presentation", () => {
   });
 
   it("maps known product SKUs to bundled catalog images", () => {
-    expect(productImageForSku("DEMO-DESK-001")).toBe("/products/office-desk.jpg");
+    expect(productImageForSku("DEMO-DESK-001")).toBe("/catalog-images/office-desk.jpg");
     expect(productImageForSku("UNKNOWN-001")).toBeUndefined();
   });
 });
