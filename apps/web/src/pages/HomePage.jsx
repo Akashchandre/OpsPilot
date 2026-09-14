@@ -34,7 +34,7 @@ export function HomePage() {
             day-to-day operations—designed around permission-aware access.
           </p>
           <div className="hero__actions">
-            <Link className="button button--primary button--large" to="/products">
+            <Link className="button button--primary button--large" to="/products/">
               Explore the catalog <span aria-hidden="true">→</span>
             </Link>
             <Link className="button button--secondary button--large" to="/login">
@@ -91,7 +91,7 @@ export function HomePage() {
             <span className="capability-card__index">01</span>
             <h3>Commerce that feels effortless</h3>
             <p>Discover products, manage a cart, and follow every order from one polished flow.</p>
-            <Link to="/products">
+            <Link to="/products/">
               Browse products <span aria-hidden="true">→</span>
             </Link>
           </article>

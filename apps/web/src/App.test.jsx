@@ -200,6 +200,10 @@ describe("OpsPilot web authentication", () => {
     expect(screen.getByText("Checking the platform services…")).toBeInTheDocument();
     expect(await screen.findByText("Foundation ready")).toBeInTheDocument();
     expect(screen.getByText("Web, API, and MySQL are connected.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Explore the catalog/ })).toHaveAttribute(
+      "href",
+      "/products/",
+    );
   });
 
   it("redirects an unauthenticated protected route to login", async () => {

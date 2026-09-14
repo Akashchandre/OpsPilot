@@ -84,7 +84,7 @@ export function AppLayout() {
             <NavLink className="site-nav__link" to="/" end>
               Home
             </NavLink>
-            <NavLink className="site-nav__link" to="/products">
+            <NavLink className="site-nav__link" to="/products/">
               Products
             </NavLink>
             {auth.user ? (
