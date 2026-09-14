@@ -98,12 +98,8 @@ export function AppLayout() {
         </div>
       </header>
 
-      <aside className="demo-payment-notice" role="note" aria-label="Demo payment mode">
-        <strong>PUBLIC DEMO — TEST MODE — NO REAL MONEY</strong>
-        <span>
-          Use fictional information only. Razorpay payments are simulated and demo data may be
-          deleted.
-        </span>
+      <aside className="test-payment-notice" role="note" aria-label="Test payment mode">
+        <strong>TEST MODE — NO REAL MONEY · FICTIONAL DATA ONLY</strong>
       </aside>
 
       {logoutError ? (

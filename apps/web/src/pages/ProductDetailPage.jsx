@@ -3,7 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { getCart, setCartItem } from "../api/commerce.js";
 import { getProduct } from "../api/catalog.js";
 import { useAuth } from "../auth/auth-context.js";
+import { formatPublicSku } from "../catalog/productPresentation.js";
 import { Money } from "../components/Money.jsx";
+import { ProductVisual } from "../components/ProductVisual.jsx";
 
 export function ProductDetailPage() {
   const { productId } = useParams();
@@ -57,14 +59,12 @@ export function ProductDetailPage() {
   }
   return (
     <article className="product-detail">
-      <div className="product-detail__visual" aria-hidden="true">
-        {product.name.slice(0, 2).toUpperCase()}
-      </div>
+      <ProductVisual product={product} className="product-detail__visual" eager />
       <div>
         <Link className="back-link" to="/products">
           ← All products
         </Link>
-        <p className="eyebrow">{product.sku}</p>
+        <p className="eyebrow">{formatPublicSku(product.sku)}</p>
         <h1>{product.name}</h1>
         <p className="product-detail__description">{product.description}</p>
         <div className="category-chips">

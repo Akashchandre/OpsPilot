@@ -78,6 +78,12 @@ MySQL catalog and inventory tables
 
 The catalog module owns strict validation, public/management projections, product/category lifecycle, normalized uniqueness, and the configured `INR` money boundary. The inventory module owns exact-balance reads, low-stock thresholds, and atomic balance-plus-ledger transactions. Optimistic integer versions prevent silent lost updates. Prisma migration `20260825122320_phase_3_business_core` adds the tables, constraints, permissions, and default role mappings. Phase 3 introduces no new service, package, or infrastructure component.
 
+ADR 0015 adds a presentation-only catalog image layer for the eleven current fictional products.
+Optimized JPEGs are bundled with the React build and selected from an allowlisted immutable-SKU
+mapping. Unknown or failed mappings retain the deterministic initials placeholder. This adds no
+product-media schema, API field, upload route, remote URL, object storage, or runtime dependency;
+managed product images remain deferred.
+
 ## Phase 4 commerce architecture
 
 Phase 4 keeps commerce inside the existing JavaScript API and MySQL topology while adding Razorpay

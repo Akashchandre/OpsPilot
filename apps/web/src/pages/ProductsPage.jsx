@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listCategories, listProducts } from "../api/catalog.js";
+import { formatPublicSku } from "../catalog/productPresentation.js";
 import { Money } from "../components/Money.jsx";
+import { ProductVisual } from "../components/ProductVisual.jsx";
 
 const initialFilters = {
   search: "",
@@ -136,12 +138,10 @@ export function ProductsPage() {
       <div className="product-grid">
         {state.products.map((product) => (
           <article className="product-card" key={product.id}>
-            <div className="product-card__visual" aria-hidden="true">
-              {product.name.slice(0, 2).toUpperCase()}
-            </div>
+            <ProductVisual product={product} className="product-card__visual" />
             <div className="product-card__content">
               <div className="product-card__topline">
-                <span className="sku">{product.sku}</span>
+                <span className="sku">{formatPublicSku(product.sku)}</span>
                 <span className={`stock stock--${product.availability.inStock ? "in" : "out"}`}>
                   {product.availability.inStock ? "In stock" : "Out of stock"}
                 </span>

@@ -193,11 +193,10 @@ describe("OpsPilot web authentication", () => {
 
     render(<App />);
 
-    const demoPaymentNotice = screen.getByRole("note", { name: "Demo payment mode" });
-    expect(demoPaymentNotice).toHaveTextContent("PUBLIC DEMO — TEST MODE — NO REAL MONEY");
-    expect(demoPaymentNotice).toHaveTextContent(
-      "Use fictional information only. Razorpay payments are simulated and demo data may be deleted.",
-    );
+    const testPaymentNotice = screen.getByRole("note", { name: "Test payment mode" });
+    expect(testPaymentNotice).toHaveTextContent("TEST MODE — NO REAL MONEY · FICTIONAL DATA ONLY");
+    expect(testPaymentNotice).not.toHaveTextContent("PUBLIC DEMO");
+    expect(testPaymentNotice).not.toHaveTextContent("Razorpay payments are simulated");
     expect(screen.getByText("Checking the platform services…")).toBeInTheDocument();
     expect(await screen.findByText("Foundation ready")).toBeInTheDocument();
     expect(screen.getByText("Web, API, and MySQL are connected.")).toBeInTheDocument();
@@ -381,6 +380,10 @@ describe("OpsPilot web authentication", () => {
 
     expect(await screen.findByRole("heading", { name: "Products" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Ergonomic Chair" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Ergonomic Chair" })).toHaveAttribute(
+      "src",
+      "/products/wooden-chair.jpg",
+    );
     expect(screen.getByText("In stock", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText(/₹|INR/)).toBeInTheDocument();
 
@@ -467,6 +470,10 @@ describe("OpsPilot web authentication", () => {
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: catalogProduct.name })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: catalogProduct.name })).toHaveAttribute(
+      "src",
+      "/products/wooden-chair.jpg",
+    );
     expect(screen.getAllByRole("link", { name: "Log in" })).toHaveLength(2);
 
     cleanup();

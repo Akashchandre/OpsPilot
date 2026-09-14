@@ -45,7 +45,7 @@ Migration `20260825122320_phase_3_business_core` creates the following tables an
 | `inventory_balances`    | One aggregate stock balance per product | Product primary/foreign key, nonnegative whole-number on-hand and threshold values, optimistic version                                                                   |
 | `inventory_adjustments` | Immutable operational stock ledger      | UUID primary key, product and actor foreign keys, nonzero delta, nonnegative before/after values, database-enforced balance arithmetic, reason, optional note/request ID |
 
-Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, images, hierarchy, warehouses, fractional quantities, tax, discounts, conversion, and new employee records remain outside this schema; Phase 4 adds the approved reservation model separately.
+Prices are represented as decimal strings plus `INR` in HTTP responses. Product/category edits and stock changes use version preconditions. The application exposes no hard-delete route. Product variants, managed images/uploads, hierarchy, warehouses, fractional quantities, tax, discounts, conversion, and new employee records remain outside this schema; Phase 4 adds the approved reservation model separately. ADR 0015's allowlisted static catalog JPEGs are React presentation assets keyed by immutable SKU and do not change this persistence boundary.
 
 ## Implemented Phase 4 commerce tables
 

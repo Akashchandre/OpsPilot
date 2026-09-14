@@ -12,6 +12,7 @@ RUN npm ci --workspace @opspilot/web --include-workspace-root
 
 COPY apps/web/index.html apps/web/index.html
 COPY apps/web/vite.config.js apps/web/vite.config.js
+COPY apps/web/public apps/web/public
 COPY apps/web/src apps/web/src
 
 ARG VITE_API_BASE_URL
