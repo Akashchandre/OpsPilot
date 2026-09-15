@@ -21,6 +21,9 @@ grep -q 'id="root"' "$temporary_directory/login.html"
 
 curl -fsS --retry 12 --retry-delay 5 "$public_origin/api/v1/health" >"$temporary_directory/health.json"
 grep -q '"success":true' "$temporary_directory/health.json"
+grep -q '"ai":"ready"' "$temporary_directory/health.json"
+grep -q '"aiWorkflows":"ready"' "$temporary_directory/health.json"
+grep -q '"documents":{"storage":"ready","embedding":"ready","vectorIndex":"ready"}' "$temporary_directory/health.json"
 
 curl -fsS \
   --retry 5 \
@@ -30,4 +33,4 @@ curl -fsS \
   >"$temporary_directory/socket.txt"
 grep -q '^0{' "$temporary_directory/socket.txt"
 
-echo "Public demo smoke passed: SPA, API health, and Socket.IO transport are reachable through CloudFront."
+echo "Public demo smoke passed: SPA, API, AI, documents, workflows, and Socket.IO are ready through CloudFront."

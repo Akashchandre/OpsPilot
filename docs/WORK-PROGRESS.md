@@ -1,15 +1,15 @@
 # Work Progress
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-15
 
 ## Current Phase
 
 Phase 10 — Testing, Docker, CI/CD, and Production (baseline accepted under ADR 0013; separate ADR
-0014 personal-demo pack locally ready; AWS not provisioned)
+0014 personal demo deployed; browser/Razorpay dashboard acceptance pending)
 
 ## Status
 
-PHASE 10 BASELINE ACCEPTED — PERSONAL-DEMO PACK LOCALLY READY, DEPLOYMENT NOT AUTHORIZED
+PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO UPDATE VERIFIED, EXACT RELEASE DEPLOYMENT PENDING
 
 ## Completed
 
@@ -494,6 +494,84 @@ PHASE 10 BASELINE ACCEPTED — PERSONAL-DEMO PACK LOCALLY READY, DEPLOYMENT NOT 
   syntax checks, Linux script syntax/placeholder checks, healthy MySQL/API/web containers, worker
   jobs, SPA/API health, and authenticated WebSocket-through-Nginx smoke. The disposable stack uses
   synthetic values only and is removed after verification. No finding was accepted or suppressed.
+- On 2026-09-12 the owner explicitly authorized the ADR 0014 deployment in `us-east-1` at exact
+  commit `e8cb8b1782d27f3e402a64f8f1fb46bf3285c569`, with fictional data, Razorpay Test Mode, AI,
+  documents, and workflows disabled, and no AWS Paid Plan change. Official AWS CLI v2 was installed
+  per-user and a temporary browser-authenticated profile verified the account remained `FREE` and
+  `ACTIVE`. Provisioning stopped when `t3.medium` was not Free Plan eligible; after separate owner
+  approval, the deployment used `t3.small` plus 2 GiB swap.
+- The deployed demo uses one encrypted 30 GiB `gp3` EC2 host, CloudFront HTTPS with the approved
+  HTTP origin exception, CloudFront-prefix-list-only origin HTTP, owner-IP-only SSH, loopback API,
+  and private-network MySQL. Docker was installed from the official repository and the exact
+  approved commit was built and started. Migrations exited `0`; MySQL, API, and web are healthy;
+  the worker is running; and the fictional owner was created interactively.
+- Public HTTP-to-HTTPS redirect, SPA, API/database health, and Socket.IO smoke pass at
+  `https://de1blqypqxue4.cloudfront.net`. Effective configuration and health confirm AI, documents,
+  and workflows remain disabled. Recent service logs contain no matching error entries, and the
+  Razorpay Test Mode credential preflight authenticates without creating a payment. The final AWS
+  check still reports an active Free Plan, running EC2, and deployed CloudFront. Evidence is in
+  `docs/phase-10/PHASE-10-ADR-0014-AWS-DEMO-DEPLOYMENT-EVIDENCE.md`.
+- On 2026-09-14 the owner requested removal of visible `Demo` naming, product photography for the
+  current live catalog, and removal of the longer header notice. ADR 0015 accepts a bounded static
+  presentation layer: eleven optimized bundled JPEGs selected by immutable SKU, accessible image
+  rendering with an initials fallback, public-only removal of the internal `DEMO-` SKU prefix, and
+  the concise persistent `TEST MODE — NO REAL MONEY · FICTIONAL DATA ONLY` label. Ten live product
+  names/descriptions were updated and verified without `Demo`; no schema, API, upload, remote URL,
+  object store, or dependency was added. Local focused tests, lint, formatting/schema validation,
+  and the production web build pass. The owner then explicitly authorized exact commit
+  `191ba0fd77116265f80f07f4144e64d830e9dc11`; it was pushed and deployed through the documented
+  ADR 0014 script on 2026-09-14. The existing MySQL container and named data volume were preserved.
+  All long-running services are running, health checks pass, the CloudFront SPA/API/Socket.IO smoke
+  passes, all eleven catalog JPEGs return `200 image/jpeg`, the new concise label is present, the
+  old `PUBLIC DEMO`/Razorpay notice is absent, and all eleven public product names/descriptions are
+  free of `Demo`.
+- On 2026-09-14 the owner authorized a full interface refinement and deployment. ADR 0016 records
+  the accepted responsive application shell, grouped permission-aware navigation, stronger cards
+  and focus states, reusable warnings, checkout-specific Test Mode guidance, and centralized
+  accessible Toastify feedback for deliberate mutations. Exact `react-toastify@11.1.0` is the only
+  added package and requires no account, service, secret, or environment variable. Passive reads,
+  navigation, pagination, and background notification reads remain intentionally quiet; inline
+  errors and authoritative page messages are preserved. The primary release is commit
+  `a092de77b6da1d9d9ca9f59088a6b3c2c894392d`. Live browser verification then exposed a collision
+  between the `/products` SPA route and the static image directory. Corrective commit
+  `e29bbb7e9e715e48245f18f4f6d690d2afd43c58` moved the eleven images to `/catalog-images`, and
+  commit `9eb291619ec2c3ce45e6fb82de750762ffe2c9ea` made `/products/` the tested canonical catalog
+  entry path so navigation does not depend on invalidating the previously cached edge redirect.
+  All three commits were pushed and deployed with the data-preserving ADR 0014 script. The final
+  exact commit is healthy with a clean remote worktree; the SPA/API/Socket.IO smoke, 60 web tests,
+  coverage gate, lint, formatting/Prisma validation, production and Docker builds, web production
+  dependency audit, catalog/detail routes, eleven product/image checks, and recent-log scan pass.
+  The root audit retains the previously documented Prisma/deepmerge chain at three high and zero
+  critical findings; this release adds none. The old no-trailing-slash `/products` object remains
+  temporarily cached at CloudFront after the local AWS session expired, but no shipped UI link
+  uses that alias and `/products/` returns the verified application with `200`.
+- On 2026-09-15 the top-navigation dropdown behavior was aligned with conventional application
+  menus: an open menu now closes on an outside pointer action, Escape (with focus returned to the
+  trigger), menu-item selection, and route changes. The behavior is isolated in a reusable
+  `NavigationMenu` component and covered by focused interaction tests. The reported AI and workflow
+  errors were also traced to the ADR 0013/0014 production kill switches rather than implementation
+  failures: 15 focused web AI tests, 21 API AI/RAG/workflow integration tests, and the routine
+  165-test Python AI suite pass. The owner then explicitly approved the narrow production-demo
+  topology and accepted its current `3C/11H` AI-image findings plus its single-host local
+  persistence/no-HA/no-backup limitations for fictional demo data only.
+- ADR 0017 records that time-bounded exception without changing ADR 0013's general-production
+  blockers. The production demo profile now enables customer/owner assistants, encrypted-document
+  RAG, owner business briefs, and approval-gated support reply workflows only when
+  `AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED=true`. Node and FastAPI reject that flag outside
+  production and retain fail-closed configuration validation. FastAPI remains loopback-only, only
+  it receives the Groq credential, the exact reviewed MiniLM revision is baked and hash-verified,
+  and distinct private volumes hold encrypted documents, local Qdrant state, and metadata-only
+  checkpoints.
+- A disposable production-profile Compose stack passed migration, startup ordering, live Groq
+  model preflight, coarse API/AI/workflow/document health, no-published-AI-port, non-root identity,
+  private-mode path, credential-scope, and volume-write checks. The complete gates pass at 226 API
+  tests, 63 web tests, and 166 Python tests with three explicit skips, plus ESLint, Prettier, Prisma
+  validation, Ruff, web build, Compose render, and AI/Node image builds. The synthetic stack and
+  volumes were removed. The AI-enabled update is locally release-ready but is not yet committed or
+  deployed. A digest-specific Docker Scout recheck was unavailable because Scout now requires
+  Docker Hub authentication; the unchanged OS/Python package set retains the carried-forward
+  `3C/11H` acceptance rather than a newly scanned count. Evidence is in
+  `docs/phase-10/PHASE-10-ADR-0017-AI-DEMO-EVIDENCE.md`.
 
 ## In Progress
 
@@ -507,26 +585,28 @@ PHASE 10 BASELINE ACCEPTED — PERSONAL-DEMO PACK LOCALLY READY, DEPLOYMENT NOT 
   reviewed PR 1599 patch have current high findings. No patched release has passed review. Later CI,
   E2E, accessibility, security pins, and any next remediation batch still require separate review
   and approval before use.
-- The separate ADR 0014 personal-demo deployment pack is locally ready. It has not been tested
-  through CloudFront or Razorpay's dashboard because AWS access/provisioning and public deployment
-  were expressly excluded from this implementation approval. The next cloud action requires a
-  new explicit authorization and must follow the manual runbook.
-- The owner selected `us-east-1` and reports an AWS Free Plan with USD 160 of credit and 67 days
-  remaining, MFA enabled, and billing alerts enabled. Account/service eligibility, actual
-  balance/expiry, alert configuration/delivery, and exact costs still require independent
-  verification immediately before any cloud request. The proposal-only no-domain review found no
+- The separate ADR 0014 personal demo is deployed and publicly reachable through CloudFront. ADR
+  0017's AI-enabled repository update is locally verified but awaits an exact clean commit and
+  data-preserving deployment. The
+  remaining external acceptance requires the owner to save the new Test Mode webhook URL, matching
+  separate secret, seven-event allowlist, and automatic-capture setting in Razorpay, then complete
+  the real-browser login/notification/route-refresh and one fictional Test Mode checkout checks.
+- The AWS API independently verified the selected `us-east-1` account remains on an active Free
+  Plan after deployment. The owner reports MFA and billing alerts enabled; alert delivery remains
+  owner-operated. The proposal-only no-domain review found no
   compatible drop-in strict-HTTPS origin. The detailed follow-up found the only retained material
   CloudFront/API Gateway/Lambda candidate no-go with fifteen open findings. Strict origin TLS
   remains unresolved for the ADR 0013 production design; ADR 0014 records only the accepted HTTP
-  origin exception for the personal demo. No cloud resource, provider purchase, paid spend, real
-  data use, production AI enablement, or deployment has been authorized.
-- Phase 9 has no remaining repository/development work. Production, metered workflow evaluation,
-  and non-synthetic support-data model processing remain separately gated inside Phase 10.
-- Phase 8 production storage/vector topology, privacy/retention, networking, monitoring, backup,
-  multi-instance operation, and rollout approval remain unresolved and separate from the accepted
-  repository/development scope.
+  origin exception for the personal demo. The ADR 0014 resources are deployed, and ADR 0017 now
+  authorizes AI there with fictional data only; no provider purchase, Paid Plan change, real data,
+  or broader production deployment is authorized.
+- Phase 9 has no remaining repository/development work. Metered workflow evaluation and
+  non-synthetic support-data model processing remain separately gated inside Phase 10.
+- Phase 8 general-production storage/vector topology, privacy/retention, networking, monitoring,
+  backup, multi-instance operation, and rollout approval remain unresolved. ADR 0017 accepts only
+  local single-host demo operation with fictional data and no backup/HA claim.
 - The real Razorpay provider smoke matrix and explicit Phase 4 acceptance remain blocked on a
-  completed hosted Test Mode payment plus copying the current temporary HTTPS webhook endpoint into
+  completed hosted Test Mode payment plus saving the current CloudFront HTTPS webhook endpoint in
   the Test Mode dashboard, matching its separate secret, confirming automatic capture, and
   subscribing only to the seven allowlisted events. The personal deployed demo may use Test Mode
   with explicit no-real-money labelling; Live Mode remains prohibited.
@@ -537,14 +617,13 @@ PHASE 10 BASELINE ACCEPTED — PERSONAL-DEMO PACK LOCALLY READY, DEPLOYMENT NOT 
 
 ## Next Task
 
-The repository pack is ready. Before deployment, the owner must recheck the AWS console for the
-actual credit balance/expiry and expected EC2/EBS/public-IPv4/CloudFront charges, then give separate
-explicit authorization to provision the ADR 0014 resources in `us-east-1`. After that approval,
-follow `docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md`: create the EC2 and CloudFront
-resources, install Docker, clone the exact approved commit, create `demo.env` on EC2, start the
-stack, bootstrap the owner interactively, run public/browser smoke checks, and configure the seven
-Razorpay Test Mode webhook events. Do not use real data, Live Mode, production AI, or unapproved
-paid-plan changes.
+Create and approve one exact clean AI-enabled release commit without absorbing unrelated local
+files, reconfirm Groq Global ZDR, populate the ignored mode-`0600` production `demo.env` with
+distinct keys, and deploy through the ADR 0014 data-preserving script. Then verify coarse health
+and every AI route using fictional content only. Separately, save the displayed webhook URL and
+secret in the Razorpay Test Mode dashboard, subscribe only to the seven approved events, confirm
+automatic capture, and complete the remaining fictional browser checks. Do not use real data,
+Live Mode, or unapproved paid-plan changes.
 
 In parallel, keep Batch 10F proposal-only and Batch 10G-1 unimplemented until official patched
 upstream releases pass the existing immutable-pin/license/advisory/compatibility gates. The ADR
@@ -576,6 +655,10 @@ suppressed silently.
 - ADR 0014 separately accepts the single-EC2 CloudFront personal-demo repository pack and the HTTP
   CloudFront-to-EC2 hop explicitly approved by the owner. It does not replace ADR 0013, authorize
   AWS access/provisioning, or accept any existing release finding.
+- ADR 0017 accepts every implemented AI capability only on the existing ADR 0014 single-EC2 demo,
+  only with fictional data and an explicit topology flag, through 2026-11-15 or earlier teardown/
+  credit exhaustion. It records the owner's narrow `3C/11H` AI-image and local persistence risk
+  acceptance without weakening ADR 0013's general-production gate.
 - The initial profile is a public, synthetic-data personal demo on AWS using the generated
   CloudFront domain, email alerts, and a public GitHub Free repository. Only eligible Free Tier
   credits may be consumed; paid spend and automatic paid-plan upgrades are not approved.
@@ -661,10 +744,11 @@ suppressed silently.
 ## Known Issues
 
 - The installed system Node.js remains 20.19.4 because active Node processes prevent MSI replacement. Verification uses an official portable Node.js 24.19.0 runtime; complete the system upgrade after active sessions are closed.
-- The owner selected `us-east-1` and reports an AWS Free Plan, USD 160 of free credit with 67 days
-  remaining, MFA, and billing alerts. The account facts, service eligibility, alert delivery,
-  exact balance/expiry, and prices are unverified. ECS/Fargate, ALB, private networking, WAF, RDS,
-  logging, and related services cannot be assumed permanently free, so provisioning is blocked.
+- The AWS account plan is independently verified `FREE` and `ACTIVE`, with credits and expiration
+  available through the account API. The ADR 0014 `t3.small`, encrypted `gp3`, public IPv4, and
+  standard CloudFront usage remain usage-priced and consume those credits. The owner must monitor
+  the existing billing alerts and stop/delete the demo before credits expire or are exhausted.
+  ECS/Fargate, ALB, WAF, RDS, and the ADR 0013 production topology remain unprovisioned.
 - The accepted generated-CloudFront-domain topology has no currently approved path for strict
   certificate-validated HTTPS from CloudFront to the ALB without an owned domain and matching
   certificate. Private HTTP is not accepted as satisfying the encryption-in-transit gate. The
@@ -701,11 +785,12 @@ suppressed silently.
   migrations and data intact. Production ECS/RDS supervision remains a separate unapproved design.
 - Phase 5 rate stores and Phase 6 connection/rate accounting are per process and need reviewed
   shared or edge policy before horizontal scaling.
-- The Razorpay Test Mode provider-delivery gate is not yet complete end to end: the rotated API
-  credentials authenticate, provider-order creation succeeds, and the temporary public HTTPS
-  tunnel is verified, but dashboard capture, matching webhook secret/current endpoint, the
-  seven-event allowlist, and the remaining payment/refund delivery matrix require confirmation.
-  The real-looking Test Mode key pair found in the tracked example before commit remains rotated.
+- The Razorpay Test Mode provider-delivery gate is not yet complete end to end: the configured API
+  credentials authenticate from the deployed API and the CloudFront webhook route is reachable,
+  but dashboard capture, matching replacement webhook secret/current endpoint, the seven-event
+  allowlist, and the remaining payment/refund delivery matrix require confirmation. A webhook
+  secret shown in a screenshot during setup was immediately rotated and is no longer valid. The
+  real-looking Test Mode key pair found in the tracked example before commit remains rotated.
 - Production retention/privacy/erasure/legal-hold rules, encrypted backup ownership/vendor,
   generations, RPO/RTO, restore cadence, hosted monitoring/alerting, and incident ownership remain
   undecided production blockers. The local performance result is a regression baseline, not an
@@ -832,8 +917,12 @@ baseline approval is recorded under ADR 0012, its complete repository/developmen
 and automated gate pass, and explicit phase acceptance was recorded on 2026-09-06. On 2026-09-07,
 the user explicitly authorized Phase 10 and accepted its production-readiness baseline and threat
 model under ADR 0013. Controlled repository implementation is active, starting with persistent
-Razorpay Test Mode/no-real-money labelling. Exact new tools, cloud resources, real data, production
-AI, deployment, and final release remain separately gated. Metered workflow evaluation,
+Razorpay Test Mode/no-real-money labelling. The separately authorized ADR 0014 personal demo is
+deployed at the exact approved commit, with its final browser/Razorpay acceptance still pending.
+The broader ADR 0013 production release and real data remain separately gated. ADR 0017 permits
+production AI only on the existing fictional-data single-EC2 personal demo; its exact release is
+locally verified and pending deployment.
+Metered workflow evaluation,
 non-synthetic support-data model processing, Redis/Valkey, external channels, live payments,
 multi-instance deployment, unapproved workflows/actions, and every unaccepted production
 capability remain out of scope.

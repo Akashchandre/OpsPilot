@@ -8,9 +8,22 @@ x-demo-runtime-environment: &demo-runtime-environment
   RAZORPAY_KEY_ID: ${OPSPILOT_DEMO_RAZORPAY_KEY_ID:?set the Razorpay Test Mode key ID in demo.env}
   RAZORPAY_KEY_SECRET: ${OPSPILOT_DEMO_RAZORPAY_KEY_SECRET:?set the Razorpay Test Mode key secret in demo.env}
   RAZORPAY_WEBHOOK_SECRET: ${OPSPILOT_DEMO_RAZORPAY_WEBHOOK_SECRET:?set the Razorpay Test Mode webhook secret in demo.env}
-  AI_ENABLED: "false"
-  AI_WORKFLOWS_ENABLED: "false"
-  DOCUMENTS_ENABLED: "false"
+  AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED: ${OPSPILOT_DEMO_AI_LOCAL_TOPOLOGY_ACCEPTED:?set explicit local AI topology acceptance in demo.env}
+  AI_ENABLED: ${OPSPILOT_DEMO_AI_ENABLED:?set the AI kill switch in demo.env}
+  AI_SERVICE_SIGNING_KEY: ${OPSPILOT_DEMO_AI_SERVICE_SIGNING_KEY:?set the Node-to-AI signing key in demo.env}
+  AI_SERVICE_SIGNING_KEY_ID: ${OPSPILOT_DEMO_AI_SERVICE_SIGNING_KEY_ID:?set the Node-to-AI signing key ID in demo.env}
+  AI_WORKFLOWS_ENABLED: ${OPSPILOT_DEMO_AI_WORKFLOWS_ENABLED:?set the workflow kill switch in demo.env}
+  AI_BUSINESS_BRIEF_ENABLED: ${OPSPILOT_DEMO_AI_BUSINESS_BRIEF_ENABLED:?set the business brief kill switch in demo.env}
+  AI_SUPPORT_WORKFLOW_ENABLED: ${OPSPILOT_DEMO_AI_SUPPORT_WORKFLOW_ENABLED:?set the support workflow kill switch in demo.env}
+  AI_SUPPORT_DATA_PROCESSING_CONFIRMED: ${OPSPILOT_DEMO_AI_SUPPORT_DATA_PROCESSING_CONFIRMED:?set the fictional support-data confirmation in demo.env}
+  AI_WORKFLOW_NODE_SIGNING_KEY: ${OPSPILOT_DEMO_AI_WORKFLOW_NODE_SIGNING_KEY:?set the AI-to-Node signing key in demo.env}
+  AI_WORKFLOW_NODE_SIGNING_KEY_ID: ${OPSPILOT_DEMO_AI_WORKFLOW_NODE_SIGNING_KEY_ID:?set the AI-to-Node signing key ID in demo.env}
+  AI_WORKFLOW_ARTIFACT_KEY: ${OPSPILOT_DEMO_AI_WORKFLOW_ARTIFACT_KEY:?set the workflow artifact key in demo.env}
+  AI_WORKFLOW_ARTIFACT_KEY_ID: ${OPSPILOT_DEMO_AI_WORKFLOW_ARTIFACT_KEY_ID:?set the workflow artifact key ID in demo.env}
+  DOCUMENTS_ENABLED: ${OPSPILOT_DEMO_DOCUMENTS_ENABLED:?set the document kill switch in demo.env}
+  DOCUMENT_STORAGE_ROOT: /var/lib/opspilot/documents
+  DOCUMENT_ENCRYPTION_KEY: ${OPSPILOT_DEMO_DOCUMENT_ENCRYPTION_KEY:?set the document encryption key in demo.env}
+  DOCUMENT_ENCRYPTION_KEY_ID: ${OPSPILOT_DEMO_DOCUMENT_ENCRYPTION_KEY_ID:?set the document encryption key ID in demo.env}
 
 services:
   mysql:
@@ -20,11 +33,48 @@ services:
     restart: unless-stopped
     environment:
       <<: *demo-runtime-environment
+    volumes:
+      - demo-document-data:/var/lib/opspilot/documents
 
   worker:
     restart: unless-stopped
     environment:
       <<: *demo-runtime-environment
+    depends_on:
+      ai:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - demo-document-data:/var/lib/opspilot/documents
+
+  ai:
+    profiles: ["app", "ai"]
+    restart: unless-stopped
+    environment:
+      AI_ENVIRONMENT: production
+      AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED: ${OPSPILOT_DEMO_AI_LOCAL_TOPOLOGY_ACCEPTED:?set explicit local AI topology acceptance in demo.env}
+      AI_PROVIDER_ENABLED: ${OPSPILOT_DEMO_AI_ENABLED:?set the AI kill switch in demo.env}
+      AI_SERVICE_SIGNING_KEY: ${OPSPILOT_DEMO_AI_SERVICE_SIGNING_KEY:?set the Node-to-AI signing key in demo.env}
+      AI_SERVICE_SIGNING_KEY_ID: ${OPSPILOT_DEMO_AI_SERVICE_SIGNING_KEY_ID:?set the Node-to-AI signing key ID in demo.env}
+      GROQ_API_KEY: ${OPSPILOT_DEMO_GROQ_API_KEY:?set the dedicated Groq key in demo.env}
+      GROQ_REQUIRE_ZERO_DATA_RETENTION: "true"
+      GROQ_ZERO_DATA_RETENTION_CONFIRMED: ${OPSPILOT_DEMO_GROQ_ZERO_DATA_RETENTION_CONFIRMED:?confirm the current Groq Data Controls setting in demo.env}
+      AI_RAG_ENABLED: ${OPSPILOT_DEMO_DOCUMENTS_ENABLED:?set the document/RAG kill switch in demo.env}
+      AI_RAG_MODEL_CACHE_DIR: /var/lib/opspilot-ai/models
+      AI_RAG_QDRANT_PATH: /var/lib/opspilot-ai/qdrant
+      AI_RAG_COLLECTION_NAME: opspilot_documents_v1
+      AI_RAG_EMBEDDING_THREADS: 1
+      AI_WORKFLOWS_ENABLED: ${OPSPILOT_DEMO_AI_WORKFLOWS_ENABLED:?set the workflow kill switch in demo.env}
+      AI_WORKFLOW_NODE_URL: http://127.0.0.1:4000
+      AI_WORKFLOW_NODE_SIGNING_KEY: ${OPSPILOT_DEMO_AI_WORKFLOW_NODE_SIGNING_KEY:?set the AI-to-Node signing key in demo.env}
+      AI_WORKFLOW_NODE_SIGNING_KEY_ID: ${OPSPILOT_DEMO_AI_WORKFLOW_NODE_SIGNING_KEY_ID:?set the AI-to-Node signing key ID in demo.env}
+      AI_SUPPORT_DATA_PROCESSING_CONFIRMED: ${OPSPILOT_DEMO_AI_SUPPORT_DATA_PROCESSING_CONFIRMED:?set the fictional support-data confirmation in demo.env}
+      AI_WORKFLOW_CHECKPOINT_PATH: /var/lib/opspilot-ai/checkpoints/workflows.sqlite3
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      AI_WORKFLOW_MAX_CONCURRENCY: 1
+    volumes:
+      - demo-ai-vector-data:/var/lib/opspilot-ai/qdrant
+      - demo-ai-checkpoint-data:/var/lib/opspilot-ai/checkpoints
 
   web:
     profiles: ["app"]
@@ -56,3 +106,8 @@ services:
     mem_limit: 128m
     cpus: 0.25
     stop_grace_period: 15s
+
+volumes:
+  demo-document-data:
+  demo-ai-vector-data:
+  demo-ai-checkpoint-data:

@@ -64,6 +64,7 @@ describe("loadEnvironment", () => {
         connectionRateLimitMax: 20,
       },
       ai: {
+        productionDemoLocalTopologyAccepted: false,
         enabled: false,
         serviceUrl: "http://127.0.0.1:8000",
         signingKey: undefined,
@@ -246,6 +247,47 @@ describe("loadEnvironment", () => {
         ...aiEnvironment,
         AI_GLOBAL_DAILY_COST_LIMIT_USD_CENTS: "1",
         AI_MAX_REQUEST_COST_USD_CENTS: "2",
+      }),
+    ).toThrow(ConfigurationError);
+  });
+
+  it("accepts all local AI capabilities only for the explicitly approved production demo", () => {
+    const configured = loadEnvironment({
+      ...workflowEnvironment,
+      NODE_ENV: "production",
+      AUTH_COOKIE_SECURE: "true",
+      RAZORPAY_ENABLED: "true",
+      RAZORPAY_KEY_ID: "rzp_test_unitidentifier",
+      RAZORPAY_KEY_SECRET: "safe-test-key-secret",
+      RAZORPAY_WEBHOOK_SECRET: "safe-test-webhook-secret",
+      AUDIT_INTEGRITY_KEY: Buffer.alloc(32, 0x41).toString("base64"),
+      AUDIT_INTEGRITY_KEY_ID: "production-test-v1",
+      AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED: "true",
+      AI_BUSINESS_BRIEF_ENABLED: "true",
+      AI_SUPPORT_WORKFLOW_ENABLED: "true",
+      AI_SUPPORT_DATA_PROCESSING_CONFIRMED: "true",
+      DOCUMENTS_ENABLED: "true",
+      DOCUMENT_STORAGE_ROOT: documentStorageRoot,
+      DOCUMENT_ENCRYPTION_KEY: Buffer.alloc(32, 0x44).toString("base64"),
+      DOCUMENT_ENCRYPTION_KEY_ID: "documents-test-v1",
+    });
+
+    expect(configured.ai).toMatchObject({
+      productionDemoLocalTopologyAccepted: true,
+      enabled: true,
+      workflows: {
+        enabled: true,
+        businessBriefEnabled: true,
+        supportEnabled: true,
+        supportDataProcessingConfirmed: true,
+      },
+    });
+    expect(configured.documents.enabled).toBe(true);
+
+    expect(() =>
+      loadEnvironment({
+        ...validEnvironment,
+        AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED: "true",
       }),
     ).toThrow(ConfigurationError);
   });

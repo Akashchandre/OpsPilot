@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/auth-context.js";
 import { AppToaster } from "./AppToaster.jsx";
+import { NavigationMenu } from "./NavigationMenu.jsx";
 import { Notice } from "./Notice.jsx";
 import { NotificationCenter } from "./NotificationCenter.jsx";
 
@@ -26,18 +27,6 @@ const operationLinks = [
     permissions: ["ai:workflows:business:use"],
   },
 ];
-
-function NavigationMenu({ label, active, children }) {
-  return (
-    <details className={`nav-menu${active ? " nav-menu--active" : ""}`}>
-      <summary>
-        {label}
-        <span aria-hidden="true">⌄</span>
-      </summary>
-      <div className="nav-menu__panel">{children}</div>
-    </details>
-  );
-}
 
 function initials(displayName) {
   return displayName
@@ -93,6 +82,7 @@ export function AppLayout() {
                   Dashboard
                 </NavLink>
                 <NavigationMenu
+                  key={`my-activity:${location.pathname}`}
                   label="My activity"
                   active={
                     location.pathname.startsWith("/cart") ||
@@ -112,7 +102,11 @@ export function AppLayout() {
               </>
             ) : null}
             {visibleOperationLinks.length > 0 ? (
-              <NavigationMenu label="Operations" active={location.pathname.startsWith("/admin/")}>
+              <NavigationMenu
+                key={`operations:${location.pathname}`}
+                label="Operations"
+                active={location.pathname.startsWith("/admin/")}
+              >
                 {visibleOperationLinks.map((item) => (
                   <NavLink to={item.to} key={item.to}>
                     {item.label}

@@ -14,6 +14,7 @@ export function createHealthService(database, config = {}, aiClient = null, docu
       }
 
       let ai = "disabled";
+      let aiWorkflows = "disabled";
       let internalHealth = null;
       if (config.ai?.enabled) {
         try {
@@ -25,6 +26,9 @@ export function createHealthService(database, config = {}, aiClient = null, docu
         } catch {
           ai = "unavailable";
         }
+      }
+      if (config.ai?.workflows?.enabled) {
+        aiWorkflows = ai === "ready" ? "ready" : "unavailable";
       }
 
       const documents = {
@@ -51,6 +55,7 @@ export function createHealthService(database, config = {}, aiClient = null, docu
         service: "opspilot-api",
         database: "reachable",
         ai,
+        aiWorkflows,
         documents,
         timestamp: new Date().toISOString(),
       };

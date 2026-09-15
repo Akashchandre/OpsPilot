@@ -67,8 +67,18 @@ def test_rejects_repository_checkpoint_and_production_topology(tmp_path: Path) -
                 "AI_WORKFLOW_CHECKPOINT_PATH": REPOSITORY_ROOT / "private" / "workflow.sqlite",
             }
         )
-    with pytest.raises(ValidationError, match="not approved for production"):
+    with pytest.raises(ValidationError, match="explicitly accepted topology"):
         make_settings(**{**workflow_values(tmp_path), "AI_ENVIRONMENT": "production"})
+
+    settings = make_settings(
+        **{
+            **workflow_values(tmp_path),
+            "AI_ENVIRONMENT": "production",
+            "AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED": True,
+        }
+    )
+    assert settings.production_demo_local_topology_accepted is True
+    assert settings.workflows_enabled is True
 
 
 def test_support_processing_requires_isolated_rag_boundary(tmp_path: Path) -> None:

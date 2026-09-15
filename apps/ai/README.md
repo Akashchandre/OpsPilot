@@ -74,6 +74,16 @@ If startup reports that the Groq key or ZDR confirmation is invalid, restore
 `AI_PROVIDER_ENABLED=false`, leave `AI_ENABLED=false`, and correct only the ignored AI-service
 configuration. Never paste the value into an issue, command, log, or chat.
 
+## Production-demo exception
+
+ADR 0017 permits every implemented AI capability only on the existing single-EC2 personal demo,
+only with fictional data, and only while its time-bounded risk acceptance remains valid. Both Node
+and FastAPI require `AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED=true` in production and reject that
+flag in development/test. The Compose demo image bakes and hash-verifies the reviewed MiniLM
+revision, keeps runtime downloads disabled, exposes no FastAPI/vector port, and persists Qdrant and
+metadata-only checkpoints in separate private volumes. Follow the Phase 10 single-EC2 runbook;
+never use this exception as a general-production configuration.
+
 ## Checks
 
 Routine checks never contact Groq:
@@ -99,7 +109,8 @@ The accepted development adapter uses the exact cached
 `sentence-transformers/all-MiniLM-L6-v2` revision recorded in configuration and a private local
 Qdrant directory. Set `AI_RAG_MODEL_CACHE_DIR` and `AI_RAG_QDRANT_PATH` to absolute, distinct paths
 outside the repository. Keep `AI_RAG_ENABLED=false` until the approved model is fully cached. Local
-Qdrant mode is single-process and rejected in production.
+Qdrant mode remains rejected in general production; ADR 0017 permits it only for the single-process
+fictional-data personal demo.
 
 Run the offline 50-case retrieval/isolation/deletion benchmark only against the approved cache:
 

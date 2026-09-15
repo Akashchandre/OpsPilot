@@ -7,6 +7,11 @@ authorizes controlled repository implementation of these requirements. It does n
 infrastructure, dependencies, provider accounts, real customer/regulated data, production AI,
 Razorpay Live Mode, or deployment; each retains its separate approval gate.
 
+ADR 0017 adds a time-bounded exception for all implemented AI capabilities on the existing ADR
+0014 single-EC2 fictional-data demo. It explicitly accepts local persistence, no HA/backup claim,
+and the current AI-image findings for that demo only. The managed ADR 0013 production gate below
+is unchanged for real data or any commercial release.
+
 ## Scope
 
 This review covers the proposed container build and runtime boundary, GitHub Actions CI/CD, artifact
@@ -251,9 +256,11 @@ bounds, AWS/provider budgets and anomaly alerts, log lifecycle, and emergency fe
 switches.
 
 For the selected public personal-demo profile, show a persistent fictional-data/Test Mode notice,
-keep AI/document/workflow production features off, retain public registration abuse controls, send
-operational and billing alerts by confirmed email, and tear down resources before Free Plan or
-credit expiry. Free Tier credits are not treated as a permanent zero-cost entitlement.
+retain public registration abuse controls, send operational and billing alerts by confirmed email,
+and tear down resources before Free Plan or credit expiry. ADR 0017 permits AI/document/workflow
+features only behind its explicit local-topology guard, provider ZDR, consent, independent kill
+switches, loopback isolation, fictional-data restriction, and time-bounded risk acceptance. Free
+Tier credits are not treated as a permanent zero-cost entitlement.
 
 **Required verification:** Load, soak, burst, slow-client, reconnect, large-input, poison-job,
 provider-429, vector-timeout, NAT/egress, log-volume, and budget alarm drills; prove core service

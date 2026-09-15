@@ -8,8 +8,9 @@ provider-specific xAI baseline. The Groq Chat Completions adapter, consent versi
 enum migration, exact cost calculation, contracts, and UI labels are implemented. On 2026-09-04,
 Global ZDR was operator-confirmed, the redacted application preflight passed, and the paced metered
 20-case live evaluation passed every quality, safety, schema, latency, and cost threshold. The user
-explicitly authorized development enablement and accepted Phase 7 on 2026-09-04. Production
-approval remains pending the broader account/privacy/operations review.
+explicitly authorized development enablement and accepted Phase 7 on 2026-09-04. General
+production approval remains pending the broader account/privacy/operations review; ADR 0017 adds
+only the fictional-data personal-demo exception described below.
 
 On 2026-09-05, ADR 0011 accepted the Phase 8 repository/development baseline and its exact local
 Qdrant/FastEmbed dependencies. The verified repository/development implementation adds strict
@@ -32,7 +33,18 @@ Batch 10D keeps the same pinned Python base, installs the exact PCRE2 security u
 runtime pip plus its nested SBOM-only `msgpack`/`setuptools` metadata. Imports, health, shutdown,
 Ruff, and 165 routine tests still pass. The 2026-09-09 local scan is reduced to `3` critical and
 `11` high findings (Perl, OpenSSL, util-linux, and zlib), so the AI image remains unaccepted and
-production AI remains disabled. No VEX or risk acceptance was created.
+general production AI remains blocked. No VEX was created. ADR 0017 later records an explicit,
+time-bounded risk acceptance for the existing personal demo only; it does not reclassify the image
+or satisfy ADR 0013's zero-residual gate.
+
+On 2026-09-15 the owner explicitly approved ADR 0017's single-EC2 production-demo AI exception for
+fictional data only. The demo profile enables both assistants, encrypted-document RAG, the
+owner-only business brief, and the approval-gated support reply workflow behind
+`AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED=true`. FastAPI stays loopback-only in the API network
+namespace, the reviewed MiniLM revision is baked and hash-verified at build time, and distinct
+private named volumes hold document objects, Qdrant data, and metadata-only checkpoints. A live
+Groq model preflight and all coarse dependency health checks passed in a disposable local
+production-profile stack. The AI-enabled release is not yet deployed.
 
 AI does not replace authentication, authorization, deterministic business rules, database constraints, payment logic, or human approval for consequential actions.
 
@@ -244,13 +256,13 @@ These remain production decisions even though Phase 7's development/test data mi
 provider-processing notice, and Phase 8's separate document-processing consent and local
 repository/development safeguards, are implemented.
 
-Phase 10 now requires progressive production enablement rather than turning all AI features on at
-the first deployed demo. The stateless assistant would be reviewed first, followed by S3/Qdrant-
-backed document Q&A, the owner business brief, and finally the support reply workflow. The accepted
-production persistence evaluation candidates are Qdrant Managed Cloud for vectors and an AWS
+ADR 0013 still requires progressive enablement for a general production release. ADR 0017 is the
+narrow exception: all implemented capabilities may run together only on the existing single-host
+personal demo, only with fictional data, and only while its time-bounded risk acceptance is valid.
+The general-production persistence candidates remain Qdrant Managed Cloud for vectors and an AWS
 DynamoDB LangGraph checkpointer with an official Postgres fallback; neither is approved or
-installed for production. Non-synthetic support data, provider/legal terms, retention/deletion, key rotation,
-budgets, alerts, restore, and kill-switch exercises remain release gates.
+installed. Non-synthetic support data, provider/legal terms, retention/deletion, key rotation,
+budgets, alerts, restore, and kill-switch exercises remain general-production release gates.
 
 ## Evaluation and acceptance direction
 

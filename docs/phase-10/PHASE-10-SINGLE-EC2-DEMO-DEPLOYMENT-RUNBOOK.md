@@ -14,8 +14,13 @@ Browser -- HTTPS/WSS --> generated CloudFront hostname
                    unprivileged Nginx :8080
                     |       |          |
                   React   Express   Socket.IO
-                              |
-                       worker + MySQL volume
+                              |       |
+                       worker + MySQL | loopback signed calls
+                                      v
+                              FastAPI + Groq HTTPS
+                               |              |
+                    encrypted documents   baked model + local
+                         named volume      Qdrant/checkpoint volumes
 ```
 
 It does not authorize AWS access or provisioning. Do not perform the AWS steps until the owner
@@ -44,6 +49,8 @@ those checks occur only after separately authorized provisioning.
   groups, and create one CloudFront distribution.
 - The public GitHub repository URL and the exact commit to deploy.
 - Razorpay **Test Mode** key ID/secret and a new separate Test Mode webhook secret.
+- A dedicated Groq key for the fixed `openai/gpt-oss-120b` model, with organization-level Zero
+  Data Retention currently confirmed in Data Controls and training/data improvement disabled.
 - An owner display name and email. The owner password is entered interactively later.
 - A local record of the reported AWS credit balance and expiry immediately before launch.
 
@@ -60,6 +67,11 @@ Before launching, confirm prices in the AWS calculator/console. The planning est
 
 Use a budget threshold below the remaining credit and terminate/release resources when the demo is
 finished. Credits and Free Plan eligibility are not guaranteed by this repository.
+
+The deployed `t3.small` has only 2 GiB RAM plus the separately approved 2 GiB swap. Running MySQL,
+API, worker, web, FastEmbed/local Qdrant, LangGraph checkpoints, and provider traffic together is
+deliberately oversubscribed for demo-only traffic. Expect slow first startup and possible swapping;
+do not increase traffic or run concurrent evaluations.
 
 ## 1. Launch the EC2 host — future approved AWS step
 
@@ -155,12 +167,17 @@ chmod 600 demo.env
 openssl rand -hex 24
 openssl rand -hex 24
 openssl rand -base64 32
+openssl rand -base64 32
+openssl rand -base64 32
+openssl rand -base64 32
+openssl rand -base64 32
 nano demo.env
 ```
 
 Use the first hexadecimal value as both occurrences of the application MySQL password, including
 inside both MySQL URLs. Use the second as the MySQL root password. Use the Base64 value as the audit
-integrity key.
+integrity key. Use the other four Base64 values independently for Node-to-AI signing, AI-to-Node
+signing, document encryption, and workflow-artifact encryption. Never reuse a value.
 
 Set:
 
@@ -170,10 +187,21 @@ OPSPILOT_DEMO_HTTP_PORT=80
 OPSPILOT_DEMO_RAZORPAY_KEY_ID=rzp_test_...
 OPSPILOT_DEMO_RAZORPAY_KEY_SECRET=...
 OPSPILOT_DEMO_RAZORPAY_WEBHOOK_SECRET=...
+OPSPILOT_DEMO_AI_LOCAL_TOPOLOGY_ACCEPTED=true
+OPSPILOT_DEMO_AI_ENABLED=true
+OPSPILOT_DEMO_GROQ_API_KEY=gsk_...
+OPSPILOT_DEMO_GROQ_ZERO_DATA_RETENTION_CONFIRMED=true
+OPSPILOT_DEMO_DOCUMENTS_ENABLED=true
+OPSPILOT_DEMO_AI_WORKFLOWS_ENABLED=true
+OPSPILOT_DEMO_AI_BUSINESS_BRIEF_ENABLED=true
+OPSPILOT_DEMO_AI_SUPPORT_WORKFLOW_ENABLED=true
+OPSPILOT_DEMO_AI_SUPPORT_DATA_PROCESSING_CONFIRMED=true
 ```
 
-Do not use quotes or a trailing slash on the public origin. Do not enable AI, documents, or
-workflows.
+Do not use quotes or a trailing slash on the public origin. Complete every AI signing/encryption
+key and non-secret key-ID field in the example. The support confirmation covers fictional demo
+content only; it does not authorize real personal, customer, confidential, payment, or production
+business data.
 
 ## 6. Build and start
 
@@ -181,14 +209,18 @@ workflows.
 sh docker/demo-deploy.sh demo.env
 ```
 
-Wait until `mysql`, `api`, and `web` are healthy and the worker is running:
+The AI image build downloads the exact approved embedding revision and verifies its recorded
+artifact hashes. Runtime model downloads remain disabled. Wait until `mysql`, `api`, `ai`, and
+`web` are healthy and the worker is running:
 
 ```bash
 docker compose --env-file demo.env -f compose.yaml -f compose.demo.yaml --profile app ps
-docker compose --env-file demo.env -f compose.yaml -f compose.demo.yaml --profile app logs --tail 100 api worker web
+docker compose --env-file demo.env -f compose.yaml -f compose.demo.yaml --profile app logs --tail 100 api worker ai web
 ```
 
 The migration container should exit successfully with code `0`. It is not a long-running service.
+The public health response must report `ai: ready`, `aiWorkflows: ready`, and all three document
+dependencies as `ready` without exposing configuration, paths, models, or secrets.
 
 ## 7. Bootstrap the owner
 
@@ -216,6 +248,9 @@ Then use a real browser:
 5. Create a product and inventory, register a separate customer, place an order, and confirm the
    worker processes its jobs.
 6. Test refresh on `/login`, `/products`, and one protected route; the SPA must still load.
+7. Accept each current AI notice and use synthetic prompts to verify customer help, owner overview,
+   owner document upload/index/query with citations, business brief completion, and support draft
+   approval. Never paste prompts, answers, document content, or ticket text into logs/evidence.
 
 ## 9. Configure Razorpay Test Mode webhook
 
@@ -276,11 +311,20 @@ database.
 
 ## Rollback
 
-1. Record the current commit before updating: `git rev-parse HEAD`.
-2. If the update fails, check out the prior commit.
-3. Run `sh docker/demo-deploy.sh demo.env` again.
-4. If a migration was applied, do not assume application rollback reverses it. Restore the prior
+1. For an AI incident, set the support, business-brief, workflow, document, and base-AI flags to
+   `false` in `demo.env`, recreate the stack with `sh docker/demo-deploy.sh demo.env`, and verify
+   core health. Keep the explicit topology-acceptance flag as recorded evidence; it grants no
+   capability by itself.
+2. Record the current commit before updating: `git rev-parse HEAD`.
+3. If the update fails, check out the prior commit.
+4. Run `sh docker/demo-deploy.sh demo.env` again.
+5. If a migration was applied, do not assume application rollback reverses it. Restore the prior
    EBS snapshot/database backup or use a separately reviewed forward repair.
+
+Do not delete `demo-document-data`, `demo-ai-vector-data`, `demo-ai-checkpoint-data`, or
+`mysql-data` during rollback. If local document/vector state becomes inconsistent, disable
+document AI, preserve audit/MySQL evidence, and reindex or delete only through the authorized
+application recovery flow.
 
 ## Shut down billing
 
@@ -315,3 +359,5 @@ When the demo is finished:
 - [Docker Engine installation on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
 - [EC2 T3 instance sizes and `us-east-1` Linux prices](https://aws.amazon.com/ec2/instance-types/t3/)
 - [Public IPv4 pricing](https://aws.amazon.com/vpc/pricing/)
+- [Groq data retention and Zero Data Retention](https://console.groq.com/docs/your-data)
+- [Qdrant local mode guidance](https://qdrant.tech/documentation/frameworks/langchain/#local-mode)

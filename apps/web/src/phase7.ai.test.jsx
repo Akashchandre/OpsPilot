@@ -342,7 +342,7 @@ describe("Phase 7 AI UI", () => {
       await screen.findByRole("heading", { name: "Operations assistant" }),
     ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "AI usage" })).toBeInTheDocument();
-    expect(screen.getByText("420.5 ms")).toBeInTheDocument();
+    expect(await screen.findByText("420.5 ms")).toBeInTheDocument();
     expect(screen.getByText("$0.0200000000")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("From (UTC)"), {

@@ -52,6 +52,8 @@ describe("OpsPilot API foundation", () => {
         status: "ok",
         service: "opspilot-api",
         database: "reachable",
+        ai: "disabled",
+        aiWorkflows: "disabled",
         documents: {
           storage: "disabled",
           embedding: "disabled",
@@ -75,7 +77,7 @@ describe("OpsPilot API foundation", () => {
     const documentStore = { health: vi.fn().mockResolvedValue("ready") };
     const enabled = {
       ...config,
-      ai: { enabled: true },
+      ai: { enabled: true, workflows: { enabled: true } },
       documents: { enabled: true },
     };
 
@@ -86,6 +88,7 @@ describe("OpsPilot API foundation", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({
       ai: "ready",
+      aiWorkflows: "ready",
       documents: { storage: "ready", embedding: "ready", vectorIndex: "ready" },
     });
     expect(JSON.stringify(response.body)).not.toContain("root");

@@ -34,3 +34,6 @@ Do not create a decision record merely to disguise an unresolved choice. Until r
 - `0014-single-ec2-cloudfront-personal-demo.md` — accepted the separate single-EC2 CloudFront personal-demo pack and narrow HTTP origin-hop exception.
 - `0015-static-catalog-imagery-and-public-labelling.md` — accepted bundled static catalog photography, safe SKU-based presentation, removal of visible demo naming, and the shortened persistent Test Mode/fictional-data label.
 - `0016-application-shell-and-action-feedback.md` — accepted the responsive application-shell refinement, grouped navigation, reusable notices, and centralized accessible Toastify mutation feedback.
+- `0017-single-ec2-demo-production-ai-exception.md` — accepted all implemented AI capabilities on
+  the fictional-data single-EC2 demo using explicitly guarded local encrypted document, Qdrant,
+  and checkpoint persistence, with narrow time-bounded risk acceptance.

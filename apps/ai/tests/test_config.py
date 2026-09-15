@@ -237,3 +237,23 @@ def test_rejects_local_rag_persistence_in_production(tmp_path: Path) -> None:
             AI_RAG_MODEL_CACHE_DIR=tmp_path / "models",
             AI_RAG_QDRANT_PATH=tmp_path / "qdrant",
         )
+
+
+def test_accepts_local_rag_only_for_the_approved_production_demo(tmp_path: Path) -> None:
+    settings = make_settings(
+        AI_ENVIRONMENT="production",
+        AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED=True,
+        AI_PROVIDER_ENABLED=True,
+        GROQ_API_KEY="gsk_production_demo_test_only",
+        GROQ_ZERO_DATA_RETENTION_CONFIRMED=True,
+        AI_RAG_ENABLED=True,
+        AI_RAG_MODEL_CACHE_DIR=tmp_path / "models",
+        AI_RAG_QDRANT_PATH=tmp_path / "qdrant",
+    )
+
+    assert settings.production_demo_local_topology_accepted is True
+    assert settings.provider_enabled is True
+    assert settings.rag_enabled is True
+
+    with pytest.raises(ValidationError, match="valid only in production"):
+        make_settings(AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED=True)

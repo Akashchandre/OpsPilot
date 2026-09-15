@@ -116,6 +116,7 @@ const environmentSchema = z
     REALTIME_SESSION_RECHECK_SECONDS: z.coerce.number().int().min(5).max(300).default(30),
     REALTIME_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
     REALTIME_CONNECTION_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(20),
+    AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED: environmentBoolean.default(false),
     AI_ENABLED: environmentBoolean.default(false),
     AI_SERVICE_URL: aiServiceUrlSchema.default("http://127.0.0.1:8000"),
     AI_SERVICE_SIGNING_KEY: optionalEnvironmentString(
@@ -223,7 +224,22 @@ const environmentSchema = z
       });
     }
 
-    if (environment.NODE_ENV === "production" && environment.AI_ENABLED) {
+    if (
+      environment.AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED &&
+      environment.NODE_ENV !== "production"
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED"],
+        message: "The local AI topology acceptance is valid only for the production demo profile",
+      });
+    }
+
+    if (
+      environment.NODE_ENV === "production" &&
+      environment.AI_ENABLED &&
+      !environment.AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED
+    ) {
       context.addIssue({
         code: "custom",
         path: ["AI_ENABLED"],
@@ -299,7 +315,11 @@ const environmentSchema = z
       }
     }
 
-    if (environment.NODE_ENV === "production" && environment.AI_WORKFLOWS_ENABLED) {
+    if (
+      environment.NODE_ENV === "production" &&
+      environment.AI_WORKFLOWS_ENABLED &&
+      !environment.AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED
+    ) {
       context.addIssue({
         code: "custom",
         path: ["AI_WORKFLOWS_ENABLED"],
@@ -333,7 +353,11 @@ const environmentSchema = z
       }
     }
 
-    if (environment.NODE_ENV === "production" && environment.DOCUMENTS_ENABLED) {
+    if (
+      environment.NODE_ENV === "production" &&
+      environment.DOCUMENTS_ENABLED &&
+      !environment.AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED
+    ) {
       context.addIssue({
         code: "custom",
         path: ["DOCUMENT_STORAGE_ADAPTER"],
@@ -428,6 +452,7 @@ export function loadEnvironment(source = process.env) {
       connectionRateLimitMax: result.data.REALTIME_CONNECTION_RATE_LIMIT_MAX,
     }),
     ai: Object.freeze({
+      productionDemoLocalTopologyAccepted: result.data.AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED,
       enabled: result.data.AI_ENABLED,
       serviceUrl: result.data.AI_SERVICE_URL,
       signingKey: result.data.AI_SERVICE_SIGNING_KEY,

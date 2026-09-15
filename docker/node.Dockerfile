@@ -86,7 +86,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 RUN rm -rf /usr/local/lib/node_modules/npm \
-    && rm -f /usr/local/bin/npm /usr/local/bin/npx
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+    && install -d -o 1000 -g 1000 -m 0700 /var/lib/opspilot/documents
 
 COPY --from=runtime-dependencies --chown=1000:1000 /app/node_modules ./node_modules
 COPY --from=dependencies --chown=1000:1000 /app/apps/api/src/generated ./apps/api/src/generated

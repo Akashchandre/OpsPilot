@@ -56,6 +56,10 @@ class AiSettings(BaseSettings):
         default="info",
         alias="AI_LOG_LEVEL",
     )
+    production_demo_local_topology_accepted: bool = Field(
+        default=False,
+        alias="AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED",
+    )
     provider_enabled: bool = Field(default=False, alias="AI_PROVIDER_ENABLED")
     signing_key: SecretStr = Field(alias="AI_SERVICE_SIGNING_KEY")
     signing_key_id: str = Field(
@@ -163,7 +167,16 @@ class AiSettings(BaseSettings):
 
     @model_validator(mode="after")
     def require_provider_secret_when_enabled(self) -> "AiSettings":
+        if self.production_demo_local_topology_accepted and self.environment != "production":
+            raise ValueError(
+                "AI_PRODUCTION_DEMO_LOCAL_TOPOLOGY_ACCEPTED is valid only in production"
+            )
         if self.provider_enabled:
+            if (
+                self.environment == "production"
+                and not self.production_demo_local_topology_accepted
+            ):
+                raise ValueError("Production AI requires an explicitly accepted topology")
             key = self.groq_api_key
             if key is None or not key.get_secret_value().strip():
                 raise ValueError("GROQ_API_KEY is required when AI_PROVIDER_ENABLED=true")
@@ -174,7 +187,10 @@ class AiSettings(BaseSettings):
                     "GROQ_ZERO_DATA_RETENTION_CONFIRMED must be true when AI_PROVIDER_ENABLED=true"
                 )
         if self.rag_enabled:
-            if self.environment == "production":
+            if (
+                self.environment == "production"
+                and not self.production_demo_local_topology_accepted
+            ):
                 raise ValueError("Local Phase 8 RAG persistence is not approved for production")
             for field_name in ("rag_model_cache_dir", "rag_qdrant_path"):
                 configured_path = getattr(self, field_name)
@@ -191,7 +207,10 @@ class AiSettings(BaseSettings):
             if self.rag_model_cache_dir == self.rag_qdrant_path:
                 raise ValueError("AI_RAG_MODEL_CACHE_DIR and AI_RAG_QDRANT_PATH must be different")
         if self.workflows_enabled:
-            if self.environment == "production":
+            if (
+                self.environment == "production"
+                and not self.production_demo_local_topology_accepted
+            ):
                 raise ValueError("Local Phase 9 checkpoints are not approved for production")
             if not self.provider_enabled:
                 raise ValueError("AI_WORKFLOWS_ENABLED requires AI_PROVIDER_ENABLED")

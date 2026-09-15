@@ -9,14 +9,17 @@ smoke deferred and acceptance pending; Phase 5 repository-complete and committed
 repository-complete and verified under ADR 0008; Phase 7 accepted and complete for the
 repository/development scope under ADRs 0009 and 0010, with production review still pending;
 Phase 8 is accepted and complete for the repository/development scope under ADR 0011 as of
-2026-09-06. Its local encrypted-storage and local-vector topology is not approved for production.
+2026-09-06. Its local encrypted-storage and local-vector topology is not approved for general
+production; ADR 0017 records a narrow, time-bounded fictional-data personal-demo exception.
 Phase 9's workflow/dependency baseline was accepted under ADR 0012 on 2026-09-06. Its complete
 repository/development implementation and automated gate passed and were explicitly accepted that
-day; production and separately gated data/live-evaluation uses remain unapproved. Phase 10's
+day; general production and separately gated data/live-evaluation uses remain unapproved. Phase 10's
 production-configured personal-demo baseline, Razorpay Test Mode/no-real-money contract, staged
 AWS/Docker/GitHub delivery direction, and progressive production AI gates were accepted under ADR
 0013 on 2026-09-07. Controlled repository implementation is active; exact dependencies/tools,
-cloud resources, production AI/data use, Live Mode, and deployment remain separately gated. The
+cloud resources, general production AI/data use, Live Mode, and deployment remain separately gated.
+ADR 0017 separately accepts all implemented AI capabilities only on the existing single-EC2
+fictional-data demo topology; the AI-enabled release remains pending deployment. The
 selected profile is public, uses an existing AWS account and generated CloudFront domain, permits
 eligible Free Tier credits but no paid spend, sends alerts by email, and uses public GitHub Free.
 On 2026-09-09 the owner selected `us-east-1` and reported an AWS Free Plan account with USD 160 of
@@ -35,8 +38,12 @@ narrow exception without changing ADR 0013's production baseline. The repository
 locally verified unprivileged Nginx/React edge, Node API and worker, MySQL Compose profile, exact
 Socket.IO `/api/v1` transport path, private environment example, deployment/bootstrap/smoke
 scripts, and manual `us-east-1` runbook. Browser traffic remains HTTPS, Razorpay remains Test Mode,
-and AI/documents/workflows remain disabled. No AWS account was accessed and no resource was
-provisioned or deployed.
+and the initial release kept AI/documents/workflows disabled. That personal demo was subsequently
+deployed. On 2026-09-15 ADR 0017 recorded the owner's explicit acceptance of the current AI image
+findings and local non-HA/no-backup limitations for a time-bounded fictional-data-only exception.
+The repository's demo profile now enables all implemented AI capabilities behind an explicit
+fail-closed topology flag, with the exact reviewed embedding artifact baked and hash-verified; the
+AI-enabled release has passed local production-profile verification but is not yet deployed.
 
 ## Purpose
 
@@ -140,9 +147,9 @@ Broader personal/row-level context, general agents, and deferred tools/actions r
 | UI system                 | Material UI or Tailwind CSS                                                                                                            | **Decision Required**                                                                           |
 | Main API                  | Node.js, Express, JavaScript                                                                                                           | Agreed                                                                                          |
 | Relational data           | MySQL with Prisma                                                                                                                      | Agreed                                                                                          |
-| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b`; LangGraph only for approved bounded Phase 9 workflows | Phases 7–9 accepted for repository/development; production unapproved                           |
-| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                | Verified under ADR 0011; production vector topology remains **Decision Required**               |
-| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development         | Local document storage is not approved for production; Redis/shared adapters remain conditional |
+| AI service                | Python/FastAPI boundary; Groq Chat Completions with fixed `openai/gpt-oss-120b`; LangGraph only for approved bounded Phase 9 workflows | General production unapproved; ADR 0017 accepts the fictional-data single-host demo exception    |
+| Retrieval                 | Local Qdrant plus FastEmbed `sentence-transformers/all-MiniLM-L6-v2` for Phase 8 repository/development                                | General production topology undecided; ADR 0017 accepts local demo-only operation                 |
+| Supporting infrastructure | MySQL jobs/JavaScript worker/Socket.IO hints; encrypted private filesystem document storage for Phase 8 repository/development         | ADR 0017 accepts local demo-only volumes; Redis/shared adapters remain conditional                |
 | Delivery                  | Accepted Docker, GitHub Actions, CloudFormation, and AWS ECS/RDS/S3/CloudFront design direction                                        | ADR 0013; exact tools, infrastructure changes, and deployment remain separately gated           |
 
 The main frontend and backend must remain JavaScript. TypeScript migration is out of scope unless the project direction is explicitly changed.
@@ -190,8 +197,9 @@ explicitly authorized using that key and implementing Groq. ADR 0010 switches on
 adapter and provider-scoped contracts to Groq Chat Completions with fixed
 `openai/gpt-oss-120b`. Global ZDR, the redacted key/model access preflight, the paced metered live
 evaluation, and the signed live service path passed without exposing secrets or retaining content.
-The user explicitly enabled development inference and accepted Phase 7 on 2026-09-04. Production
-deployment remains unapproved pending the manual account/privacy/operations review.
+The user explicitly enabled development inference and accepted Phase 7 on 2026-09-04. General
+production deployment remains unapproved pending the manual account/privacy/operations review;
+ADR 0017 later added only the fictional-data personal-demo exception.
 
 On 2026-09-05, the user accepted the Phase 8 baseline in ADR 0011, including its exact local
 Qdrant/FastEmbed dependencies and one-time approved MiniLM artifact cache. Repository/development
@@ -199,8 +207,8 @@ implementation now adds strict text/Markdown document ingestion, encrypted priva
 versioned audience/lifecycle metadata, MySQL-backed ingest/reindex/deletion jobs, signed retrieval,
 bounded grounded context, and citation handling. Final Phase 8 verification passed, and the user
 instructed that the completed phase be committed on 2026-09-06, recording explicit acceptance for
-the repository/development scope. Local filesystem/Qdrant operation is deliberately rejected in
-production.
+the repository/development scope. Local filesystem/Qdrant operation remains rejected in general
+production and is permitted only by ADR 0017's bounded personal-demo exception.
 
 On 2026-09-06, the user explicitly instructed OpsPilot to start Phase 9 and then approved the
 complete repository/development baseline under ADR 0012. It defines an owner-only read-only
@@ -222,8 +230,9 @@ an exact `us-east-1` or `us-east-2` choice. On 2026-09-09 the owner resolved the
 `us-east-1` and reported 67 credit-days remaining, Free Plan status, MFA, and billing alerts.
 Those account facts remain owner-reported rather than independently verified. No new
 dependency/tool, provider account, cloud resource, paid
-spend, real data use, Live Mode payment, production AI enablement, or deployment is approved by
-that acceptance.
+spend, real data use, Live Mode payment, production AI enablement, or deployment was approved by
+that acceptance. ADR 0017 later approved AI enablement only for the existing fictional-data
+single-EC2 demo and explicitly did not approve those broader uses.
 
 On 2026-09-08 the user separately approved the exact Batch 10C Node/Python/MySQL image pull and
 build. Hardened local images, Compose, SBOM/provenance, fresh migrations, health, shutdown, and

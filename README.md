@@ -16,20 +16,24 @@ Python/FastAPI Groq adapter, signed Node boundary, stateless customer/owner assi
 consent, metadata-only usage/cost evidence, permissions, and safe UI are implemented. On 2026-09-04,
 Global ZDR, the redacted preflight, the paced 20-case live evaluation, and the signed live service
 path passed; the user explicitly enabled development inference and accepted Phase 7 after its
-completion gate passed. Phase 7 is complete for the repository/development scope. Production
-rollout and the broader privacy/account/operations review remain pending.
+completion gate passed. Phase 7 is complete for the repository/development scope. General
+production rollout remains pending outside the narrow fictional-data personal-demo exception in
+ADR 0017.
 
 **Phase 8 — RAG and Document Intelligence** and **Phase 9 — LangGraph Business AI and AI Support**
 are accepted and complete for repository/development under ADRs 0011 and 0012. Their local
-filesystem/Qdrant/SQLite topology is not approved for production. **Phase 10 — Testing, Docker,
-CI/CD, and Production** began on 2026-09-07. ADR 0013 retains the production-readiness baseline;
-unresolved Node/AI/Prisma and CI-action findings continue to block that production release.
+filesystem/Qdrant/SQLite topology is not approved for general production. **Phase 10 — Testing,
+Docker, CI/CD, and Production** began on 2026-09-07. ADR 0013 retains the production-readiness
+baseline; unresolved Node/AI/Prisma and CI-action findings continue to block that general
+production release.
 For the separate personal-demo fast path, ADR 0014 accepts browser HTTPS through a generated
 CloudFront domain and the explicitly approved HTTP CloudFront-to-EC2 hop. Its single-EC2 Nginx,
 React, Node API/worker, MySQL, Compose, operator scripts, and manual runbook are implemented and
-locally verified. No AWS account was accessed and no cloud resource or deployment has been
-created. Production AI/data use, Razorpay Live Mode, real data, and finding acceptance remain out
-of scope.
+locally verified and deployed. ADR 0017 now records the owner's explicit, time-bounded acceptance
+of the current AI image findings and the single-host local persistence limitations for fictional
+demo data only. The production demo profile enables assistants, document RAG, business briefs, and
+support workflows behind one explicit fail-closed topology flag; this AI-enabled release is locally
+verified but not yet committed or deployed. Razorpay Live Mode and real data remain out of scope.
 
 ## Source of truth
 
@@ -218,12 +222,12 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 
 ## Current phase
 
-Phase 10 is in progress. The ADR 0014 single-EC2 CloudFront personal-demo deployment pack is ready
-and locally verified, but it has not been deployed. AWS access/provisioning needs a separate owner
-approval and must follow the exact manual runbook. The ADR 0013 production release remains blocked
-by its recorded zero-residual findings and strict origin-TLS requirements. Earlier accepted phase
-status is unchanged; Phase 4 remains repository-complete but unaccepted because its external
-Razorpay Test Mode smoke is deferred. See the
+Phase 10 is in progress. The ADR 0014 single-EC2 CloudFront personal demo is deployed. ADR 0017's
+AI-enabled update is repository-ready and locally verified but still requires an exact clean
+commit/release deployment. The broader ADR 0013 production release remains blocked by its recorded
+zero-residual findings and strict origin-TLS requirements. Earlier accepted phase status is
+unchanged; Phase 4 remains repository-complete but unaccepted because its external Razorpay Test
+Mode smoke is deferred. See the
 [single-EC2 demo deployment runbook](docs/phase-10/PHASE-10-SINGLE-EC2-DEMO-DEPLOYMENT-RUNBOOK.md)
 and [WORK-PROGRESS.md](docs/WORK-PROGRESS.md).
 
@@ -233,5 +237,5 @@ Phase 5 stayed within ADR 0007 and is committed as `10e73ac`. Phase 6 stayed wit
 approved job/outbox, worker, notification, real-time hint, owner tooling, and verification baseline.
 Phase 7 implementation is limited to ADRs 0009 and 0010. Live payments, unresolved Phase 4 provider/go-live
 gates, attachments, exports, Redis, BullMQ, external brokers/channels, hosted observability,
-multi-instance/production deployment, and every unapproved later AI capability remain outside
-scope.
+multi-instance/general production deployment, and every AI capability outside ADR 0017's
+fictional-data single-host demo exception remain outside scope.

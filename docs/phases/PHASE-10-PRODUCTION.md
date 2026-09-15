@@ -13,11 +13,13 @@ approved only Batch 10E changes 10E-1 through 10E-4, the two non-secret timing s
 MySQL rebuild, and disposable tests. Batch 10E now clears MySQL's lower-layer gosu/Go attribution,
 passes its `0C/0H` gate, and verifies deterministic API/worker recovery and supervised exit across
 database outages. Node, migration, AI, and Prisma findings remain, so Batch 10C/10D/10E remain
-unaccepted; no finding was accepted. The separately authorized proposal-only Batch 10F upstream
+unaccepted under ADR 0013; no general-production finding was accepted. The separately authorized proposal-only Batch 10F upstream
 review found no current zero-residual Node/Python image or stable Prisma remediation candidate, so
 it recommends no implementation and preserves every blocker. No other new dependency/tool, cloud
-resource, real customer/regulated data use, production AI enablement, Razorpay Live Mode, or
-deployment is approved yet.
+resource, real customer/regulated data use, general production AI enablement, Razorpay Live Mode,
+or broader deployment is approved. ADR 0017 separately accepts a time-bounded, fictional-data-only
+AI exception on the existing ADR 0014 single-EC2 personal demo. Its repository profile is locally
+verified but the AI-enabled release is not yet deployed.
 
 The prohibited Trixie, Prisma/MariaDB dependency, waiver/VEX, and residual-acceptance paths were not
 used. Complete implementation evidence and the local operator path are in
@@ -215,4 +217,6 @@ Unreviewed features, speculative infrastructure, and production launch without c
 Razorpay Test Mode may be used in the personal production-configured demo only when it is
 unmistakably labelled `TEST MODE — NO REAL MONEY`; Live Mode remains prohibited. Commercial claims,
 real payment acceptance, unapproved customer/production data, non-synthetic support-data model
-processing, and silent AI/document/workflow production enablement remain excluded.
+processing and silent AI/document/workflow production enablement remain excluded. ADR 0017 allows
+explicitly flagged AI/document/workflow enablement only for the existing fictional-data personal
+demo and does not authorize real data, HA claims, Live Mode, or general production use.
