@@ -33,7 +33,10 @@ locally verified and deployed. ADR 0017 now records the owner's explicit, time-b
 of the current AI image findings and the single-host local persistence limitations for fictional
 demo data only. The production demo profile enables assistants, document RAG, business briefs, and
 support workflows behind one explicit fail-closed topology flag; this AI-enabled release is locally
-verified but not yet committed or deployed. Razorpay Live Mode and real data remain out of scope.
+verified and deployed at exact application release
+`117f645e3ed981cae0dcf03e070159093398dc21`. Its public AI/document/workflow health smoke passes;
+signed-in fictional route exercises remain external acceptance. Razorpay Live Mode and real data
+remain out of scope.
 
 ## Source of truth
 
@@ -223,8 +226,9 @@ The owner bootstrap prompts for the password and confirmation without accepting 
 ## Current phase
 
 Phase 10 is in progress. The ADR 0014 single-EC2 CloudFront personal demo is deployed. ADR 0017's
-AI-enabled update is repository-ready and locally verified but still requires an exact clean
-commit/release deployment. The broader ADR 0013 production release remains blocked by its recorded
+AI-enabled update is deployed and healthy at exact application release
+`117f645e3ed981cae0dcf03e070159093398dc21`; signed-in fictional AI route exercises remain external
+acceptance. The broader ADR 0013 production release remains blocked by its recorded
 zero-residual findings and strict origin-TLS requirements. Earlier accepted phase status is
 unchanged; Phase 4 remains repository-complete but unaccepted because its external Razorpay Test
 Mode smoke is deferred. See the

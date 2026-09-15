@@ -5,11 +5,12 @@
 ## Current Phase
 
 Phase 10 — Testing, Docker, CI/CD, and Production (baseline accepted under ADR 0013; separate ADR
-0014 personal demo deployed; browser/Razorpay dashboard acceptance pending)
+0014 personal demo and ADR 0017 AI exception deployed; signed-in AI/browser/Razorpay dashboard
+acceptance pending)
 
 ## Status
 
-PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO UPDATE VERIFIED, EXACT RELEASE DEPLOYMENT PENDING
+PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO DEPLOYED, EXTERNAL ACCEPTANCE PENDING
 
 ## Completed
 
@@ -567,11 +568,22 @@ PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO UPDATE VERIFIED, EXACT RELEASE D
   private-mode path, credential-scope, and volume-write checks. The complete gates pass at 226 API
   tests, 63 web tests, and 166 Python tests with three explicit skips, plus ESLint, Prettier, Prisma
   validation, Ruff, web build, Compose render, and AI/Node image builds. The synthetic stack and
-  volumes were removed. The AI-enabled update is locally release-ready but is not yet committed or
-  deployed. A digest-specific Docker Scout recheck was unavailable because Scout now requires
-  Docker Hub authentication; the unchanged OS/Python package set retains the carried-forward
+  volumes were removed. A digest-specific Docker Scout recheck was unavailable because Scout now
+  requires Docker Hub authentication; the unchanged OS/Python package set retains the carried-forward
   `3C/11H` acceptance rather than a newly scanned count. Evidence is in
   `docs/phase-10/PHASE-10-ADR-0017-AI-DEMO-EVIDENCE.md`.
+- The owner approved exact release `117f645e3ed981cae0dcf03e070159093398dc21` and authorized
+  securely transferring the existing Groq credential into the ignored production environment.
+  On 2026-09-15 that clean commit was pushed and deployed through the ADR 0014 data-preserving
+  script. The existing MySQL container/data volume remained in place; migration completed; API,
+  AI, MySQL, and web stabilized healthy; the worker continued successful expiry and AI-retention
+  jobs; and the API reported database, AI, workflows, document storage, embedding, and vector index
+  ready. The AI service has no host port, runs as UID/GID `10002:10002`, keeps separate mode-`0700`
+  checkpoint/vector roots, and is the only container receiving the Groq credential variable.
+- The public CloudFront smoke passed SPA, login, API, AI, document, workflow, and Socket.IO checks.
+  Cache invalidation `I54J2JXQURIQTRPTKYI9WDO5UC` completed so clients receive the new navbar
+  bundle. Deployment verification made no metered prompt submission; signed-in fictional browser
+  exercises for each AI surface remain external acceptance.
 
 ## In Progress
 
@@ -585,10 +597,10 @@ PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO UPDATE VERIFIED, EXACT RELEASE D
   reviewed PR 1599 patch have current high findings. No patched release has passed review. Later CI,
   E2E, accessibility, security pins, and any next remediation batch still require separate review
   and approval before use.
-- The separate ADR 0014 personal demo is deployed and publicly reachable through CloudFront. ADR
-  0017's AI-enabled repository update is locally verified but awaits an exact clean commit and
-  data-preserving deployment. The
-  remaining external acceptance requires the owner to save the new Test Mode webhook URL, matching
+- The separate ADR 0014 personal demo and ADR 0017 AI exception are deployed and publicly reachable
+  through CloudFront at exact application release `117f645e3ed981cae0dcf03e070159093398dc21`.
+  Remaining external acceptance includes exercising every AI surface with fictional content in a
+  signed-in browser. Separately, the owner must save the new Test Mode webhook URL, matching
   separate secret, seven-event allowlist, and automatic-capture setting in Razorpay, then complete
   the real-browser login/notification/route-refresh and one fictional Test Mode checkout checks.
 - The AWS API independently verified the selected `us-east-1` account remains on an active Free
@@ -617,13 +629,11 @@ PHASE 10 BASELINE ACCEPTED — ADR 0017 AI DEMO UPDATE VERIFIED, EXACT RELEASE D
 
 ## Next Task
 
-Create and approve one exact clean AI-enabled release commit without absorbing unrelated local
-files, reconfirm Groq Global ZDR, populate the ignored mode-`0600` production `demo.env` with
-distinct keys, and deploy through the ADR 0014 data-preserving script. Then verify coarse health
-and every AI route using fictional content only. Separately, save the displayed webhook URL and
-secret in the Razorpay Test Mode dashboard, subscribe only to the seven approved events, confirm
-automatic capture, and complete the remaining fictional browser checks. Do not use real data,
-Live Mode, or unapproved paid-plan changes.
+Exercise every deployed AI surface in a signed-in browser using fictional content only, and monitor
+the EC2 host for memory/swap pressure during those calls. Separately, save the displayed webhook URL
+and secret in the Razorpay Test Mode dashboard, subscribe only to the seven approved events,
+confirm automatic capture, and complete the remaining fictional browser checks. Do not use real
+data, Live Mode, or unapproved paid-plan changes.
 
 In parallel, keep Batch 10F proposal-only and Batch 10G-1 unimplemented until official patched
 upstream releases pass the existing immutable-pin/license/advisory/compatibility gates. The ADR
@@ -920,8 +930,9 @@ model under ADR 0013. Controlled repository implementation is active, starting w
 Razorpay Test Mode/no-real-money labelling. The separately authorized ADR 0014 personal demo is
 deployed at the exact approved commit, with its final browser/Razorpay acceptance still pending.
 The broader ADR 0013 production release and real data remain separately gated. ADR 0017 permits
-production AI only on the existing fictional-data single-EC2 personal demo; its exact release is
-locally verified and pending deployment.
+production AI only on the existing fictional-data single-EC2 personal demo; exact application
+release `117f645e3ed981cae0dcf03e070159093398dc21` is deployed and healthy, with signed-in fictional
+AI route exercises remaining as external acceptance.
 Metered workflow evaluation,
 non-synthetic support-data model processing, Redis/Valkey, external channels, live payments,
 multi-instance deployment, unapproved workflows/actions, and every unaccepted production
